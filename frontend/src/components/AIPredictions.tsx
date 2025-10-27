@@ -1,0 +1,362 @@
+// components/AIPredictions.tsx - полностью обновленная версия
+import React, { useState, useEffect } from 'react';
+import {
+  Paper,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+  Chip,
+  Alert,
+  Tooltip,
+  IconButton,
+  Menu,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  Snackbar
+} from '@mui/material';
+import { 
+  Refresh, 
+  Warning, 
+  Info, 
+  ExpandMore,
+  TrendingUp,
+  SmartToy
+} from '@mui/icons-material';
+import { aiAPI } from '../services/api';
+
+interface AIPrediction {
+  product_id: string;
+  product_name: string;
+  current_stock: number;
+  days_until_stockout: number;
+  recommended_order_quantity: number;
+  confidence_score: number;
+  reasoning?: string;
+  risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+  prediction_date?: string;
+}
+
+interface AIResponse {
+  predictions: AIPrediction[];
+  period_days: number;
+  analysis_summary?: string;
+  generated_at: string;
+  ai_model?: string;
+  note?: string;
+}
+
+const AIPredictions: React.FC = () => {
+  const [predictions, setPredictions] = useState<AIPrediction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [periodDays, setPeriodDays] = useState<number>(7);
+  const [aiModel, setAiModel] = useState<string>('Gemini Pro');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+
+  // Меню для дополнительных опций
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const loadPredictions = async (forceRefresh: boolean = false) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔄 Loading AI predictions...');
+      
+      let response: AIResponse;
+      
+      if (forceRefresh) {
+        response = await aiAPI.refreshPredictions(periodDays);
+      } else {
+        response = await aiAPI.getPredictions(periodDays);
+      }
+
+      console.log('✅ AI predictions loaded:', response.predictions?.length);
+      
+      setPredictions(response.predictions || []);
+      setLastUpdated(new Date());
+      setAiModel(response.ai_model || 'AI Service');
+      
+      if (response.note) {
+        setSnackbar({ open: true, message: response.note });
+      }
+
+    } catch (err: any) {
+      console.error('❌ Error loading AI predictions:', err);
+      setError(err.response?.data?.error || 'Ошибка загрузки прогнозов');
+      setSnackbar({ open: true, message: 'Используются резервные прогнозы' });
+      
+      // Fallback - загружаем историю последних прогнозов
+      try {
+        const history = await aiAPI.getPredictionHistory(5);
+        if (history && history.length > 0) {
+          setPredictions(history);
+          setAiModel('Historical Data');
+        }
+      } catch (historyError) {
+        console.error('Failed to load prediction history:', historyError);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPredictions();
+    
+    // Автообновление каждые 30 минут
+    const interval = setInterval(() => loadPredictions(), 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [periodDays]);
+
+  const handlePeriodChange = (event: any) => {
+    setPeriodDays(event.target.value);
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleForceRefresh = () => {
+    handleMenuClose();
+    loadPredictions(true);
+  };
+
+  const handleViewHistory = async () => {
+    handleMenuClose();
+    try {
+      const history = await aiAPI.getPredictionHistory(10);
+      setPredictions(history);
+      setAiModel('Prediction History');
+    } catch (err) {
+      console.error('Error loading history:', err);
+    }
+  };
+
+  const getRiskColor = (risk?: string) => {
+    switch (risk) {
+      case 'HIGH': return 'error';
+      case 'MEDIUM': return 'warning';
+      case 'LOW': return 'success';
+      default: return 'default';
+    }
+  };
+
+  const getStockoutColor = (days: number) => {
+    if (days <= 2) return 'error';
+    if (days <= 5) return 'warning';
+    return 'success';
+  };
+
+  const getConfidenceColor = (score: number) => {
+    if (score >= 0.8) return 'success';
+    if (score >= 0.6) return 'warning';
+    return 'error';
+  };
+
+  const getStockoutText = (days: number) => {
+    if (days <= 0) return 'ЗАКОНЧИЛСЯ';
+    if (days <= 2) return `${days} дн. ⚠️`;
+    if (days <= 5) return `${days} дн.`;
+    return `${days} дн. ✅`;
+  };
+
+  return (
+    <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Заголовок с управлением */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SmartToy color="primary" />
+          <Typography variant="h6" component="h2">
+            Прогноз ИИ
+          </Typography>
+          <Chip 
+            label={aiModel}
+            size="small"
+            variant="outlined"
+            color="primary"
+          />
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FormControl size="small" sx={{ minWidth: 100 }}>
+            <InputLabel>Период</InputLabel>
+            <Select
+              value={periodDays}
+              onChange={handlePeriodChange}
+              label="Период"
+              disabled={loading}
+            >
+              <MenuItem value={7}>7 дней</MenuItem>
+              <MenuItem value={14}>14 дней</MenuItem>
+              <MenuItem value={30}>30 дней</MenuItem>
+            </Select>
+          </FormControl>
+
+          {lastUpdated && (
+            <Typography variant="caption" color="textSecondary" sx={{ mx: 1 }}>
+              {lastUpdated.toLocaleTimeString('ru-RU')}
+            </Typography>
+          )}
+
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Refresh />}
+            onClick={() => loadPredictions()}
+            disabled={loading}
+          >
+            Обновить
+          </Button>
+
+          <IconButton
+            size="small"
+            onClick={handleMenuOpen}
+            disabled={loading}
+          >
+            <ExpandMore />
+          </IconButton>
+
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem onClick={handleForceRefresh}>
+              <Refresh fontSize="small" sx={{ mr: 1 }} />
+              Принудительное обновление
+            </MenuItem>
+            <MenuItem onClick={handleViewHistory}>
+              <TrendingUp fontSize="small" sx={{ mr: 1 }} />
+              История прогнозов
+            </MenuItem>
+          </Menu>
+        </Box>
+      </Box>
+
+      {/* Сообщения об ошибках */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Прогресс загрузки */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, flexGrow: 1 }}>
+          <Box textAlign="center">
+            <CircularProgress size={40} />
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              AI анализирует данные...
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
+      {/* Контент прогнозов */}
+      {!loading && (
+        <Box sx={{ flexGrow: 1 }}>
+          {predictions.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Нет данных для прогноза. Загрузите исторические данные через CSV.
+            </Alert>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {predictions.slice(0, 5).map((prediction, index) => (
+                <Paper 
+                  key={`${prediction.product_id}-${index}`} 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2, 
+                    borderLeft: 4, 
+                    borderColor: getStockoutColor(prediction.days_until_stockout),
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: 1,
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold" sx={{ flex: 1 }}>
+                      {prediction.product_name}
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Chip 
+                        label={getStockoutText(prediction.days_until_stockout)}
+                        color={getStockoutColor(prediction.days_until_stockout)}
+                        size="small"
+                        variant="filled"
+                      />
+                      <Chip 
+                        label={`${Math.round(prediction.confidence_score * 100)}%`}
+                        color={getConfidenceColor(prediction.confidence_score)}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mb: 1 }}>
+                    <Typography variant="body2">
+                      📦 Текущий остаток: <strong>{prediction.current_stock} шт.</strong>
+                    </Typography>
+                    <Typography variant="body2">
+                      🛒 Рекомендуемый заказ: <strong>{prediction.recommended_order_quantity} шт.</strong>
+                    </Typography>
+                  </Box>
+
+                  {prediction.reasoning && (
+                    <Tooltip title={prediction.reasoning} arrow>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mt: 1 }}>
+                        <Info fontSize="small" color="action" sx={{ mt: 0.2 }} />
+                        <Typography variant="caption" color="textSecondary">
+                          {prediction.reasoning}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  )}
+
+                  {prediction.risk_level && prediction.risk_level === 'HIGH' && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<Warning />}>
+                      <Typography variant="caption" fontWeight="bold">
+                        Высокий риск дефицита! Рекомендуется срочный заказ.
+                      </Typography>
+                    </Alert>
+                  )}
+                </Paper>
+              ))}
+            </Box>
+          )}
+        </Box>
+      )}
+
+      {/* Футер с информацией */}
+      <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="textSecondary">
+          💡 AI анализирует исторические данные и прогнозирует остатки на {periodDays} дней
+          {lastUpdated && ` • Обновлено: ${lastUpdated.toLocaleString('ru-RU')}`}
+        </Typography>
+      </Box>
+
+      {/* Snackbar для уведомлений */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
+    </Paper>
+  );
+};
+
+export default AIPredictions;

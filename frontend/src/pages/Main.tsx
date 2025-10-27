@@ -1,0 +1,559 @@
+import React, { useState, useEffect } from "react"
+import { useDispatch, useSelector } from "react-redux"
+import { useNavigate, useLocation } from "react-router-dom"
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  Button,
+  IconButton,
+  Tooltip,
+  Menu,
+  MenuItem,
+  Divider,
+  Badge,
+  Typography,
+  useTheme,
+  useMediaQuery,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Chip,
+  ListItemButton,
+  Alert,
+} from "@mui/material"
+import {
+  AccountCircle,
+  Logout,
+  Wifi,
+  WifiOff,
+  Notifications,
+  Dashboard as DashboardIcon,
+  History as HistoryIcon,
+  Upload,
+  Close,
+  Warning,
+  BatteryAlert,
+  TrendingUp
+} from "@mui/icons-material"
+import { motion, AnimatePresence } from "framer-motion"
+import { RootState, AppDispatch } from '../store'
+import { logout } from '../store/slices/authSlice'
+import { useWebSocket } from '../hooks/useWebSocket'
+import Dashboard from './Dashboard'
+import History from './History'
+import UploadCSVModal from '../components/UploadCSVModal'
+import { markAsRead, markAllAsRead } from '../store/slices/notificationsSlice'
+import notificationSocketService from '../services/notificationSocketService'
+
+type TabType = "dashboard" | "history"
+
+const logoAnimation = {
+  initial: { scale: 0, opacity: 0 },
+  animate: { 
+    scale: 1, 
+    opacity: 1,
+  },
+  exit: { 
+    scale: 0, 
+    opacity: 0,
+  }
+}
+
+const appBarAnimation = {
+  initial: { y: -100, opacity: 0 },
+  animate: { 
+    y: 0, 
+    opacity: 1,
+  },
+  exit: { 
+    y: -100, 
+    opacity: 0,
+  }
+}
+
+const contentAnimation = {
+  initial: { opacity: 0 },
+  animate: { 
+    opacity: 1,
+  },
+  exit: { 
+    opacity: 0,
+  }
+}
+
+const Main: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"))
+
+  const { user } = useSelector((state: RootState) => state.auth)
+  const { items: notifications, unreadCount } = useSelector((state: RootState) => state.notifications)
+  const wsConnected = useWebSocket()
+
+  const [showInitialAnimation, setShowInitialAnimation] = useState(true)
+  const [showContent, setShowContent] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  // Определяем активную вкладку на основе текущего URL
+  const getActiveTabFromPath = (pathname: string): TabType => {
+    if (pathname.includes('/history')) return 'history'
+    return 'dashboard' // по умолчанию
+  }
+
+  const [activeTab, setActiveTab] = useState<TabType>(getActiveTabFromPath(location.pathname))
+  const [prevTab, setPrevTab] = useState<TabType | null>(null)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [notificationsDrawerOpen, setNotificationsDrawerOpen] = useState(false)
+  const [alert, setAlert] = useState<{ type: "success" | "error" | "warning" | "info"; message: string } | null>(null)
+
+  // Синхронизация активной вкладки с URL при изменении location
+  useEffect(() => {
+    const newActiveTab = getActiveTabFromPath(location.pathname)
+    if (newActiveTab !== activeTab) {
+      setActiveTab(newActiveTab)
+    }
+  }, [location.pathname])
+
+  // Анимация входа
+  useEffect(() => {
+    const fromLogin = location.state?.fromLogin
+    
+    if (fromLogin) {
+      // Быстрая анимация при переходе из логина
+      const timer = setTimeout(() => {
+        setShowInitialAnimation(false)
+        setShowContent(true)
+      }, 400)
+      return () => clearTimeout(timer)
+    } else {
+      // Полная анимация при обычной загрузке
+      const timer1 = setTimeout(() => setShowInitialAnimation(false), 1200)
+      const timer2 = setTimeout(() => setShowContent(true), 1300)
+      return () => {
+        clearTimeout(timer1)
+        clearTimeout(timer2)
+      }
+    }
+  }, [location.state])
+
+  // Подключение к уведомлениям через Socket.io
+  useEffect(() => {
+    // Запрос разрешения на уведомления
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // Подключение уведомлений через Socket.io
+    notificationSocketService.connect();
+
+    // Обработчик для показа alert в интерфейсе при новых уведомлениях
+    const handleNewNotificationAlert = (notification: any) => {
+      console.log('📢 Показ alert для уведомления:', notification);
+      
+      // Показываем alert в интерфейсе (только UI логика)
+      setAlert({
+        type: notification.priority === 'HIGH' ? 'error' : 
+              notification.priority === 'MEDIUM' ? 'warning' : 'info',
+        message: `${notification.title}: ${notification.message}`
+      });
+
+      // Автоматически скрываем alert через 5 секунд
+      setTimeout(() => {
+        setAlert(null);
+      }, 5000);
+    };
+
+    // Подписываемся только на событие для UI alert
+    notificationSocketService.on('notification_alert', handleNewNotificationAlert);
+
+    // Отписка при размонтировании компонента
+    return () => {
+      notificationSocketService.off('notification_alert', handleNewNotificationAlert);
+      notificationSocketService.disconnect();
+    };
+  }, [dispatch]);
+
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
+  const handleClose = () => setAnchorEl(null)
+
+  const handleLogout = () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    setShowContent(false)
+    
+    // Отключаем уведомления при выходе
+    notificationSocketService.disconnect();
+    
+    // Анимация выхода: AppBar уходит вверх
+    setTimeout(() => {
+      // Переходим на логин с флагом выхода
+      navigate("/login", { state: { fromLogout: true } })
+      // Выполняем логаут после перехода
+      setTimeout(() => dispatch(logout()), 100)
+    }, 600)
+  }
+
+  const handleTabChange = (tab: TabType) => {
+    if (tab === activeTab || isAnimating) return
+    setIsAnimating(true)
+    setPrevTab(activeTab)
+    setActiveTab(tab)
+    // Навигация происходит автоматически через изменение URL
+    navigate(`/${tab}`)
+    setTimeout(() => {
+      setIsAnimating(false)
+      setPrevTab(null)
+    }, 500)
+  }
+
+  const handleNotificationClick = (notification: any) => {
+    dispatch(markAsRead(notification.id))
+    if (notification.type === 'CRITICAL_STOCK' || notification.type === 'INVENTORY_ALERT') {
+      console.log('Переход к товару:', notification.product_id)
+      // Переключаемся на dashboard для просмотра проблемы
+      handleTabChange('dashboard');
+    }
+  }
+
+  const handleMarkAllAsRead = () => dispatch(markAllAsRead())
+
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case 'CRITICAL_STOCK':
+      case 'INVENTORY_ALERT': return <Warning color="error" />
+      case 'LOW_BATTERY': return <BatteryAlert color="warning" />
+      case 'ROBOT_OFFLINE':
+      case 'ROBOT_ISSUE': return <WifiOff color="error" />
+      case 'STOCK_PREDICTION': return <TrendingUp color="info" />
+      case 'SYSTEM_ALERT': return <Warning color="warning" />
+      default: return <Notifications color="info" />
+    }
+  }
+
+  const getAlertColor = (priority: string) => {
+    switch (priority) {
+      case 'HIGH': return 'error'
+      case 'MEDIUM': return 'warning'
+      case 'LOW': return 'info'
+      default: return 'default'
+    }
+  }
+
+  const getTabButtonStyle = (tab: TabType) => ({
+    backgroundColor: activeTab === tab ? "rgba(255, 255, 255, 0.16)" : "transparent",
+    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)" },
+    mx: 0.5,
+    minWidth: "auto",
+    px: 2
+  })
+
+  return (
+    <Box sx={{ 
+      flexGrow: 1, 
+      minHeight: "100vh", 
+      backgroundColor: "#f5f5f5", 
+      position: "relative",
+      overflow: "hidden"
+    }}>
+      {/* Начальная анимация логотипа */}
+      <AnimatePresence>
+        {showInitialAnimation && (
+		  <motion.div
+			key="initial-animation"
+			initial={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
+			transition={{ duration: 0.4 }}
+			style={{
+			  position: "fixed",
+			  top: 0,
+			  left: 0,
+			  width: "100vw",
+			  height: "100vh",
+			  zIndex: 9999,
+			  backgroundColor: "#f5f5f5",
+			  display: "flex",
+			  alignItems: "center",
+			  justifyContent: "center",
+			}}
+		  >
+			<motion.img
+			  src="/logo.png"
+			  alt="Ростелеком"
+			  initial={{ scale: 0, opacity: 0 }}
+			  animate={{ 
+				scale: [0, 1.2, 1], 
+				opacity: 1 
+			  }}
+			  exit={{ scale: 0, opacity: 0 }}
+			  transition={{
+				duration: 0.8,
+				scale: {
+				  type: "spring",
+				  damping: 10,
+				  stiffness: 100,
+				}
+			  }}
+			  style={{ width: 200 }}
+			/>
+		  </motion.div>
+		)}
+      </AnimatePresence>
+
+      {/* Основной контент */}
+      <AnimatePresence>
+        {showContent && !isLoggingOut && (
+          <motion.div
+            key="main-content"
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{ 
+              width: '100%', 
+              height: '100vh', 
+              display: 'flex', 
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            {/* AppBar */}
+            <motion.div variants={appBarAnimation}>
+              <AppBar position="static" elevation={2}>
+                <Toolbar>
+                  <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
+                    <img
+                      src="/logo.png"
+                      alt="Ростелеком"
+                      style={{
+                        height: 60,
+                        marginRight: 16,
+                        marginTop: -6,
+                        filter: "brightness(0) invert(1)",
+                      }}
+                    />
+                    <Typography variant="h6" sx={{ display: { xs: "none", sm: "block" } }}>
+                      Умный склад
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Tooltip title={wsConnected ? "WebSocket подключен" : "WebSocket отключен"}>
+                      <IconButton color="inherit">{wsConnected ? <Wifi /> : <WifiOff />}</IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="Уведомления">
+                      <IconButton color="inherit" onClick={() => setNotificationsDrawerOpen(true)}>
+                        <Badge badgeContent={unreadCount} color="error">
+                          <Notifications />
+                        </Badge>
+                      </IconButton>
+                    </Tooltip>
+
+                    <Box sx={{ display: "flex", mx: 1 }}>
+                      <Tooltip title="Текущий мониторинг">
+                        <Button
+                          color="inherit"
+                          startIcon={<DashboardIcon />}
+                          onClick={() => handleTabChange("dashboard")}
+                          sx={getTabButtonStyle("dashboard")}
+                          disabled={isAnimating}
+                        >
+                          {!isMobile && "Мониторинг"}
+                        </Button>
+                      </Tooltip>
+
+                      <Tooltip title="Исторические данные">
+                        <Button
+                          color="inherit"
+                          startIcon={<HistoryIcon />}
+                          onClick={() => handleTabChange("history")}
+                          sx={getTabButtonStyle("history")}
+                          disabled={isAnimating}
+                        >
+                          {!isMobile && "История"}
+                        </Button>
+                      </Tooltip>
+                    </Box>
+
+                    <Tooltip title="Загрузить CSV">
+                      <Button
+                        color="inherit"
+                        startIcon={<Upload />}
+                        onClick={() => setUploadModalOpen(true)}
+                        sx={{ mx: 0.5, minWidth: "auto" }}
+                      >
+                        {!isMobile && "CSV"}
+                      </Button>
+                    </Tooltip>
+
+                    <Tooltip title="Аккаунт">
+                      <Button
+                        color="inherit"
+                        startIcon={<AccountCircle />}
+                        onClick={handleMenu}
+                        sx={{
+                          mx: 0.5,
+                          minWidth: "auto",
+                          px: 2,
+                          borderRadius: 1,
+                          backgroundColor: anchorEl ? "rgba(255, 255, 255, 0.16)" : "transparent",
+                          "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)" },
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        {!isMobile && (
+                          <Typography variant="body2" sx={{ ml: 0.5 }}>
+                            {user?.name}
+                          </Typography>
+                        )}
+                      </Button>
+                    </Tooltip>
+
+                    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
+                      <MenuItem onClick={handleClose}>
+                        <AccountCircle sx={{ mr: 1 }} />
+                        {user?.name}
+                      </MenuItem>
+                      <MenuItem onClick={handleClose}>Роль: {user?.role}</MenuItem>
+                      <Divider />
+                      <MenuItem onClick={handleLogout}>
+                        <Logout sx={{ mr: 1 }} />
+                        Выход
+                      </MenuItem>
+                    </Menu>
+                  </Box>
+                </Toolbar>
+              </AppBar>
+            </motion.div>
+
+            {/* Контент страницы */}
+            <motion.div 
+              variants={contentAnimation}
+              style={{ 
+                flex: 1, 
+                display: 'flex', 
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
+              <Box sx={{ 
+                flex: 1, 
+                position: "relative", 
+                overflow: "hidden",
+                minHeight: 0,
+                width: "100%"
+              }}>
+                {/* Dashboard Tab */}
+                <Box sx={{ 
+                  position: "absolute", 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0,
+                  width: "100%",
+                  transition: "transform 0.5s ease-in-out", 
+                  transform: activeTab === "dashboard" ? "translateX(0)" : "translateX(-100%)",
+                  overflowY: "auto",
+                  overflowX: "hidden"
+                }}>
+                  <Dashboard />
+                </Box>
+
+                {/* History Tab */}
+                <Box sx={{ 
+                  position: "absolute", 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0,
+                  width: "100%",
+                  transition: "transform 0.5s ease-in-out", 
+                  transform: activeTab === "history" ? "translateX(0)" : "translateX(100%)",
+                  overflowY: "auto",
+                  overflowX: "hidden"
+                }}>
+                  <History />
+                </Box>
+              </Box>
+            </motion.div>
+
+            {/* Drawer уведомлений */}
+            <Drawer anchor="right" open={notificationsDrawerOpen} onClose={() => setNotificationsDrawerOpen(false)}>
+              <Box sx={{ width: 400, p: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Typography variant="h6">
+                    Уведомления ({notifications.length})
+                  </Typography>
+                  <Box>
+                    {unreadCount > 0 && (
+                      <Button size="small" onClick={handleMarkAllAsRead}>Прочитать все</Button>
+                    )}
+                    <IconButton onClick={() => setNotificationsDrawerOpen(false)}><Close /></IconButton>
+                  </Box>
+                </Box>
+
+                <List>
+                  {notifications.slice(0, 10).map((notification) => (
+                    <ListItem key={notification.id} disablePadding sx={{ mb: 1 }}>
+                      <ListItemButton
+                        onClick={() => handleNotificationClick(notification)}
+                        sx={{ 
+                          borderLeft: 4,
+                          borderColor: getAlertColor(notification.priority),
+                          backgroundColor: notification.read ? 'transparent' : 'action.hover',
+                          py: 2
+                        }}
+                      >
+                        <ListItemIcon>{getAlertIcon(notification.type)}</ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Typography variant="subtitle2">{notification.title}</Typography>
+                              <Chip label={notification.priority} size="small" color={getAlertColor(notification.priority)} />
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              <Typography variant="body2">{notification.message}</Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                {new Date(notification.timestamp).toLocaleString('ru-RU')}
+                              </Typography>
+                              {notification.action_required && (
+                                <Chip label="Требует действий" size="small" color="error" variant="outlined" sx={{ mt: 0.5 }} />
+                              )}
+                            </Box>
+                          }
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                  {notifications.length === 0 && (
+                    <ListItem>
+                      <ListItemText primary="Нет уведомлений" secondary="Все системы работают нормально" sx={{ textAlign: "center", py: 2 }} />
+                    </ListItem>
+                  )}
+                </List>
+              </Box>
+            </Drawer>
+
+            <UploadCSVModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} onUploadSuccess={() => setUploadModalOpen(false)} />
+
+            {alert && (
+              <Box sx={{ position: "fixed", top: 70, right: 20, zIndex: 9999 }}>
+                <Alert severity={alert.type} onClose={() => setAlert(null)}>{alert.message}</Alert>
+              </Box>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Box>
+  )
+}
+
+export default Main

@@ -1,0 +1,400 @@
+import { aiRepository, AIPrediction, HistoricalData } from '../repositories/AIRepository';
+import { robotsRepository, RobotData, ScanResult } from '../repositories/RobotsRepository';
+import { advancedAnalyticsRepository, AdvancedTrendData, EfficiencyData } from '../repositories/AdvancedAnalyticsRepository';
+import { uploadRepository, exportRepository, UploadResult, ExportData } from '../repositories/UploadExportRepository';
+import { aiService as baseAIService } from './ai/AIService';
+import advancedAnalyticsServiceInstance from './advancedAnalyticsService';
+
+export class AIServiceWrapper {
+  // Получение прогнозов AI с использованием Strategy pattern
+  async getPredictions(periodDays: number = 7, categories: string[] = [], providerName?: string): Promise<any> {
+    try {
+      console.log('🤖 AI Service: Getting predictions for period:', periodDays, 'days');
+      
+      // Получаем исторические данные
+      const historicalData = await aiRepository.getHistoricalData(periodDays);
+      
+      // Получаем текущие остатки
+      const currentStock = await aiRepository.getCurrentStock();
+      
+      // Анализируем данные через выбранный AI провайдер
+      const aiResponse = await baseAIService.getPredictions(historicalData, currentStock, periodDays, providerName);
+      
+      // Сохраняем прогнозы в БД
+      if (aiResponse.predictions) {
+        await aiRepository.savePredictions(aiResponse.predictions);
+      }
+      
+      return aiResponse;
+    } catch (error: any) {
+      console.error('❌ AI Service error:', error);
+      throw new Error('Failed to get AI predictions: ' + error.message);
+    }
+  }
+
+  // Получение расширенных прогнозов
+  async getAdvancedPredictions(filters: {
+    period_days?: number;
+    zones?: string[];
+    categories?: string[];
+    products?: string[];
+    provider?: string;
+  }): Promise<any> {
+    try {
+      console.log('🔮 AI Service: Getting advanced predictions with filters:', filters);
+      
+      const periodDays = filters.period_days || 7;
+      const historicalData = await aiRepository.getHistoricalData(periodDays);
+      const currentStock = await aiRepository.getCurrentStock();
+      
+      // Фильтруем данные по зонам/категориям/товарам если нужно
+      let filteredHistorical = historicalData;
+      let filteredCurrent = currentStock;
+      
+      if (filters.products && filters.products.length > 0) {
+        filteredHistorical = historicalData.filter(item => 
+          filters.products!.includes(item.product_id)
+        );
+        filteredCurrent = currentStock.filter(item => 
+          filters.products!.includes(item.product_id)
+        );
+      }
+      
+      // Используем Strategy pattern для выбора AI провайдера
+      const aiResponse = await baseAIService.getPredictions(
+        filteredHistorical, 
+        filteredCurrent, 
+        7,
+        filters.provider
+      );
+      
+      if (aiResponse.predictions) {
+        await aiRepository.savePredictions(aiResponse.predictions);
+      }
+      
+      return aiResponse;
+    } catch (error: any) {
+      console.error('❌ AI Service advanced predictions error:', error);
+      throw new Error('Failed to get advanced AI predictions: ' + error.message);
+    }
+  }
+
+  // Получение доступных AI провайдеров
+  getAvailableProviders(): string[] {
+    return aiService.getAvailableProviders();
+  }
+
+  // Получение информации о провайдерах
+  getProvidersInfo(): any[] {
+    return aiService.getProvidersInfo();
+  }
+
+  // Установка провайдера по умолчанию
+  setDefaultProvider(providerName: string): boolean {
+    return aiService.setDefaultProvider(providerName);
+  }
+
+  // Получение текущего провайдера
+  getCurrentProvider(): string {
+    return aiService.getCurrentProvider();
+  }
+
+  // Получение истории прогнозов
+  async getPredictionHistory(limit: number = 10): Promise<AIPrediction[]> {
+    try {
+      return await aiRepository.getPredictionHistory(limit);
+    } catch (error: any) {
+      console.error('❌ AI Service prediction history error:', error);
+      throw new Error('Failed to get prediction history: ' + error.message);
+    }
+  }
+
+  // Принудительное обновление прогнозов
+  async refreshPredictions(periodDays: number = 7): Promise<any> {
+    try {
+      console.log('🔄 AI Service: Force refreshing predictions');
+      
+      // Очищаем старые прогнозы
+      await aiRepository.cleanupOldPredictions();
+      
+      // Получаем новые прогнозы
+      return await this.getPredictions(periodDays);
+    } catch (error: any) {
+      console.error('❌ AI Service refresh error:', error);
+      throw new Error('Failed to refresh predictions: ' + error.message);
+    }
+  }
+
+  // Получение статуса AI сервиса
+  async getAIStatus(): Promise<{ predictions_count: number; last_prediction: string | null; gemini_status: any }> {
+    try {
+      const dbStatus = await aiRepository.getAIStatus();
+      const geminiStatus = { status: 'active', provider: 'gemini' };
+      
+      return {
+        predictions_count: dbStatus.predictions_count,
+        last_prediction: dbStatus.last_prediction,
+        gemini_status: geminiStatus
+      };
+    } catch (error: any) {
+      console.error('❌ AI Service status error:', error);
+      throw new Error('Failed to get AI status: ' + error.message);
+    }
+  }
+}
+
+export class RobotsService {
+  // Обработка данных от роботов
+  async processRobotData(robotData: {
+    robot_id: string;
+    timestamp: string;
+    location: { zone: string; row: number; shelf: number };
+    scan_results: Array<{
+      product_id: string;
+      quantity: number;
+      status: string;
+    }>;
+    battery_level: number;
+  }): Promise<{ success: boolean; message: string; processed_scans: number }> {
+    try {
+      console.log(`🤖 Robots Service: Processing data from robot ${robotData.robot_id}`);
+      
+      const batteryLevelInt = Math.round(Number(robotData.battery_level));
+      const status = batteryLevelInt > 20 ? 'active' : 'charging';
+      
+      // Обновляем данные робота
+      await robotsRepository.updateRobot({
+        id: robotData.robot_id,
+        status,
+        battery_level: batteryLevelInt,
+        last_update: new Date(robotData.timestamp),
+        current_zone: robotData.location.zone,
+        current_row: robotData.location.row,
+        current_shelf: robotData.location.shelf
+      });
+      
+      // Сохраняем результаты сканирования
+      const scanResults: ScanResult[] = robotData.scan_results.map(scan => ({
+        robot_id: robotData.robot_id,
+        product_id: scan.product_id,
+        quantity: scan.quantity,
+        zone: robotData.location.zone,
+        row_number: robotData.location.row,
+        shelf_number: robotData.location.shelf,
+        status: scan.status,
+        scanned_at: new Date(robotData.timestamp)
+      }));
+      
+      await robotsRepository.saveScanResults(scanResults);
+      
+      console.log(`✅ Robots Service: Processed ${scanResults.length} scans from robot ${robotData.robot_id}`);
+      
+      return {
+        success: true,
+        message: `Successfully processed ${scanResults.length} scans`,
+        processed_scans: scanResults.length
+      };
+    } catch (error: any) {
+      console.error('❌ Robots Service error:', error);
+      throw new Error('Failed to process robot data: ' + error.message);
+    }
+  }
+
+  // Получение всех роботов
+  async getAllRobots(): Promise<RobotData[]> {
+    try {
+      return await robotsRepository.getAllRobots();
+    } catch (error: any) {
+      console.error('❌ Robots Service get all robots error:', error);
+      throw new Error('Failed to get robots: ' + error.message);
+    }
+  }
+
+  // Получение статистики роботов
+  async getRobotsStats(): Promise<{
+    total_robots: number;
+    active_robots: number;
+    charging_robots: number;
+    avg_battery_level: number;
+  }> {
+    try {
+      return await robotsRepository.getRobotsStats();
+    } catch (error: any) {
+      console.error('❌ Robots Service stats error:', error);
+      throw new Error('Failed to get robots stats: ' + error.message);
+    }
+  }
+}
+
+export class AdvancedAnalyticsService {
+  // Получение расширенных трендов
+  async getEnhancedTrends(productIds: string[] = [], periodDays: number = 30): Promise<AdvancedTrendData> {
+    try {
+      console.log('📈 Advanced Analytics Service: Getting enhanced trends');
+      
+      // Если не указаны товары, берем топ-5 по активности
+      if (productIds.length === 0) {
+        productIds = await advancedAnalyticsRepository.getTopProducts(5);
+      }
+      
+      return await advancedAnalyticsRepository.getEnhancedTrends(productIds, periodDays);
+    } catch (error: any) {
+      console.error('❌ Advanced Analytics Service trends error:', error);
+      throw new Error('Failed to get enhanced trends: ' + error.message);
+    }
+  }
+
+  // Получение данных об эффективности
+  async getEfficiencyData(periodDays: number = 7): Promise<EfficiencyData[]> {
+    try {
+      return await advancedAnalyticsRepository.getEfficiencyData(periodDays);
+    } catch (error: any) {
+      console.error('❌ Advanced Analytics Service efficiency error:', error);
+      throw new Error('Failed to get efficiency data: ' + error.message);
+    }
+  }
+
+  // Получение AI инсайтов
+  async getAIInsights(): Promise<any> {
+    try {
+      console.log('🧠 Advanced Analytics Service: Getting AI insights');
+      
+      const inventoryData = await advancedAnalyticsRepository.getWarehouseStatsForAI();
+      const robotData = await robotsRepository.getAllRobots();
+      const recentScans = await advancedAnalyticsRepository.getWarehouseStatsForAI();
+      
+      return await advancedAnalyticsServiceInstance.generateAIInsights(
+        [inventoryData], 
+        robotData, 
+        recentScans
+      );
+    } catch (error: any) {
+      console.error('❌ Advanced Analytics Service AI insights error:', error);
+      throw new Error('Failed to get AI insights: ' + error.message);
+    }
+  }
+
+  // Получение уведомлений
+  async getNotifications(limit: number = 20): Promise<any[]> {
+    try {
+      return await advancedAnalyticsRepository.getNotifications(limit);
+    } catch (error: any) {
+      console.error('❌ Advanced Analytics Service notifications error:', error);
+      throw new Error('Failed to get notifications: ' + error.message);
+    }
+  }
+}
+
+export class UploadService {
+  // Обработка загрузки CSV файла
+  async processCSVUpload(csvData: any[]): Promise<UploadResult> {
+    try {
+      console.log('📤 Upload Service: Processing CSV upload with', csvData.length, 'rows');
+      
+      const errors: string[] = [];
+      let processedRows = 0;
+      
+      for (const row of csvData) {
+        try {
+          // Проверяем существование робота
+          const robotExists = await uploadRepository.checkRobotExists(row.robot_id);
+          if (!robotExists) {
+            await uploadRepository.createRobot({
+              id: row.robot_id,
+              status: 'active',
+              battery_level: 100,
+              current_zone: row.zone || 'A',
+              current_row: row.row_number || 1,
+              current_shelf: row.shelf_number || 1
+            });
+          }
+          
+          // Проверяем существование продукта
+          const productExists = await uploadRepository.checkProductExists(row.product_id);
+          if (!productExists) {
+            await uploadRepository.createProduct({
+              id: row.product_id,
+              name: row.product_name || `Product ${row.product_id}`,
+              category: row.category || 'Unknown',
+              min_stock: row.min_stock || 10,
+              optimal_stock: row.optimal_stock || 50
+            });
+          }
+          
+          // Сохраняем данные сканирования
+          await uploadRepository.saveScanData({
+            robot_id: row.robot_id,
+            product_id: row.product_id,
+            quantity: parseInt(row.quantity) || 0,
+            zone: row.zone || 'A',
+            row_number: parseInt(row.row_number) || 1,
+            shelf_number: parseInt(row.shelf_number) || 1,
+            status: row.status || 'OK',
+            scanned_at: new Date(row.scanned_at || new Date())
+          });
+          
+          processedRows++;
+        } catch (rowError: any) {
+          errors.push(`Row ${processedRows + 1}: ${rowError.message}`);
+        }
+      }
+      
+      return {
+        success: errors.length === 0,
+        processed_rows: processedRows,
+        errors,
+        message: `Processed ${processedRows} rows successfully`
+      };
+    } catch (error: any) {
+      console.error('❌ Upload Service error:', error);
+      throw new Error('Failed to process CSV upload: ' + error.message);
+    }
+  }
+}
+
+export class ExportService {
+  // Экспорт данных в Excel
+  async exportToExcel(filters: any): Promise<ExportData> {
+    try {
+      console.log('📊 Export Service: Exporting to Excel with filters:', filters);
+      
+      const data = await exportRepository.getExportData(filters);
+      const stats = await exportRepository.getExportStats(filters);
+      
+      return {
+        data: [...data, { stats }], // Добавляем статистику в конец
+        filename: `inventory_export_${new Date().toISOString().split('T')[0]}.xlsx`,
+        format: 'excel'
+      };
+    } catch (error: any) {
+      console.error('❌ Export Service Excel error:', error);
+      throw new Error('Failed to export to Excel: ' + error.message);
+    }
+  }
+
+  // Экспорт данных в PDF
+  async exportToPDF(filters: any): Promise<ExportData> {
+    try {
+      console.log('📄 Export Service: Exporting to PDF with filters:', filters);
+      
+      const data = await exportRepository.getExportData(filters);
+      const stats = await exportRepository.getExportStats(filters);
+      
+      return {
+        data: [...data, { stats }],
+        filename: `inventory_report_${new Date().toISOString().split('T')[0]}.pdf`,
+        format: 'pdf'
+      };
+    } catch (error: any) {
+      console.error('❌ Export Service PDF error:', error);
+      throw new Error('Failed to export to PDF: ' + error.message);
+    }
+  }
+}
+
+// Экспортируем экземпляры сервисов
+export const aiService = new AIServiceWrapper();
+export const robotsService = new RobotsService();
+export const advancedAnalyticsServiceNew = new AdvancedAnalyticsService();
+export const uploadService = new UploadService();
+export const exportService = new ExportService();
