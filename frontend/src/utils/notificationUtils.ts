@@ -1,5 +1,5 @@
 import { AppDispatch } from '../store';
-import { showNotification } from '../store/slices/notificationSlice';
+import { showNotification } from '../store/slices/notificationsSlice';
 
 // Типы уведомлений
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { enhancedSocketService, ConnectionState, SocketError } from '../services/EnhancedSocketService';
 import { updateDashboard, addScan } from '../store/slices/dashboardSlice';
-import { showNotification } from '../store/slices/notificationSlice';
+import { showNotification } from '../store/slices/notificationsSlice';
 
 export interface UseWebSocketOptions {
   autoConnect?: boolean;

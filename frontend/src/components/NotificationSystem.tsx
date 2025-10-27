@@ -28,16 +28,10 @@ import {
   markAsRead,
   markAllAsRead,
   clearExpiredNotifications,
-  clearAllNotifications
-} from '../store/slices/notificationSlice';
-import { Notification } from '../store/slices/notificationSlice';
-
-// Типы для действий уведомлений (дополнение к основному типу)
-interface NotificationAction {
-  label: string;
-  action: () => void;
-  variant?: 'primary' | 'danger' | 'default';
-}
+  clearAllNotifications,
+  NotificationAction
+} from '../store/slices/notificationsSlice';
+import { Notification } from '../store/slices/notificationsSlice';
 
 // Расширяем тип Notification из slice для поддержки действий
 interface ExtendedNotification extends Notification {
@@ -167,7 +161,7 @@ const NotificationItem: React.FC<{
 
 const NotificationSystem: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { notifications, unreadCount } = useSelector((state: RootState) => state.notifications);
+  const { items: notifications, unreadCount } = useSelector((state: RootState) => state.notifications);
   const [open, setOpen] = useState(false);
 
   // Очистка истекших уведомлений каждые 30 секунд
