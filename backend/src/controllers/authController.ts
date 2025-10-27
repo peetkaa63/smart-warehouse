@@ -91,7 +91,8 @@ export const login = async (req: Request, res: Response) => {
     res.json(response);
   } catch (error: any) {
     console.error('❌ AuthController login error:', error);
-    res.status(401).json({ error: error.message });
+    // Используем стандартный error middleware вместо ручной обработки
+    throw error;
   }
 };
 

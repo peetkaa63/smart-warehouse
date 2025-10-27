@@ -23,8 +23,16 @@ export const login = createAsyncThunk(
       return response;
     } catch (error: any) {
       // Возвращаем удобочитаемое сообщение
-      const msg = error?.message ?? 'Login failed';
-      return rejectWithValue(msg);
+      let errorMessage = 'Login failed';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      console.error('❌ Auth slice login error:', errorMessage);
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -57,9 +65,20 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
-		state.loading = false;
-		state.error = (action.payload as string) ?? action.error?.message ?? 'Login failed';
-	  });
+        state.loading = false;
+        
+        // Более надежная обработка ошибок
+        let errorMessage = 'Login failed';
+        
+        if (action.payload && typeof action.payload === 'string') {
+          errorMessage = action.payload;
+        } else if (action.error?.message) {
+          errorMessage = action.error.message;
+        }
+        
+        state.error = errorMessage;
+        console.error('❌ Login rejected with error:', errorMessage);
+      });
 
   }
 });

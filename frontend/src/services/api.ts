@@ -28,16 +28,24 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('🚨 API Error:', error.response?.status, error.config?.url);
+    const status = error.response?.status;
+    const url = error.config?.url;
     
-    if (error.response?.status === 401) {
+    console.error('🚨 API Error:', status, url);
+    
+    // Логируем детали ошибки для отладки
+    if (error.response?.data) {
+      console.error('🚨 Error details:', error.response.data);
+    }
+    
+    if (status === 401) {
       console.log('🔐 Token expired, logging out...');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
     
-    if (error.response?.status === 403) {
+    if (status === 403) {
       console.log('🚫 Access forbidden - possible token issue');
     }
     

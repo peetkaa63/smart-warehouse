@@ -33,10 +33,45 @@ class AuthService {
       return response.data;
     } catch (error: any) {
       // Пытаемся вернуть более читаемое сообщение
-      const msg = error?.response?.data?.error ?? error?.message ?? 'Login failed';
-      console.error('❌ Login failed:', msg, error?.response?.data ?? error);
+      let errorMessage = 'Login failed';
+      
+      // Обработка ошибок валидации (400) - стандартная AppError структура
+      if (error?.response?.status === 400 && error?.response?.data?.error) {
+        const errorData = error.response.data.error;
+        
+        if (errorData.details?.validationErrors && errorData.details.validationErrors.length > 0) {
+          // Ошибки валидации - берем первую ошибку
+          const firstError = errorData.details.validationErrors[0];
+          errorMessage = firstError.message || errorData.messageRu || errorData.message || 'Ошибка валидации';
+        } else if (errorData.messageRu) {
+          errorMessage = errorData.messageRu;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      }
+      // Обработка ошибок авторизации (401) - стандартная AppError структура
+      else if (error?.response?.status === 401 && error?.response?.data?.error) {
+        const errorData = error.response.data.error;
+        errorMessage = errorData.messageRu || errorData.message || 'Неверные учетные данные';
+      }
+      // Обработка других ошибок
+      else if (error?.response?.data?.error?.messageRu) {
+        errorMessage = error.response.data.error.messageRu;
+      } else if (error?.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error?.response?.data === 'string') {
+        errorMessage = error.response.data;
+      }
+      
+      console.error('❌ Login failed:', errorMessage);
+      console.error('❌ Full error object:', error);
+      
       // Бросаем Error с сообщением, которое будет обработано в thunk
-      throw new Error(msg);
+      throw new Error(errorMessage);
     }
   }
 
