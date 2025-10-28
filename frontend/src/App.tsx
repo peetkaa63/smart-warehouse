@@ -6,7 +6,7 @@ import Login from './pages/Login';
 import Main from './pages/Main';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
-import NotificationSystem from './components/NotificationSystem';
+// import NotificationSystem from './components/NotificationSystem'; 
 
 const AppRoutes: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
