@@ -52,7 +52,8 @@ services:
       REACT_APP_API_URL: http://rtk.keep-pixel.ru:3000
       REACT_APP_WS_URL: ws://rtk.keep-pixel.ru:3000
     ports:
-      - "80:80"
+      - "80:80"    # HTTP
+      - "443:443"  # HTTPS ← ДОБАВЬТЕ ЭТУ СТРОЧКУ
     depends_on:
       - backend
 
