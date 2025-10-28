@@ -15,26 +15,44 @@ class AdvancedAnalyticsService {
     }
   }
 
+  // Ограничение размера данных для Gemini (примерно 500KB для избежания превышения токенов)
+  private limitDataSize(data: any, maxSize: number = 100000): string {
+    let result = JSON.stringify(data, null, 2);
+    if (result.length > maxSize) {
+      // Берем только первые записи
+      const items = Array.isArray(data) ? data.slice(0, 5) : data;
+      result = JSON.stringify(items, null, 2);
+    }
+    return result;
+  }
+
   async generateAIInsights(inventoryData: any[], robotData: any[], recentScans: any): Promise<any> {
     if (!this.ai) {
       return this.generateFallbackInsights();
     }
 
     try {
+      // Ограничиваем размер данных
+      const limitedInventory = inventoryData.slice(0, 10); // Максимум 10 записей
+      const limitedRobots = robotData.slice(0, 5); // Максимум 5 роботов
+      
+      const inventoryJson = this.limitDataSize(limitedInventory, 30000);
+      const robotsJson = this.limitDataSize(limitedRobots, 15000);
+
       const prompt = `
 Проанализируй данные склада и предоставь экспертные рекомендации.
 
-ДАННЫЕ ИНВЕНТАРИЗАЦИИ (последние 30 дней):
-${JSON.stringify(inventoryData.slice(0, 15), null, 2)}
+ДАННЫЕ ИНВЕНТАРИЗАЦИИ (последние записи):
+${inventoryJson}
 
 ДАННЫЕ РОБОТОВ:
-${JSON.stringify(robotData, null, 2)}
+${robotsJson}
 
 СТАТИСТИКА ЗА 24 ЧАСА:
-- Всего сканирований: ${recentScans.total_scans}
-- Уникальных товаров: ${recentScans.unique_products} 
-- Активных роботов: ${recentScans.active_robots}
-- Среднее количество: ${Math.round(recentScans.avg_quantity)}
+- Всего сканирований: ${recentScans.total_scans || 0}
+- Уникальных товаров: ${recentScans.unique_products || 0} 
+- Активных роботов: ${recentScans.active_robots || 0}
+- Среднее количество: ${Math.round(recentScans.avg_quantity || 0)}
 
 ПРОАНАЛИЗИРУЙ:
 1. Эффективность управления запасами
@@ -89,8 +107,15 @@ ${JSON.stringify(robotData, null, 2)}
       const cleanText = response.text.replace(/```json\n?|\n?```/g, '').trim();
       return JSON.parse(cleanText);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI insights generation error:', error);
+      
+      // Обработка ошибок превышения токенов
+      if (error.message?.includes('token') || error.message?.includes('exceeds')) {
+        console.log('⚠️ Token limit exceeded, using fallback');
+        return this.generateFallbackInsights();
+      }
+      
       return this.generateFallbackInsights();
     }
   }

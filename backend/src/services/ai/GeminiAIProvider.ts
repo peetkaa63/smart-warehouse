@@ -114,15 +114,32 @@ export class GeminiAIProvider implements IAIProvider {
     }
   }
 
+  private limitDataSize(data: any[], maxItems: number = 10, maxSize: number = 20000): string {
+    const limited = data.slice(0, maxItems);
+    let result = JSON.stringify(limited, null, 2);
+    
+    // Дополнительно ограничиваем по размеру символов
+    if (result.length > maxSize) {
+      result = result.substring(0, maxSize);
+      result = result.substring(0, result.lastIndexOf(']') + 1);
+    }
+    
+    return result;
+  }
+
   private buildAnalysisPrompt(request: AIAnalysisRequest): string {
+    // Ограничиваем данные для предотвращения превышения токенов
+    const historicalDataJson = this.limitDataSize(request.historicalData || [], 10, 30000);
+    const currentStockJson = this.limitDataSize(request.currentStock || [], 8, 20000);
+    
     return `
 Проанализируй данные склада и предоставь детальный анализ.
 
 ИСТОРИЧЕСКИЕ ДАННЫЕ (${request.periodDays || 30} дней):
-${JSON.stringify(request.historicalData.slice(0, 20), null, 2)}
+${historicalDataJson}
 
 ТЕКУЩИЕ ОСТАТКИ:
-${JSON.stringify(request.currentStock.slice(0, 10), null, 2)}
+${currentStockJson}
 
 ПРОАНАЛИЗИРУЙ:
 1. Тренды по товарам
@@ -149,14 +166,18 @@ ${JSON.stringify(request.currentStock.slice(0, 10), null, 2)}
   }
 
   private buildPredictionPrompt(request: AIAnalysisRequest): string {
+    // Ограничиваем данные для предотвращения превышения токенов
+    const historicalDataJson = this.limitDataSize(request.historicalData || [], 8, 20000);
+    const currentStockJson = this.limitDataSize(request.currentStock || [], 6, 15000);
+    
     return `
 Создай прогнозы на основе данных склада.
 
 ИСТОРИЧЕСКИЕ ДАННЫЕ:
-${JSON.stringify(request.historicalData.slice(0, 15), null, 2)}
+${historicalDataJson}
 
 ТЕКУЩИЕ ОСТАТКИ:
-${JSON.stringify(request.currentStock.slice(0, 10), null, 2)}
+${currentStockJson}
 
 СОЗДАЙ ПРОГНОЗЫ НА 7 ДНЕЙ:
 1. Ожидаемый спрос по товарам
@@ -183,11 +204,14 @@ ${JSON.stringify(request.currentStock.slice(0, 10), null, 2)}
   }
 
   private buildRecommendationPrompt(request: AIAnalysisRequest): string {
+    // Ограничиваем данные для предотвращения превышения токенов
+    const historicalDataJson = this.limitDataSize(request.historicalData || [], 6, 15000);
+    
     return `
 Предоставь рекомендации по оптимизации склада.
 
 ДАННЫЕ:
-${JSON.stringify(request.historicalData.slice(0, 10), null, 2)}
+${historicalDataJson}
 
 РЕКОМЕНДАЦИИ ПО:
 1. Управлению запасами
@@ -245,30 +269,43 @@ ${JSON.stringify(request.historicalData.slice(0, 10), null, 2)}
     let errorDetails = '';
 
     // Обработка специфичных ошибок Gemini
-    if (error.message) {
-      if (error.message.includes('quota')) {
+    if (error.message || error.error) {
+      const errorMsg = error.message || error.error?.message || '';
+      
+      if (errorMsg.includes('token') || errorMsg.includes('exceeds')) {
+        errorCode = 'TOKEN_LIMIT_EXCEEDED';
+        errorMessage = 'Превышен лимит токенов Gemini AI';
+        errorDetails = 'Слишком много данных для обработки. Используются ограниченные данные.';
+      } else if (errorMsg.includes('quota')) {
         errorCode = 'QUOTA_EXCEEDED';
         errorMessage = 'Превышена квота Gemini AI';
         errorDetails = 'Достигнут лимит запросов к Gemini AI. Попробуйте позже.';
-      } else if (error.message.includes('location') || error.message.includes('region')) {
+      } else if (errorMsg.includes('location') || errorMsg.includes('region')) {
         errorCode = 'LOCATION_NOT_SUPPORTED';
         errorMessage = 'Gemini AI недоступен в вашем регионе';
         errorDetails = 'Gemini AI не поддерживается в текущей локации.';
-      } else if (error.message.includes('API key') || error.message.includes('authentication')) {
+      } else if (errorMsg.includes('API key') || errorMsg.includes('authentication')) {
         errorCode = 'AUTHENTICATION_ERROR';
         errorMessage = 'Ошибка аутентификации Gemini AI';
         errorDetails = 'Неверный или отсутствующий API ключ Gemini.';
-      } else if (error.message.includes('rate limit')) {
+      } else if (errorMsg.includes('rate limit')) {
         errorCode = 'RATE_LIMIT_EXCEEDED';
         errorMessage = 'Превышен лимит запросов Gemini AI';
         errorDetails = 'Слишком много запросов. Подождите перед повторной попыткой.';
-      } else if (error.message.includes('model')) {
+      } else if (errorMsg.includes('model')) {
         errorCode = 'MODEL_ERROR';
         errorMessage = 'Ошибка модели Gemini AI';
         errorDetails = 'Проблема с доступностью модели Gemini.';
+      } else if (error.error?.message) {
+        errorMessage = `Ошибка Gemini AI: ${error.error.message}`;
+        errorDetails = error.error.message;
+        if (error.error.message.includes('token')) {
+          errorCode = 'TOKEN_LIMIT_EXCEEDED';
+          errorDetails = 'Превышен лимит токенов (1,048,575). Используются ограниченные данные.';
+        }
       } else {
-        errorMessage = `Ошибка Gemini AI: ${error.message}`;
-        errorDetails = error.message;
+        errorMessage = `Ошибка Gemini AI: ${errorMsg}`;
+        errorDetails = errorMsg;
       }
     }
 

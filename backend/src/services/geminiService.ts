@@ -26,6 +26,24 @@ class GeminiService {
     }
   }
 
+  private limitJSONSize(data: any, maxSize: number = 15000): string {
+    let result = JSON.stringify(data, null, 2);
+    
+    // Если превышает лимит, берём меньше данных
+    if (result.length > maxSize) {
+      const limited = Array.isArray(data) ? data.slice(0, 3) : data;
+      result = JSON.stringify(limited, null, 2);
+      
+      // Если всё ещё превышает, обрезаем до maxSize
+      if (result.length > maxSize) {
+        result = result.substring(0, maxSize);
+        result = result.substring(0, result.lastIndexOf(']') + 1);
+      }
+    }
+    
+    return result;
+  }
+
   async analyzeInventoryData(historicalData: any[], currentStock: any[]): Promise<any> {
     try {
       // Проверяем инициализацию
@@ -34,10 +52,14 @@ class GeminiService {
       }
 
       // Ограничиваем объем данных
-      const limitedHistoricalData = historicalData.slice(0, 8);
-      const limitedCurrentStock = currentStock.slice(0, 8);
+      const limitedHistoricalData = historicalData.slice(0, 5); // Максимум 5 элементов
+      const limitedCurrentStock = currentStock.slice(0, 5);
 
       console.log(`📊 Preparing data for AI: ${limitedHistoricalData.length} historical items, ${limitedCurrentStock.length} current items`);
+
+      // Ограничиваем размер JSON
+      const historicalJSON = this.limitJSONSize(limitedHistoricalData, 15000);
+      const currentJSON = this.limitJSONSize(limitedCurrentStock, 10000);
 
       // Формируем промпт
       const prompt = `
@@ -47,10 +69,10 @@ class GeminiService {
 Мы управляем складом сетевого оборудования. Товары: роутеры, модемы, коммутаторы, IP-телефоны, кабели.
 
 ИСТОРИЧЕСКИЕ ДАННЫЕ (паттерны потребления):
-${JSON.stringify(limitedHistoricalData, null, 2)}
+${historicalJSON}
 
 ТЕКУЩИЕ ОСТАТКИ:
-${JSON.stringify(limitedCurrentStock, null, 2)}
+${currentJSON}
 
 ЗАДАЧА:
 Для каждого товара рассчитай:
@@ -117,8 +139,21 @@ ${JSON.stringify(limitedCurrentStock, null, 2)}
         console.error('🌐 Network error - check internet connection and API endpoint');
       }
       
+      if (error.message?.includes('token') || error.message?.includes('exceeds')) {
+        console.error('⚠️ Token limit exceeded, returning fallback response');
+        // Возвращаем fallback вместо throw
+        return {
+          predictions: [],
+          analysis_summary: 'Токен лимит превышен. Используйте меньше данных для анализа.'
+        };
+      }
+      
       if (error.message?.includes('quota') || error.message?.includes('limit')) {
         console.error('🔧 API quota exceeded or rate limit reached');
+        return {
+          predictions: [],
+          analysis_summary: 'Превышена квота API. Попробуйте позже.'
+        };
       }
       
       if (error.message?.includes('model') || error.message?.includes('not found')) {
@@ -136,19 +171,22 @@ ${JSON.stringify(limitedCurrentStock, null, 2)}
     try {
       if (!this.ai) throw new Error('AI not initialized');
 
-      console.log('🔄 Trying alternative model: gemini-1.5-flash...');
+      console.log('🔄 Trying alternative model with limited data...');
       
-      const limitedHistoricalData = historicalData.slice(0, 5);
-      const limitedCurrentStock = currentStock.slice(0, 5);
+      const limitedHistoricalData = historicalData.slice(0, 3);
+      const limitedCurrentStock = currentStock.slice(0, 3);
+
+      const historicalJSON = this.limitJSONSize(limitedHistoricalData, 8000);
+      const currentJSON = this.limitJSONSize(limitedCurrentStock, 5000);
 
       const prompt = `
 Анализ складских остатков. Верни прогноз в JSON.
 
 ДАННЫЕ:
-${JSON.stringify(limitedHistoricalData, null, 2)}
+${historicalJSON}
 
 ТЕКУЩИЕ ОСТАТКИ:
-${JSON.stringify(limitedCurrentStock, null, 2)}
+${currentJSON}
 
 JSON ФОРМАТ:
 {
@@ -179,9 +217,13 @@ JSON ФОРМАТ:
       const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
       return JSON.parse(cleanText);
 
-    } catch (altError) {
+    } catch (altError: any) {
       console.error('❌ Alternative model also failed:', altError);
-      throw new Error('All AI models unavailable');
+      // Возвращаем fallback вместо throw
+      return {
+        predictions: [],
+        analysis_summary: 'Все модели AI недоступны. Используйте fallback режим.'
+      };
     }
   }
 

@@ -96,18 +96,20 @@ const NotificationItem: React.FC<{
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 300, scale: 0.8 }}
       transition={{ duration: 0.3, type: 'spring', stiffness: 200 }}
+      style={{ marginBottom: '8px' }}
     >
       <Collapse in={isVisible}>
         <Alert
           severity={getSeverity() as any}
-          icon={getIcon()}
+          icon={false}
           action={
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="flex-start" gap={0.5}>
               {!notification.read && (
                 <IconButton
                   size="small"
                   onClick={handleMarkAsRead}
                   title="Отметить как прочитанное"
+                  sx={{ padding: '4px' }}
                 >
                   <MarkReadIcon fontSize="small" />
                 </IconButton>
@@ -116,6 +118,7 @@ const NotificationItem: React.FC<{
                 size="small"
                 onClick={handleClose}
                 title="Закрыть"
+                sx={{ padding: '4px' }}
               >
                 <CloseIcon fontSize="small" />
               </IconButton>
@@ -123,36 +126,64 @@ const NotificationItem: React.FC<{
           }
           sx={{
             mb: 1,
-            boxShadow: 3,
+            boxShadow: 4,
             borderRadius: 2,
-            maxWidth: 400,
+            maxWidth: { xs: '100%', sm: 400 },
+            border: '1px solid',
+            borderColor: getSeverity() === 'error' ? 'error.main' :
+                         getSeverity() === 'warning' ? 'warning.main' :
+                         getSeverity() === 'success' ? 'success.main' : 'info.main',
             '& .MuiAlert-message': {
-              width: '100%'
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1
             }
           }}
         >
-          <AlertTitle sx={{ fontWeight: 'bold' }}>
-            {notification.title}
-          </AlertTitle>
-          <Typography variant="body2" sx={{ mt: 0.5 }}>
-            {notification.message}
-          </Typography>
-          
-          {notification.actions && notification.actions.length > 0 && (
-            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {notification.actions.map((action: NotificationAction, index: number) => (
-                <Button
-                  key={index}
-                  size="small"
-                  variant={action.variant === 'danger' ? 'contained' : 'outlined'}
-                  color={action.variant === 'danger' ? 'error' : 'primary'}
-                  onClick={action.action}
-                >
-                  {action.label}
-                </Button>
-              ))}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <Box sx={{ 
+              minWidth: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: getSeverity() === 'error' ? 'error.light' :
+                              getSeverity() === 'warning' ? 'warning.light' :
+                              getSeverity() === 'success' ? 'success.light' : 'info.light',
+              color: getSeverity() === 'error' ? 'error.dark' :
+                     getSeverity() === 'warning' ? 'warning.dark' :
+                     getSeverity() === 'success' ? 'success.dark' : 'info.dark'
+            }}>
+              {getIcon()}
             </Box>
-          )}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <AlertTitle sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                {notification.title}
+              </AlertTitle>
+              <Typography variant="body2" sx={{ wordWrap: 'break-word' }}>
+                {notification.message}
+              </Typography>
+              
+              {notification.actions && notification.actions.length > 0 && (
+                <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {notification.actions.map((action: NotificationAction, index: number) => (
+                    <Button
+                      key={index}
+                      size="small"
+                      variant={action.variant === 'danger' ? 'contained' : 'outlined'}
+                      color={action.variant === 'danger' ? 'error' : 'primary'}
+                      onClick={action.action}
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          </Box>
         </Alert>
       </Collapse>
     </motion.div>
@@ -225,11 +256,12 @@ const NotificationSystem: React.FC = () => {
     <Box
       sx={{
         position: 'fixed',
-        top: 16,
-        right: 16,
+        top: { xs: 8, sm: 16 },
+        right: { xs: 8, sm: 16 },
         zIndex: 9999,
         maxHeight: '80vh',
         overflow: 'auto',
+        maxWidth: { xs: 'calc(100% - 16px)', sm: '400px' },
         '&::-webkit-scrollbar': {
           width: '6px'
         },
@@ -250,34 +282,39 @@ const NotificationSystem: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             mb: 2,
-            p: 1,
+            p: 1.5,
             backgroundColor: 'background.paper',
-            borderRadius: 1,
-            boxShadow: 1
+            borderRadius: 2,
+            boxShadow: 2,
+            gap: 1
           }}
         >
           <Box display="flex" alignItems="center" gap={1}>
             <NotificationsIcon color="primary" />
-            <Typography variant="subtitle2" fontWeight="bold">
+            <Typography variant="subtitle1" fontWeight="bold">
               Уведомления ({unreadCount})
             </Typography>
           </Box>
           
-          <Box display="flex" gap={1}>
-            <Button
+          <Box display="flex" gap={0.5} flexWrap="wrap">
+            <IconButton
               size="small"
               onClick={handleMarkAllAsRead}
               disabled={unreadCount === 0}
+              title="Отметить все как прочитанные"
+              sx={{ backgroundColor: 'rgba(25, 118, 210, 0.1)' }}
             >
-              Прочитать все
-            </Button>
-            <Button
+              <MarkReadIcon fontSize="small" />
+            </IconButton>
+            <IconButton
               size="small"
               onClick={handleClearAll}
               color="error"
+              title="Очистить все"
+              sx={{ backgroundColor: 'rgba(211, 47, 47, 0.1)' }}
             >
-              Очистить
-            </Button>
+              <CloseIcon fontSize="small" />
+            </IconButton>
           </Box>
         </Box>
       )}

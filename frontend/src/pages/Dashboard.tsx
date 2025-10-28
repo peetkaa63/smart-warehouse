@@ -33,9 +33,9 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" fontWeight="bold">
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', maxWidth: '100vw', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+        <Typography variant="h4" component="h1" fontWeight="bold" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
           Текущий мониторинг
         </Typography>
         <Tooltip title="Обновить данные">
@@ -97,20 +97,26 @@ const Dashboard: React.FC = () => {
             transition={{ duration: 0.4 }}
           >
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-              <Box>
+              <Box sx={{ width: '100%', overflow: 'auto', maxWidth: '100%' }}>
                 <WarehouseMap robots={robots || []} />
               </Box>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <RealTimeStats statistics={statistics || {
-                  activeRobots: 0,
-                  totalRobots: 0,
-                  scannedToday: 0,
-                  criticalStock: 0,
-                  avgBattery: 0
-                }} />
-                <RecentScans scans={recentScans || []} />
-                <AIPredictions />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', overflow: 'auto' }}>
+                <Box sx={{ width: '100%', overflow: 'hidden' }}>
+                  <RealTimeStats statistics={statistics || {
+                    activeRobots: 0,
+                    totalRobots: 0,
+                    scannedToday: 0,
+                    criticalStock: 0,
+                    avgBattery: 0
+                  }} />
+                </Box>
+                <Box sx={{ width: '100%', overflow: 'hidden' }}>
+                  <RecentScans scans={recentScans || []} />
+                </Box>
+                <Box sx={{ width: '100%', overflow: 'hidden' }}>
+                  <AIPredictions />
+                </Box>
               </Box>
             </Box>
           </motion.div>

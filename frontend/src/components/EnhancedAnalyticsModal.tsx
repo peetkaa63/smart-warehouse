@@ -1,5 +1,6 @@
 // components/EnhancedAnalyticsModal.tsx
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Modal,
   Box,
@@ -705,58 +706,92 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
       <Box
         sx={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
+          top: { xs: '50%', sm: '50%' },
+          left: { xs: '50%', sm: '50%' },
           transform: 'translate(-50%, -50%)',
-          width: '95%',
+          width: { xs: '98%', sm: '95%', md: '95%' },
           maxWidth: 1400,
-          height: '90vh',
+          maxHeight: { xs: '95vh', sm: '90vh' },
+          height: { xs: '95vh', sm: '90vh' },
           bgcolor: 'background.paper',
           boxShadow: 24,
           borderRadius: 2,
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}
       >
         {/* Заголовок и табы */}
-        <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="h5" component="h2" sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' } }}>
               <Analytics color="primary" />
-              Расширенная аналитика склада
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                Расширенная аналитика склада
+              </Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                Аналитика
+              </Box>
             </Typography>
-            <IconButton onClick={onClose}>
+            <IconButton onClick={onClose} size="small">
               <Close />
             </IconButton>
           </Box>
           
-          <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tabs 
+            value={activeTab} 
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ width: '100%' }}
+          >
             {tabs.map((tab, index) => (
-              <Tab key={tab.value} label={tab.label} />
+              <Tab 
+                key={tab.value} 
+                label={tab.label}
+                sx={{ 
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  minWidth: { xs: 80, sm: 120 },
+                  px: { xs: 1, sm: 2 }
+                }}
+              />
             ))}
           </Tabs>
         </Box>
 
         {/* Содержимое */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+        <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 1, sm: 2, md: 3 } }}>
           {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                height: '100%',
+                minHeight: '300px'
+              }}
+            >
               <Box textAlign="center">
                 <CircularProgress size={60} />
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   AI анализирует данные...
                 </Typography>
-                <Typography variant="body2" color="textSecondary">
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                   Это может занять несколько секунд
                 </Typography>
               </Box>
             </Box>
           ) : (
-            <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              style={{ height: '100%' }}
+            >
               {activeTab === 0 && renderTrendsTab()}
               {activeTab === 1 && renderEfficiencyTab()}
               {activeTab === 2 && renderAIAnalysisTab()}
-            </>
+            </motion.div>
           )}
         </Box>
       </Box>
