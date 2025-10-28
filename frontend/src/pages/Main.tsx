@@ -158,11 +158,8 @@ const Main: React.FC = () => {
     // Подключение уведомлений через Socket.io
     notificationSocketService.connect();
 
-
-
     // Отписка при размонтировании компонента
     return () => {
-      notificationSocketService.off('notification_alert', handleNewNotificationAlert);
       notificationSocketService.disconnect();
     };
   }, [dispatch]);
