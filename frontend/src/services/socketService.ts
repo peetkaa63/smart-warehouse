@@ -44,6 +44,18 @@ class SocketService {
     this.socket?.on('inventory_alert', callback);
   }
 
+  onCriticalAlert(callback: (data: any) => void) {
+    this.socket?.on('critical_alert', callback);
+  }
+
+  onSystemNotification(callback: (data: any) => void) {
+    this.socket?.on('system_notification', callback);
+  }
+
+  onRobotAlert(callback: (data: any) => void) {
+    this.socket?.on('robot_alert', callback);
+  }
+
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();

@@ -76,6 +76,11 @@ class NotificationSocketService {
       this.handleSystemAlert(data);
     });
 
+    socket.on('critical_alert', (data: any) => {
+      console.log('🚨 Received critical alert:', data);
+      this.handleCriticalAlert(data);
+    });
+
     this.isConnected = true;
   }
 
@@ -169,6 +174,81 @@ class NotificationSocketService {
 
     store.dispatch(addNotification(notification));
     this.emit('notification_alert', notification);
+  }
+
+  private handleCriticalAlert(data: any) {
+    console.log('🚨 Processing critical alert:', data);
+    
+    // Определяем тип уведомления и создаем соответствующее сообщение
+    let notification;
+    
+    switch (data.type) {
+      case 'critical_stock':
+        notification = {
+          id: `critical-stock-${Date.now()}`,
+          type: 'CRITICAL_STOCK',
+          title: `🚨 KРИТИЧЕСКИЙ ОСТАТОК: ${data.data.productName || data.data.product_id}`,
+          message: `Товар имеет критически низкий уровень запасов (${data.data.quantity} шт.)`,
+          priority: 'HIGH' as NotificationPriority,
+          product_id: data.data.productId || data.data.product_id,
+          timestamp: new Date().toISOString(),
+          read: false,
+          action_required: true
+        };
+        break;
+        
+      case 'robot_battery_low':
+        notification = {
+          id: `robot-battery-${Date.now()}`,
+          type: 'ROBOT_BATTERY_LOW',
+          title: `🔋 НИЗКИЙ ЗАРЯД РОБОТА: ${data.data.robotId}`,
+          message: `Робот ${data.data.robotId} имеет низкий заряд батареи (${data.data.batteryLevel}%)`,
+          priority: 'MEDIUM' as NotificationPriority,
+          robot_id: data.data.robotId,
+          timestamp: new Date().toISOString(),
+          read: false,
+          action_required: true
+        };
+        break;
+        
+      case 'system_alert':
+        notification = {
+          id: `system-critical-${Date.now()}`,
+          type: 'SYSTEM_ALERT',
+          title: `🚨 КРИТИЧЕСКАЯ ОШИБКА СИСТЕМЫ`,
+          message: data.data.message || 'Произошла критическая ошибка в системе',
+          priority: 'HIGH' as NotificationPriority,
+          timestamp: new Date().toISOString(),
+          read: false,
+          action_required: true
+        };
+        break;
+        
+      default:
+        notification = {
+          id: `critical-${Date.now()}`,
+          type: 'CRITICAL_ALERT',
+          title: '🚨 Критический алерт',
+          message: data.data.message || 'Произошло критическое событие',
+          priority: 'HIGH' as NotificationPriority,
+          timestamp: new Date().toISOString(),
+          read: false,
+          action_required: true
+        };
+    }
+
+    // Добавляем уведомление в store
+    store.dispatch(addNotification(notification));
+    
+    // Эмитим событие для UI
+    this.emit('notification_alert', notification);
+    
+    // Показываем браузерное уведомление для критических алертов
+    if (Notification.permission === 'granted') {
+      this.showBrowserNotification(notification);
+    }
+    
+    console.log('🚨 Critical alert processed:', notification);
   }
 
   private showBrowserNotification(notification: any) {

@@ -167,6 +167,24 @@ export class RobotService {
   }
 
   private async updateRobotStatus(robotId: string, status: string, batteryLevel: number) {
+    // Проверяем критический уровень батареи
+    if (batteryLevel < 20 && status !== 'offline') {
+      // Отправляем критическое уведомление о низком заряде
+      this.io.emit('critical_alert', {
+        type: 'robot_battery_low',
+        data: {
+          robotId: robotId,
+          batteryLevel: batteryLevel,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      // Также отправляем через NotificationManager
+      if (this.notificationManager) {
+        this.notificationManager.notifyRobotBatteryLow(robotId, batteryLevel);
+      }
+    }
+    
     // Здесь можно добавить логику для отслеживания изменений статуса
     // и отправки уведомлений при необходимости
     console.log(`🤖 Robot ${robotId} status: ${status}, battery: ${batteryLevel}%`);
@@ -175,12 +193,38 @@ export class RobotService {
   private async processScanResults(robotId: string, scanResults: any[]) {
     for (const result of scanResults) {
       // Проверяем критические уровни запасов
-      if (result.status === 'CRITICAL' && this.notificationManager) {
-        this.notificationManager.notifyCriticalStock(
-          result.product_id,
-          result.product_name,
-          result.quantity
-        );
+      if (result.status === 'CRITICAL') {
+        // Отправляем через NotificationManager (для подписанных клиентов)
+        if (this.notificationManager) {
+          this.notificationManager.notifyCriticalStock(
+            result.product_id,
+            result.product_name,
+            result.quantity
+          );
+        }
+        
+        // Также отправляем напрямую через WebSocket для всех клиентов
+        this.io.emit('critical_alert', {
+          type: 'critical_stock',
+          data: {
+            productId: result.product_id,
+            productName: result.product_name,
+            quantity: result.quantity,
+            robotId: robotId,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        // Отправляем как inventory_alert для совместимости
+        this.io.emit('inventory_alert', {
+          productId: result.product_id,
+          productName: result.product_name,
+          quantity: result.quantity,
+          status: 'CRITICAL',
+          robotId: robotId,
+          critical: true,
+          zone: result.zone || 'Unknown'
+        });
       }
 
       // Уведомляем об обновлении инвентаря
@@ -191,6 +235,17 @@ export class RobotService {
           result.status
         );
       }
+      
+      // Отправляем обычное уведомление об инвентаре
+      this.io.emit('inventory_alert', {
+        productId: result.product_id,
+        productName: result.product_name,
+        quantity: result.quantity,
+        status: result.status,
+        robotId: robotId,
+        critical: result.status === 'CRITICAL',
+        zone: result.zone || 'Unknown'
+      });
     }
   }
 }
