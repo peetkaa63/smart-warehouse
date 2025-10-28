@@ -2,6 +2,8 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { userRepository, IUserRepository } from '../repositories/UserRepository';
 import { User, PublicUser, LoginResponse } from '../types';
+import { AppError } from '../errors/AppError';
+import { ErrorCode, ErrorSeverity } from '../types/errors';
 
 export interface LoginData {
   email: string;
@@ -122,7 +124,13 @@ export class AuthService {
       // Аутентификация
       const authResult = await this.authenticateUser(loginData.email, loginData.password);
       if (!authResult.success || !authResult.user) {
-        throw new Error(authResult.error || 'Authentication failed');
+        // Возвращаем структурированную 401 ошибку для корректного UX на фронтенде
+        throw new AppError(
+          ErrorCode.INVALID_CREDENTIALS,
+          'Invalid credentials',
+          401,
+          ErrorSeverity.MEDIUM
+        );
       }
 
       // Генерация токена

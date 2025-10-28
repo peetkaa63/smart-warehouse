@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Typography, Box, IconButton, Chip, Popover } from '@mui/material';
 import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups } from '@mui/icons-material';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 
 interface Robot {
   id: string;
@@ -30,6 +32,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedCellRobots, setSelectedCellRobots] = useState<Robot[]>([]);
   const [selectedCellPosition, setSelectedCellPosition] = useState<{zone: string, row: number, shelf: number} | null>(null);
+  const mapFocus = useSelector((state: RootState) => state.mapFocus.target);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const zones = ['A', 'B', 'C', 'D', 'E'];
   const rows = 20;
@@ -43,6 +47,19 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
       setLastUpdateTime(new Date().toLocaleTimeString());
     }
   }, [robots]);
+  // Реакция на внешний фокус: прокрутка и подсветка ячейки
+  useEffect(() => {
+    if (!mapFocus || !containerRef.current) return;
+    const { zone, row, shelf } = mapFocus;
+    const cellEl = document.getElementById(`cell-${zone}-${row}-${shelf}`);
+    if (cellEl) {
+      cellEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      setSelectedCellPosition({ zone, row, shelf });
+      // краткая подсветка
+      cellEl.classList.add('highlight-cell');
+      setTimeout(() => cellEl.classList.remove('highlight-cell'), 1500);
+    }
+  }, [mapFocus]);
 
   // WebSocket обработчики для реального обновления
   useEffect(() => {
@@ -249,6 +266,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           overflow: 'auto',
           position: 'relative'
         }}
+        ref={containerRef}
       >
         <Box sx={{ transform: `scale(${scale})`, transformOrigin: 'top left', p: 2 }}>
           {zones.map(zone => {
@@ -278,6 +296,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     return (
                       <Box
                         key={cellId}
+                        id={`cell-${zone}-${row}-${shelf}`}
                         sx={{
                           width: 50,
                           height: 50,
@@ -500,6 +519,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
             0% { opacity: 1; }
             50% { opacity: 0.4; }
             100% { opacity: 1; }
+          }
+          .highlight-cell {
+            box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.5) inset;
+            transition: box-shadow 0.3s ease;
           }
         `}
       </style>

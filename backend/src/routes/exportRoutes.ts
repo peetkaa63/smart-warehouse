@@ -55,12 +55,29 @@ router.get('/excel', authenticateToken, async (req, res) => {
     const filters = req.query;
     const result = await exportService.exportToExcel(filters);
     
-    // Конвертируем данные в CSV для Excel
-    const parser = new Parser();
-    const csv = parser.parse(result.data);
+    // Готовим данные и заголовки под требуемый CSV формат c ';' разделителем
+    // Формат: product_id;product_name;quantity;zone;date;row;shelf
+    const mapped = (result.data || [])
+      .filter((row: any) => !row.stats)
+      .map((row: any) => ({
+        product_id: row.productId || row.product_id || '',
+        product_name: row.productName || row.product_name || '',
+        quantity: row.quantity ?? '',
+        zone: row.zone || '',
+        date: row.scannedAt ? new Date(row.scannedAt).toISOString().split('T')[0] : '',
+        row: row.rowNumber ?? row.row_number ?? '',
+        shelf: row.shelfNumber ?? row.shelf_number ?? ''
+      }));
+
+    const parser = new Parser({
+      fields: ['product_id', 'product_name', 'quantity', 'zone', 'date', 'row', 'shelf'],
+      delimiter: ';'
+    });
+    const csv = parser.parse(mapped);
     
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    const filename = result.filename?.replace(/\.xlsx?$/i, '.csv') || `inventory_export_${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
 
   } catch (error: any) {

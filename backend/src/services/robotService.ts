@@ -193,7 +193,7 @@ export class RobotService {
   private async processScanResults(robotId: string, scanResults: any[]) {
     for (const result of scanResults) {
       // Проверяем критические уровни запасов
-      if (result.status === 'CRITICAL') {
+      if (result.status === 'CRITICAL' || Number(result.quantity) < 5) {
         // Отправляем через NotificationManager (для подписанных клиентов)
         if (this.notificationManager) {
           this.notificationManager.notifyCriticalStock(
@@ -211,6 +211,9 @@ export class RobotService {
             productName: result.product_name,
             quantity: result.quantity,
             robotId: robotId,
+            zone: result.zone,
+            row: result.row_number,
+            shelf: result.shelf_number,
             timestamp: new Date().toISOString()
           }
         });
@@ -223,7 +226,9 @@ export class RobotService {
           status: 'CRITICAL',
           robotId: robotId,
           critical: true,
-          zone: result.zone || 'Unknown'
+          zone: result.zone || 'Unknown',
+          row: result.row_number,
+          shelf: result.shelf_number
         });
       }
 

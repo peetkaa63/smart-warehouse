@@ -160,8 +160,9 @@ export class RobotsService {
     location: { zone: string; row: number; shelf: number };
     scan_results: Array<{
       product_id: string;
+      product_name?: string;
       quantity: number;
-      status: string;
+      status?: string;
     }>;
     battery_level: number;
   }): Promise<{ success: boolean; message: string; processed_scans: number }> {
@@ -231,11 +232,46 @@ export class RobotsService {
         zone: robotData.location.zone,
         row_number: robotData.location.row,
         shelf_number: robotData.location.shelf,
-        status: scan.status,
+        status: (scan.status && scan.status.length > 0)
+          ? scan.status
+          : (Number(scan.quantity) < 5 ? 'CRITICAL' : 'OK'),
         scanned_at: new Date(robotData.timestamp)
       }));
       
       await robotsRepository.saveScanResults(scanResults);
+
+      // Отправляем критические уведомления для quantity < 5
+      for (const scan of scanResults) {
+        if (scan.status === 'CRITICAL') {
+          try {
+            const { robotService } = await import('../sockets/websocket');
+            if (robotService && robotService.io) {
+              robotService.io.emit('critical_alert', {
+                type: 'critical_stock',
+                data: {
+                  productId: scan.product_id,
+                  quantity: scan.quantity,
+                  zone: scan.zone,
+                  row: scan.row_number,
+                  shelf: scan.shelf_number,
+                  timestamp: new Date().toISOString()
+                }
+              });
+              robotService.io.emit('inventory_alert', {
+                productId: scan.product_id,
+                quantity: scan.quantity,
+                status: 'CRITICAL',
+                zone: scan.zone,
+                row: scan.row_number,
+                shelf: scan.shelf_number,
+                critical: true
+              });
+            }
+          } catch (e) {
+            console.error('❌ Error emitting critical stock notification:', e);
+          }
+        }
+      }
       
       console.log(`✅ Robots Service: Processed ${scanResults.length} scans from robot ${robotData.robot_id}`);
       

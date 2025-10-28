@@ -141,10 +141,12 @@ class NotificationSocketService {
       id: `inventory-${Date.now()}`,
       type: 'INVENTORY_ALERT',
       title: `🚨 ${data.critical ? 'КРИТИЧЕСКИЙ ОСТАТОК' : 'НИЗКИЙ ЗАПАС'}: ${data.productName}`,
-      message: `Зона ${data.zone}. Текущий запас: ${data.currentStock} шт.`,
+      message: `Зона ${data.zone}. Текущий запас: ${data.currentStock ?? data.quantity} шт.`,
       priority: priority,
       product_id: data.productId,
       zone: data.zone,
+      row: data.row,
+      shelf: data.shelf,
       timestamp: new Date().toISOString(),
       read: false,
       action_required: data.critical

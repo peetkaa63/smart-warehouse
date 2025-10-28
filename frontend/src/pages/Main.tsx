@@ -46,6 +46,7 @@ import Dashboard from './Dashboard'
 import History from './History'
 import UploadCSVModal from '../components/UploadCSVModal'
 import { markAsRead, markAllAsRead } from '../store/slices/notificationsSlice'
+import { setMapFocus } from '../store/slices/mapFocusSlice'
 import notificationSocketService from '../services/notificationSocketService'
 
 type TabType = "dashboard" | "history"
@@ -219,6 +220,10 @@ const Main: React.FC = () => {
       console.log('Переход к товару:', notification.product_id)
       // Переключаемся на dashboard для просмотра проблемы
       handleTabChange('dashboard');
+      // Прокидываем целевую ячейку для карты
+      if (notification.zone && notification.row && notification.shelf) {
+        dispatch(setMapFocus({ zone: notification.zone, row: Number(notification.row), shelf: Number(notification.shelf) }))
+      }
     }
   }
 

@@ -67,14 +67,14 @@ export class AIRepository {
           product_id,
           prediction_date,
           days_until_stockout,
-          recommended_order_quantity,
+          recommended_order,
           confidence_score,
           created_at
         ) VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (product_id, prediction_date) 
         DO UPDATE SET
           days_until_stockout = EXCLUDED.days_until_stockout,
-          recommended_order_quantity = EXCLUDED.recommended_order_quantity,
+          recommended_order = EXCLUDED.recommended_order,
           confidence_score = EXCLUDED.confidence_score,
           created_at = EXCLUDED.created_at
       `, [
@@ -95,7 +95,7 @@ export class AIRepository {
         product_id,
         prediction_date,
         days_until_stockout,
-        recommended_order_quantity,
+        recommended_order as recommended_order_quantity,
         confidence_score,
         created_at
       FROM ai_predictions
@@ -119,7 +119,7 @@ export class AIRepository {
         product_id,
         prediction_date,
         days_until_stockout,
-        recommended_order_quantity,
+        recommended_order as recommended_order_quantity,
         confidence_score,
         created_at
       FROM ai_predictions
