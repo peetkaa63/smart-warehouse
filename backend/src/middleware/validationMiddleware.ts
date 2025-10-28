@@ -12,8 +12,6 @@ export const validateLogin: ValidationChain[] = [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Пароль должен содержать минимум 8 символов')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Пароль должен содержать заглавные и строчные буквы, а также цифры')
 ];
 
 // Валидация для регистрации
@@ -25,9 +23,7 @@ export const validateRegister: ValidationChain[] = [
   
   body('password')
     .isLength({ min: 8 })
-    .withMessage('Пароль должен содержать минимум 8 символов')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
-    .withMessage('Пароль должен содержать заглавные и строчные буквы, цифры и специальные символы'),
+    .withMessage('Пароль должен содержать минимум 8 символов'),
   
   body('name')
     .trim()
