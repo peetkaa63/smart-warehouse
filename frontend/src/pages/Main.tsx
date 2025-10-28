@@ -23,6 +23,8 @@ import {
   Chip,
   ListItemButton,
   Alert,
+  BottomNavigation,
+  BottomNavigationAction,
 } from "@mui/material"
 import {
   AccountCircle,
@@ -112,6 +114,8 @@ const Main: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [notificationsDrawerOpen, setNotificationsDrawerOpen] = useState(false)
+  const [mobileBottomValue, setMobileBottomValue] = useState<string>('dashboard')
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [alert, setAlert] = useState<{ type: "success" | "error" | "warning" | "info"; message: string } | null>(null)
 
   // Синхронизация активной вкладки с URL при изменении location
@@ -342,7 +346,7 @@ const Main: React.FC = () => {
                         filter: "brightness(0) invert(1)",
                       }}
                     />
-                    <Typography variant="h6" sx={{ display: { xs: "none", sm: "block" } }}>
+                    <Typography variant="h6">
                       Умный склад
                     </Typography>
                   </Box>
@@ -352,86 +356,88 @@ const Main: React.FC = () => {
                       <IconButton color="inherit">{wsConnected ? <Wifi /> : <WifiOff />}</IconButton>
                     </Tooltip>
 
-                    <Tooltip title="Уведомления">
-                      <IconButton color="inherit" onClick={() => setNotificationsDrawerOpen(true)}>
-                        <Badge badgeContent={unreadCount} color="error">
-                          <Notifications />
-                        </Badge>
-                      </IconButton>
-                    </Tooltip>
+                    {!isMobile && (
+                      <>
+                        <Tooltip title="Уведомления">
+                          <IconButton color="inherit" onClick={() => setNotificationsDrawerOpen(true)}>
+                            <Badge badgeContent={unreadCount} color="error">
+                              <Notifications />
+                            </Badge>
+                          </IconButton>
+                        </Tooltip>
 
-                    <Box sx={{ display: "flex", mx: 1 }}>
-                      <Tooltip title="Текущий мониторинг">
-                        <Button
-                          color="inherit"
-                          startIcon={<DashboardIcon />}
-                          onClick={() => handleTabChange("dashboard")}
-                          sx={getTabButtonStyle("dashboard")}
-                          disabled={isAnimating}
-                        >
-                          {!isMobile && "Мониторинг"}
-                        </Button>
-                      </Tooltip>
+                        <Box sx={{ display: "flex", mx: 1 }}>
+                          <Tooltip title="Текущий мониторинг">
+                            <Button
+                              color="inherit"
+                              startIcon={<DashboardIcon />}
+                              onClick={() => handleTabChange("dashboard")}
+                              sx={getTabButtonStyle("dashboard")}
+                              disabled={isAnimating}
+                            >
+                              Мониторинг
+                            </Button>
+                          </Tooltip>
 
-                      <Tooltip title="Исторические данные">
-                        <Button
-                          color="inherit"
-                          startIcon={<HistoryIcon />}
-                          onClick={() => handleTabChange("history")}
-                          sx={getTabButtonStyle("history")}
-                          disabled={isAnimating}
-                        >
-                          {!isMobile && "История"}
-                        </Button>
-                      </Tooltip>
-                    </Box>
+                          <Tooltip title="Исторические данные">
+                            <Button
+                              color="inherit"
+                              startIcon={<HistoryIcon />}
+                              onClick={() => handleTabChange("history")}
+                              sx={getTabButtonStyle("history")}
+                              disabled={isAnimating}
+                            >
+                              История
+                            </Button>
+                          </Tooltip>
+                        </Box>
 
-                    <Tooltip title="Загрузить CSV">
-                      <Button
-                        color="inherit"
-                        startIcon={<Upload />}
-                        onClick={() => setUploadModalOpen(true)}
-                        sx={{ mx: 0.5, minWidth: "auto" }}
-                      >
-                        {!isMobile && "CSV"}
-                      </Button>
-                    </Tooltip>
+                        <Tooltip title="Загрузить CSV">
+                          <Button
+                            color="inherit"
+                            startIcon={<Upload />}
+                            onClick={() => setUploadModalOpen(true)}
+                            sx={{ mx: 0.5, minWidth: "auto" }}
+                          >
+                            CSV
+                          </Button>
+                        </Tooltip>
 
-                    <Tooltip title="Аккаунт">
-                      <Button
-                        color="inherit"
-                        startIcon={<AccountCircle />}
-                        onClick={handleMenu}
-                        sx={{
-                          mx: 0.5,
-                          minWidth: "auto",
-                          px: 2,
-                          borderRadius: 1,
-                          backgroundColor: anchorEl ? "rgba(255, 255, 255, 0.16)" : "transparent",
-                          "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)" },
-                          transition: 'all 0.3s ease'
-                        }}
-                      >
-                        {!isMobile && (
-                          <Typography variant="body2" sx={{ ml: 0.5 }}>
+                        <Tooltip title="Аккаунт">
+                          <Button
+                            color="inherit"
+                            startIcon={<AccountCircle />}
+                            onClick={handleMenu}
+                            sx={{
+                              mx: 0.5,
+                              minWidth: "auto",
+                              px: 2,
+                              borderRadius: 1,
+                              backgroundColor: anchorEl ? "rgba(255, 255, 255, 0.16)" : "transparent",
+                              "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)" },
+                              transition: 'all 0.3s ease'
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ ml: 0.5 }}>
+                              {user?.name}
+                            </Typography>
+                          </Button>
+                        </Tooltip>
+
+                        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
+                          <MenuItem onClick={handleClose}>
+                            <AccountCircle sx={{ mr: 1 }} />
                             {user?.name}
-                          </Typography>
-                        )}
-                      </Button>
-                    </Tooltip>
-
-                    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-                      <MenuItem onClick={handleClose}>
-                        <AccountCircle sx={{ mr: 1 }} />
-                        {user?.name}
-                      </MenuItem>
-                      <MenuItem onClick={handleClose}>Роль: {user?.role}</MenuItem>
-                      <Divider />
-                      <MenuItem onClick={handleLogout}>
-                        <Logout sx={{ mr: 1 }} />
-                        Выход
-                      </MenuItem>
-                    </Menu>
+                          </MenuItem>
+                          <MenuItem onClick={handleClose}>Роль: {user?.role}</MenuItem>
+                          <Divider />
+                          <MenuItem onClick={handleLogout}>
+                            <Logout sx={{ mr: 1 }} />
+                            Выход
+                          </MenuItem>
+                        </Menu>
+                      </>
+                    )}
                   </Box>
                 </Toolbar>
               </AppBar>
@@ -544,6 +550,42 @@ const Main: React.FC = () => {
                     </ListItem>
                   )}
                 </List>
+              </Box>
+            </Drawer>
+
+            {/* Bottom Navigation для мобильных */}
+            {isMobile && (
+              <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1200, borderTop: '1px solid #ddd' }}>
+                <BottomNavigation
+                  showLabels
+                  value={mobileBottomValue}
+                  onChange={(e, newValue) => {
+                    setMobileBottomValue(newValue);
+                    if (newValue === 'dashboard' || newValue === 'history') {
+                      handleTabChange(newValue);
+                    } else if (newValue === 'csv') {
+                      setUploadModalOpen(true);
+                    } else if (newValue === 'profile') {
+                      setProfileSheetOpen(true);
+                    }
+                  }}
+                >
+                  <BottomNavigationAction label="Мониторинг" value="dashboard" icon={<DashboardIcon />} />
+                  <BottomNavigationAction label="История" value="history" icon={<HistoryIcon />} />
+                  <BottomNavigationAction label="CSV" value="csv" icon={<Upload />} />
+                  <BottomNavigationAction label="Профиль" value="profile" icon={<AccountCircle />} />
+                </BottomNavigation>
+              </Box>
+            )}
+
+            {/* Bottom sheet профиль для мобильных */}
+            <Drawer anchor="bottom" open={profileSheetOpen} onClose={() => setProfileSheetOpen(false)}>
+              <Box sx={{ p: 2 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>Профиль</Typography>
+                <Typography variant="body2">{user?.name}</Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>Роль: {user?.role}</Typography>
+                <Button variant="outlined" fullWidth sx={{ mb: 1 }} onClick={() => setProfileSheetOpen(false)}>Закрыть</Button>
+                <Button variant="contained" color="error" fullWidth onClick={handleLogout}>Выйти</Button>
               </Box>
             </Drawer>
 
