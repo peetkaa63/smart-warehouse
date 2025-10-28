@@ -159,8 +159,6 @@ const Main: React.FC = () => {
     notificationSocketService.connect();
 
 
-    // Подписываемся только на событие для UI alert
-    notificationSocketService.on('notification_alert', handleNewNotificationAlert);
 
     // Отписка при размонтировании компонента
     return () => {
