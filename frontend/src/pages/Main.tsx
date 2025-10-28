@@ -158,22 +158,6 @@ const Main: React.FC = () => {
     // Подключение уведомлений через Socket.io
     notificationSocketService.connect();
 
-    // Обработчик для показа alert в интерфейсе при новых уведомлениях
-    const handleNewNotificationAlert = (notification: any) => {
-      console.log('📢 Показ alert для уведомления:', notification);
-      
-      // Показываем alert в интерфейсе (только UI логика)
-      setAlert({
-        type: notification.priority === 'HIGH' ? 'error' : 
-              notification.priority === 'MEDIUM' ? 'warning' : 'info',
-        message: `${notification.title}: ${notification.message}`
-      });
-
-      // Автоматически скрываем alert через 5 секунд
-      setTimeout(() => {
-        setAlert(null);
-      }, 5000);
-    };
 
     // Подписываемся только на событие для UI alert
     notificationSocketService.on('notification_alert', handleNewNotificationAlert);
@@ -591,11 +575,6 @@ const Main: React.FC = () => {
 
             <UploadCSVModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} onUploadSuccess={() => setUploadModalOpen(false)} />
 
-            {alert && (
-              <Box sx={{ position: "fixed", top: 70, right: 20, zIndex: 9999 }}>
-                <Alert severity={alert.type} onClose={() => setAlert(null)}>{alert.message}</Alert>
-              </Box>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
