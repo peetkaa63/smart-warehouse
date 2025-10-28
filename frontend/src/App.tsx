@@ -53,7 +53,7 @@ const AppRoutes: React.FC = () => {
       </Routes>
       
       {/* Система уведомлений */}
-      <NotificationSystem />
+      // <NotificationSystem />  // Система уведомлений, показывает быстрое всплывающее окно
     </ErrorBoundary>
   );
 };
