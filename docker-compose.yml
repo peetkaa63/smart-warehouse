@@ -49,8 +49,8 @@ services:
   frontend:
     build: ./frontend
     environment:
-      REACT_APP_API_URL: http://localhost:3000
-      REACT_APP_WS_URL: ws://localhost:3000
+      REACT_APP_API_URL: http://rtk.keep-pixel.ru:3000
+      REACT_APP_WS_URL: ws://rtk.keep-pixel.ru:3000
     ports:
       - "80:80"
     depends_on:

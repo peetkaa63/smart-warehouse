@@ -404,7 +404,7 @@ class EnhancedSocketService extends EventEmitter {
 
 // Создание singleton instance
 export const enhancedSocketService = new EnhancedSocketService({
-  url: process.env.REACT_APP_WS_URL || 'http://localhost:3000',
+  url: process.env.REACT_APP_WS_URL || 'ws://rtk.keep-pixel.ru:3000',
   options: {
     autoConnect: true,
     reconnection: true,

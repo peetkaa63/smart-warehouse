@@ -6,7 +6,7 @@ class SocketService {
   connect() {
     if (this.socket) return this.socket;
     
-    this.socket = io(process.env.REACT_APP_WS_URL || 'http://localhost:3000');
+    this.socket = io(process.env.REACT_APP_WS_URL || 'ws://rtk.keep-pixel.ru:3000');
     
     this.socket.on('connect', () => {
       console.log('🔌 WebSocket connected');
