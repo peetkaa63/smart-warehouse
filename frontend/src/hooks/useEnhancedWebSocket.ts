@@ -11,6 +11,13 @@ export interface UseWebSocketOptions {
   onStateChange?: (state: ConnectionState) => void;
 }
 
+/**
+ * Продвинутый хук WebSocket с управлением состоянием соединения и политиками ошибок.
+ *
+ * Почему так:
+ * - Инкапсулируем стратегии переподключения и маппинг ошибок → UI остаётся декларативным.
+ * - Коллбеки позволяют «подмешивать» побочные эффекты без знания о транспорте.
+ */
 export const useEnhancedWebSocket = (options: UseWebSocketOptions = {}) => {
   const dispatch = useDispatch();
   const [connectionState, setConnectionState] = useState<ConnectionState>(

@@ -15,6 +15,13 @@ const initialState: AuthState = {
   error: null
 };
 
+/**
+ * Async thunk: логин пользователя через `authService`.
+ *
+ * Почему так:
+ * - Держим побочные эффекты (HTTP, хранение токена) внутри сервиса, а не в компонентах.
+ * - Возвращаем удобочитаемое сообщение ошибки — UX важнее деталей транспорта.
+ */
 export const login = createAsyncThunk(
   'auth/login',
   async (loginData: LoginData, { rejectWithValue }) => {
@@ -37,6 +44,13 @@ export const login = createAsyncThunk(
   }
 );
 
+/**
+ * Redux slice аутентификации.
+ *
+ * Почему так:
+ * - Инициализация из `authService` даёт «тёплый старт» после перезагрузки.
+ * - Локальный `error` управляется тут, чтобы UI оставался декларативным.
+ */
 const authSlice = createSlice({
   name: 'auth',
   initialState,

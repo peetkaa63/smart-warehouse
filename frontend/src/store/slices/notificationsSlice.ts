@@ -1,6 +1,12 @@
 // store/slices/notificationsSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+/**
+ * Приоритет уведомлений влияет на визуализацию и политику автоудаления.
+ *
+ * Почему так: UI не должен принимать решения из бизнес‑контекста —
+ * достаточно нормализованных уровней для единых UX‑правил.
+ */
 // Определяем тип для приоритета
 export type NotificationPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 
@@ -37,10 +43,20 @@ const initialState: NotificationsState = {
   unreadCount: 0
 };
 
+/**
+ * Redux slice для управления уведомлениями.
+ *
+ * Почему так:
+ * - Храним непрочитанные отдельным счётчиком: это O(1) обновления без проходов по массиву.
+ * - Ограничение в 50 элементов предотвращает деградацию производительности и «дедлок» UI от всплесков событий.
+ */
 const notificationsSlice = createSlice({
   name: 'notifications',
   initialState,
   reducers: {
+    /** Добавляет нормализованное уведомление в начало списка (LIFO).
+     * Почему так: новое важнее старого, и так меньше прокрутки.
+     */
     addNotification: (state, action: PayloadAction<Notification>) => {
       state.items.unshift(action.payload);
       state.unreadCount += 1;
@@ -50,6 +66,9 @@ const notificationsSlice = createSlice({
         state.items = state.items.slice(0, 50);
       }
     },
+    /** Упрощённый экшен для удобного показа уведомлений из UI/хуков.
+     * Почему так: снимаем с вызывающих сторон обязанность генерировать id/timestamp.
+     */
     showNotification: (state, action: PayloadAction<Omit<Notification, 'id' | 'timestamp' | 'read' | 'priority' | 'action_required'> & { priority?: NotificationPriority; action_required?: boolean }>) => {
       const notification: Notification = {
         ...action.payload,
@@ -74,6 +93,9 @@ const notificationsSlice = createSlice({
         state.unreadCount -= 1;
       }
     },
+    /** Помечает все уведомления прочитанными.
+     * Почему так: массовая операция должна быть O(n) без пересоздания массива, чтобы не терять ссылки в UI.
+     */
     markAllAsRead: (state) => {
       state.items.forEach(item => {
         if (!item.read) {
@@ -93,6 +115,9 @@ const notificationsSlice = createSlice({
       state.items = [];
       state.unreadCount = 0;
     },
+    /** Удаляет устаревшие уведомления с мягкими правилами.
+     * Почему так: не удаляем требующие действий — безопасность и операционная дисциплина важнее «чистоты» ленты.
+     */
     clearExpiredNotifications: (state) => {
       const now = new Date().getTime();
       state.items = state.items.filter(notification => {

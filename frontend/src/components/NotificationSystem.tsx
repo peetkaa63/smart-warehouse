@@ -186,6 +186,22 @@ const NotificationSystem: React.FC = () => {
     });
   }, [notifications, dispatch]);
 
+  // Логируем все входящие уведомления в консоль для отладки
+  useEffect(() => {
+    notifications.forEach((notification: Notification) => {
+      if (!notification.read) {
+        console.log('✅ ПРИНЯТО УВЕДОМЛЕНИЕ:', {
+          id: notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          robot_id: notification.robot_id,
+          timestamp: notification.timestamp
+        });
+      }
+    });
+  }, [notifications]);
+
   const handleClose = (id: string) => {
     dispatch(removeNotification(id));
   };

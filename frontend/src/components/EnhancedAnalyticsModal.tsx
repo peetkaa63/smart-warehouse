@@ -86,6 +86,14 @@ interface AIInsight {
   }>;
   summary: string;
   overall_health_score: number;
+  error?: {
+    code: string;
+    message: string;
+    details?: string;
+  };
+  isFallback?: boolean;
+  fallbackReason?: string;
+  provider?: string;
 }
 
 const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, onClose }) => {
@@ -97,6 +105,8 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [period, setPeriod] = useState<string>('30');
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   const tabs = [
     { label: '📈 Тренды остатков', value: 'trends' },
@@ -134,6 +144,9 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
 
   const loadAllAnalyticsData = async () => {
     setLoading(true);
+    setAiError(null);
+    setIsFallbackMode(false);
+    
     try {
       console.log('🔄 Loading enhanced analytics data...', {
         selectedProducts,
@@ -169,7 +182,21 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
       }
 
       if (insightsResponse.success) {
-        setAiInsights(insightsResponse.data);
+        const insights = insightsResponse.data;
+        setAiInsights(insights);
+        
+        // Проверяем статус AI
+        if (insights.isFallback) {
+          setIsFallbackMode(true);
+          setAiError(insights.fallbackReason || 'Используется резервная система');
+          
+          if (insights.error) {
+            setAiError(`${insights.error.message}: ${insights.error.details || ''}`);
+          }
+        } else {
+          setIsFallbackMode(false);
+          setAiError(null);
+        }
       }
 
     } catch (error) {
@@ -177,6 +204,10 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
       // При любой ошибке используем fallback данные для графика
       const fallbackData = generateFallbackTrendData(selectedProducts, parseInt(period));
       setTrendData(fallbackData);
+      
+      // Устанавливаем fallback для AI insights
+      setIsFallbackMode(true);
+      setAiError('AI сервис недоступен, используются локальные алгоритмы');
     } finally {
       setLoading(false);
     }
@@ -483,10 +514,33 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUp color="success" />
-                Рекомендации AI
+                <TrendingUp color={isFallbackMode ? "warning" : "success"} />
+                Рекомендации {isFallbackMode ? 'Fallback' : 'AI'}
+                {isFallbackMode && (
+                  <Chip 
+                    label="Fallback" 
+                    size="small" 
+                    color="warning" 
+                    variant="outlined"
+                    icon={<Warning />}
+                  />
+                )}
               </Typography>
-              {aiInsights?.recommendations && aiInsights.recommendations.length > 0 ? (
+              {aiError ? (
+                <Alert severity={isFallbackMode ? "warning" : "error"} icon={<SmartToy />}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    {isFallbackMode ? 'Fallback режим активен' : 'Ошибка AI сервиса'}
+                  </Typography>
+                  <Typography variant="body2">
+                    {aiError}
+                  </Typography>
+                  {isFallbackMode && (
+                    <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                      Используются локальные алгоритмы вместо AI для генерации рекомендаций
+                    </Typography>
+                  )}
+                </Alert>
+              ) : aiInsights?.recommendations && aiInsights.recommendations.length > 0 ? (
                 aiInsights.recommendations.map((rec, index) => (
                   <Alert 
                     key={index}
@@ -594,8 +648,18 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
         <Box>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Сводка анализа
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Analytics color={isFallbackMode ? "warning" : "primary"} />
+                Сводка {isFallbackMode ? 'Fallback' : 'AI'} анализа
+                {isFallbackMode && (
+                  <Chip 
+                    label="Fallback" 
+                    size="small" 
+                    color="warning" 
+                    variant="outlined"
+                    icon={<Warning />}
+                  />
+                )}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Box sx={{ position: 'relative', display: 'inline-flex' }}>

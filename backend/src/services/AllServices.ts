@@ -144,7 +144,16 @@ export class AIServiceWrapper {
 }
 
 export class RobotsService {
-  // Обработка данных от роботов
+  /**
+   * Обрабатывает телеметрию робота и результаты сканирования.
+   *
+   * Почему так:
+   * - Нормализуем заряд до целого: downstream‑логика уведомлений и дашборда использует дискретные пороги (10/20%).
+   * - Определяем `status` из батареи, а не только из телеметрии: это даёт консистентный UX (робот с 15% считается «требует зарядки»).
+   * - Сначала публикуем уведомления о низком заряде: сигнал важнее, чем запись истории; оператор видит проблему сразу, даже если БД задерживается.
+   * - Логика отправки уведомлений дублируется через NotificationManager и прямой emit: это снижает риск «тишины» на фронтенде при расхождениях подписок.
+   * - Сканирования сохраняются батчем: уменьшаем накладные расходы на вставки и упрощаем аудит.
+   */
   async processRobotData(robotData: {
     robot_id: string;
     timestamp: string;
@@ -161,6 +170,47 @@ export class RobotsService {
       
       const batteryLevelInt = Math.round(Number(robotData.battery_level));
       const status = batteryLevelInt > 20 ? 'active' : 'charging';
+      
+      // Проверяем уровень батареи и отправляем уведомление если нужно
+      if (batteryLevelInt <= 20 && batteryLevelInt >= 0) {
+        console.log(`🔋 LOW BATTERY ALERT: Robot ${robotData.robot_id} has ${batteryLevelInt}% battery`);
+        
+        // Импортируем robotService и notificationManager динамически
+        try {
+          const { robotService, notificationManager } = await import('../sockets/websocket');
+          
+          // Отправляем уведомление через NotificationManager
+          if (notificationManager) {
+            console.log(`📢 Sending battery low notification via NotificationManager`);
+            notificationManager.notifyRobotBatteryLow(robotData.robot_id, batteryLevelInt);
+          }
+          
+          // Также отправляем напрямую через socket для тестирования
+          if (robotService && robotService.io) {
+            console.log(`📡 Emitting battery alert via WebSocket`);
+            robotService.io.emit('critical_alert', {
+              type: 'robot_battery_low',
+              data: {
+                robotId: robotData.robot_id,
+                batteryLevel: batteryLevelInt,
+                timestamp: new Date().toISOString()
+              }
+            });
+            
+            // Отправляем и как системное уведомление
+            robotService.io.emit('system_notification', {
+              type: 'LOW_BATTERY',
+              robot_id: robotData.robot_id,
+              title: `🔋 НИЗКИЙ ЗАРЯД: ${robotData.robot_id}`,
+              message: `Уровень заряда: ${batteryLevelInt}%. Рекомендуется зарядка.`,
+              priority: 'MEDIUM',
+              action_required: batteryLevelInt < 10
+            });
+          }
+        } catch (importError) {
+          console.error('Error importing socket services:', importError);
+        }
+      }
       
       // Обновляем данные робота
       await robotsRepository.updateRobot({

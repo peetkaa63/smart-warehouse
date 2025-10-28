@@ -176,7 +176,9 @@ export class LocalAIProvider implements IAIProvider {
       recommendations: [],
       confidence: 0,
       provider: this.providerName,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isFallback: true,
+      fallbackReason: 'Локальный AI провайдер недоступен'
     };
   }
 }

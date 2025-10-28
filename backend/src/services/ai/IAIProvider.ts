@@ -18,6 +18,13 @@ export interface AIAnalysisResponse {
   confidence?: number;
   provider: string;
   timestamp: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: string;
+  };
+  isFallback?: boolean;
+  fallbackReason?: string;
 }
 
 export interface IAIProvider {

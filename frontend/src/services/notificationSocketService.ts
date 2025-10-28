@@ -5,6 +5,14 @@ import { socketService } from './socketService';
 
 type EventCallback = (data: any) => void;
 
+/**
+ * Клиентский слой подписки на уведомления через Socket.IO.
+ *
+ * Почему так:
+ * - Локальная шина событий (on/emit) отделяет сокет‑транспорт от UI: компоненты не зависят от socket.io API.
+ * - Браузерные нотификации показываем только при скрытой вкладке: снижаем «шум» и не конкурируем с in‑app алертами.
+ * - Нормализация приоритета на клиенте защищает UI от расхождений форматов между сервисами.
+ */
 class NotificationSocketService {
   private isConnected = false;
   private isTabVisible = true;
@@ -84,8 +92,14 @@ class NotificationSocketService {
     this.isConnected = true;
   }
 
+  /**
+   * Обработка системных уведомлений.
+   *
+   * Почему так: одно место нормализации структуры, чтобы Redux и UI не были связаны с формой событий на сервере.
+   */
   private handleSystemNotification(data: any) {
     console.log('🔔 Processing system notification:', data);
+    console.log('✅ ПРИНЯЛ УВЕДОМЛЕНИЕ ОТ СЕРВЕРА - данные:', JSON.stringify(data, null, 2));
     
     const priority: NotificationPriority = this.mapPriority(data.priority);
     
@@ -103,7 +117,9 @@ class NotificationSocketService {
       action_required: data.action_required || false
     };
 
-    console.log('📝 Dispatching notification to Redux:', notification);
+    console.log('📝 Dispatch notification to Redux:', notification);
+    console.log('✅ УВЕДОМЛЕНИЕ БУДЕТ ОТОБРАЖЕНО В ИНТЕРФЕЙСЕ');
+    
     store.dispatch(addNotification(notification));
     
     // Эмитим событие для UI alert
@@ -176,8 +192,14 @@ class NotificationSocketService {
     this.emit('notification_alert', notification);
   }
 
+  /**
+   * Обработка критических алертов (низкий заряд, критический остаток).
+   *
+   * Почему так: явная ветвизация по типам нужна, чтобы задавать разные UX‑политики (авто‑таймауты, требование действий).
+   */
   private handleCriticalAlert(data: any) {
     console.log('🚨 Processing critical alert:', data);
+    console.log('✅ ПРИНЯЛ КРИТИЧЕСКОЕ УВЕДОМЛЕНИЕ ОТ СЕРВЕРА:', JSON.stringify(data, null, 2));
     
     // Определяем тип уведомления и создаем соответствующее сообщение
     let notification;
@@ -198,6 +220,8 @@ class NotificationSocketService {
         break;
         
       case 'robot_battery_low':
+        console.log(`🔋 ПРИНЯЛ УВЕДОМЛЕНИЕ О НИЗКОМ ЗАРЯДЕ: Робот ${data.data.robotId}, заряд ${data.data.batteryLevel}%`);
+        
         notification = {
           id: `robot-battery-${Date.now()}`,
           type: 'ROBOT_BATTERY_LOW',
@@ -209,6 +233,8 @@ class NotificationSocketService {
           read: false,
           action_required: true
         };
+        
+        console.log('✅ УВЕДОМЛЕНИЕ О НИЗКОМ ЗАРЯДЕ БУДЕТ ОТОБРАЖЕНО');
         break;
         
       case 'system_alert':
@@ -238,6 +264,7 @@ class NotificationSocketService {
     }
 
     // Добавляем уведомление в store
+    console.log('📝 Dispatch critical notification to Redux:', notification);
     store.dispatch(addNotification(notification));
     
     // Эмитим событие для UI
@@ -248,7 +275,7 @@ class NotificationSocketService {
       this.showBrowserNotification(notification);
     }
     
-    console.log('🚨 Critical alert processed:', notification);
+    console.log('🚨 Critical alert processed and displayed:', notification);
   }
 
   private showBrowserNotification(notification: any) {

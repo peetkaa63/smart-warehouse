@@ -11,6 +11,14 @@ import {
 let robotService: RobotService;
 let notificationManager: NotificationManager;
 
+/**
+ * Инициализирует Socket.IO слой и регистрирует обработчики подписок.
+ *
+ * Почему так:
+ * - Используем комнату `dashboard` для разгрузки широковещания: только подписанные клиенты получают обновления.
+ * - Наблюдатели (Observer pattern) инкапсулируют правила маршрутизации уведомлений: это облегчает эволюцию типов событий без каскада if/else.
+ * - Мгновенно отправляем актуальное состояние при подписке: сокращаем «холодный старт» клиента и устраняем гонки после reconnection.
+ */
 export const setupWebSocket = (io: Server) => {
   robotService = new RobotService(io);
   notificationManager = new NotificationManager(io);
@@ -24,6 +32,7 @@ export const setupWebSocket = (io: Server) => {
     const robotObserver = new RobotObserver(socket.id, socket);
 
     // Подписка на обновления dashboard
+    // Почему: отдельный канал подписки, чтобы не слать всем полный поток.
     socket.on('subscribe_dashboard', async () => {
       socket.join('dashboard');
       notificationManager.subscribe(dashboardObserver);
@@ -34,6 +43,7 @@ export const setupWebSocket = (io: Server) => {
     });
 
     // Подписка на критические уведомления
+    // Почему: критические события отделены, чтобы UI мог управлять частотой/уровнем шума.
     socket.on('subscribe_critical_alerts', () => {
       socket.join('critical_alerts');
       notificationManager.subscribe(criticalAlertsObserver);
@@ -41,6 +51,7 @@ export const setupWebSocket = (io: Server) => {
     });
 
     // Подписка на уведомления роботов
+    // Почему: роботы могут иметь собственных потребителей (диагностика, карты), отделяем от общей ленты.
     socket.on('subscribe_robot_updates', () => {
       socket.join('robots');
       notificationManager.subscribe(robotObserver);

@@ -3,6 +3,13 @@ import { useDispatch } from 'react-redux';
 import { socketService } from '../services/socketService';
 import { updateDashboard, addScan } from '../store/slices/dashboardSlice';
 
+/**
+ * Минимальный хук подключения к Socket.IO для дашборда.
+ *
+ * Почему так:
+ * - Автоподписка только на нужные каналы уменьшает трафик и шум в логах.
+ * - Возвращаем лишь признак соединения: компоненты не должны знать о сокете напрямую.
+ */
 export const useWebSocket = () => {
   const dispatch = useDispatch();
   const [connected, setConnected] = useState(false);

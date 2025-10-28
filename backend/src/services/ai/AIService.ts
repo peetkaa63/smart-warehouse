@@ -69,7 +69,13 @@ export class AIService {
     return this.defaultProvider;
   }
 
-  // Анализ данных инвентаризации
+  /**
+   * Анализ данных инвентаризации.
+   *
+   * Почему так:
+   * - Оставляем сервис ответственным за выбор провайдера и ретраи, чтобы контроллеры были тонкими.
+   * - Унифицированный контракт `AIAnalysisRequest` даёт стабильный API поверх разных моделей.
+   */
   async analyzeInventoryData(
     historicalData: any[], 
     currentStock: any[], 
@@ -88,7 +94,12 @@ export class AIService {
     );
   }
 
-  // Получение прогнозов
+  /**
+   * Получение прогнозов запасов/спроса.
+   *
+   * Почему так:
+   * - Strategy pattern минимизирует vendor‑lock; легко добавить «rule‑based» локальный фоллбек.
+   */
   async getPredictions(
     historicalData: any[], 
     currentStock: any[], 
@@ -108,7 +119,12 @@ export class AIService {
     );
   }
 
-  // Получение рекомендаций
+  /**
+   * Получение рекомендаций по действиям (перезаказ, перераскладка).
+   *
+   * Почему так:
+   * - Разделяем рекомендации от прогнозов: разные SLA и источники данных.
+   */
   async getRecommendations(
     historicalData: any[], 
     currentStock: any[], 
@@ -128,7 +144,11 @@ export class AIService {
     );
   }
 
-  // Выполнение операции с выбранным провайдером
+  /**
+   * Выполняет метод провайдера с учётом доступности и ошибок.
+   *
+   * Почему так: централизованный контроль деградации (fallback) даёт предсказуемость под нагрузкой.
+   */
   private async executeWithProvider(
     method: keyof IAIProvider,
     request: AIAnalysisRequest,
@@ -157,7 +177,11 @@ export class AIService {
     }
   }
 
-  // Выполнение с fallback провайдером
+  /**
+   * Выполнение через fallback‑провайдера при недоступности основного.
+   *
+   * Почему так: бизнес‑ценность — лучше вернуть «приблизительный» ответ, чем упасть.
+   */
   private async executeWithFallback(
     method: keyof IAIProvider,
     request: AIAnalysisRequest
@@ -196,7 +220,9 @@ export class AIService {
       recommendations: [],
       confidence: 0,
       provider: 'none',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isFallback: true,
+      fallbackReason: 'Все AI провайдеры недоступны'
     };
   }
 }

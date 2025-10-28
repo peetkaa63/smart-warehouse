@@ -35,7 +35,7 @@ export class GeminiAIProvider implements IAIProvider {
 
   async analyzeInventoryData(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     if (!this.isAvailable()) {
-      return this.getFallbackResponse();
+      return this.getFallbackResponse('Gemini AI недоступен - отсутствует API ключ');
     }
 
     try {
@@ -54,15 +54,15 @@ export class GeminiAIProvider implements IAIProvider {
         provider: this.providerName,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Gemini AI analysis error:', error);
-      return this.getFallbackResponse();
+      return this.getErrorResponse(error);
     }
   }
 
   async getPredictions(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     if (!this.isAvailable()) {
-      return this.getFallbackResponse();
+      return this.getFallbackResponse('Gemini AI недоступен - отсутствует API ключ');
     }
 
     try {
@@ -81,15 +81,15 @@ export class GeminiAIProvider implements IAIProvider {
         provider: this.providerName,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Gemini AI prediction error:', error);
-      return this.getFallbackResponse();
+      return this.getErrorResponse(error);
     }
   }
 
   async getRecommendations(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     if (!this.isAvailable()) {
-      return this.getFallbackResponse();
+      return this.getFallbackResponse('Gemini AI недоступен - отсутствует API ключ');
     }
 
     try {
@@ -108,9 +108,9 @@ export class GeminiAIProvider implements IAIProvider {
         provider: this.providerName,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Gemini AI recommendation error:', error);
-      return this.getFallbackResponse();
+      return this.getErrorResponse(error);
     }
   }
 
@@ -226,14 +226,68 @@ ${JSON.stringify(request.historicalData.slice(0, 10), null, 2)}
     }
   }
 
-  private getFallbackResponse(): AIAnalysisResponse {
+  private getFallbackResponse(reason?: string): AIAnalysisResponse {
     return {
       predictions: [],
       insights: [],
       recommendations: [],
       confidence: 0,
       provider: this.providerName,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isFallback: true,
+      fallbackReason: reason || 'Gemini AI недоступен'
+    };
+  }
+
+  private getErrorResponse(error: any): AIAnalysisResponse {
+    let errorCode = 'UNKNOWN_ERROR';
+    let errorMessage = 'Неизвестная ошибка Gemini AI';
+    let errorDetails = '';
+
+    // Обработка специфичных ошибок Gemini
+    if (error.message) {
+      if (error.message.includes('quota')) {
+        errorCode = 'QUOTA_EXCEEDED';
+        errorMessage = 'Превышена квота Gemini AI';
+        errorDetails = 'Достигнут лимит запросов к Gemini AI. Попробуйте позже.';
+      } else if (error.message.includes('location') || error.message.includes('region')) {
+        errorCode = 'LOCATION_NOT_SUPPORTED';
+        errorMessage = 'Gemini AI недоступен в вашем регионе';
+        errorDetails = 'Gemini AI не поддерживается в текущей локации.';
+      } else if (error.message.includes('API key') || error.message.includes('authentication')) {
+        errorCode = 'AUTHENTICATION_ERROR';
+        errorMessage = 'Ошибка аутентификации Gemini AI';
+        errorDetails = 'Неверный или отсутствующий API ключ Gemini.';
+      } else if (error.message.includes('rate limit')) {
+        errorCode = 'RATE_LIMIT_EXCEEDED';
+        errorMessage = 'Превышен лимит запросов Gemini AI';
+        errorDetails = 'Слишком много запросов. Подождите перед повторной попыткой.';
+      } else if (error.message.includes('model')) {
+        errorCode = 'MODEL_ERROR';
+        errorMessage = 'Ошибка модели Gemini AI';
+        errorDetails = 'Проблема с доступностью модели Gemini.';
+      } else {
+        errorMessage = `Ошибка Gemini AI: ${error.message}`;
+        errorDetails = error.message;
+      }
+    }
+
+    console.error(`❌ Gemini AI Error [${errorCode}]:`, errorMessage, errorDetails);
+
+    return {
+      predictions: [],
+      insights: [],
+      recommendations: [],
+      confidence: 0,
+      provider: this.providerName,
+      timestamp: new Date().toISOString(),
+      error: {
+        code: errorCode,
+        message: errorMessage,
+        details: errorDetails
+      },
+      isFallback: true,
+      fallbackReason: errorMessage
     };
   }
 }

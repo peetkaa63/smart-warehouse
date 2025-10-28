@@ -9,7 +9,8 @@ class RobotEmulator:
     def __init__(self, robot_id, api_url):
         self.robot_id = robot_id
         self.api_url = api_url
-        self.battery = 100
+        # Первый робот стартует с низким зарядом для теста уведомлений
+        self.battery = 15 if robot_id == "RB-001" else 100
         self.current_zone = 'A'
         self.current_row = 1
         self.current_shelf = 1
@@ -56,8 +57,9 @@ class RobotEmulator:
 
         # Расход батареи
         self.battery -= random.uniform(0.1, 0.5)
-        if self.battery < 20:
-            self.battery = 100  # Симуляция зарядки
+        # Не сбрасываем батарею, чтобы проверить уведомления о низком заряде
+        # if self.battery < 20:
+        #     self.battery = 100  # Симуляция зарядки
 
     def send_data(self):
         """Отправка данных на сервер"""

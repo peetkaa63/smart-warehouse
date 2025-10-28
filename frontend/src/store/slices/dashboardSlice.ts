@@ -1,6 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { dashboardAPI } from '../../services/api'; // Теперь этот импорт будет работать
 
+/**
+ * Async thunk: получение агрегированных данных дашборда.
+ *
+ * Почему так:
+ * - Один вызов API вместо множества — меньше чатов и гонок обновлений.
+ * - Централизуем нормализацию ответа, чтобы компоненты не знали форму бэкенда.
+ */
 export const fetchDashboardData = createAsyncThunk(
   'dashboard/fetchData',
   async () => {
@@ -37,6 +44,12 @@ const initialState: DashboardState = {
   error: null
 };
 
+/**
+ * Redux slice дашборда.
+ *
+ * Почему так:
+ * - Разделяем потоковые обновления (socket) и периодические через thunk, чтобы не блокировать UI и иметь fallback.
+ */
 const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,

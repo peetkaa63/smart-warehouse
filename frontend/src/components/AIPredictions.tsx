@@ -46,6 +46,13 @@ interface AIResponse {
   generated_at: string;
   ai_model?: string;
   note?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: string;
+  };
+  isFallback?: boolean;
+  fallbackReason?: string;
 }
 
 const AIPredictions: React.FC = () => {
@@ -54,8 +61,10 @@ const AIPredictions: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState<number>(7);
-  const [aiModel, setAiModel] = useState<string>('Gemini Pro');
+  const [aiModel, setAiModel] = useState<string>('AI Service');
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   // Меню для дополнительных опций
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -63,6 +72,8 @@ const AIPredictions: React.FC = () => {
   const loadPredictions = async (forceRefresh: boolean = false) => {
     setLoading(true);
     setError(null);
+    setAiError(null);
+    setIsFallbackMode(false);
     
     try {
       console.log('🔄 Loading AI predictions...');
@@ -79,10 +90,29 @@ const AIPredictions: React.FC = () => {
       
       setPredictions(response.predictions || []);
       setLastUpdated(new Date());
-      setAiModel(response.ai_model || 'AI Service');
       
-      if (response.note) {
-        setSnackbar({ open: true, message: response.note });
+      // Определяем модель AI и статус
+      if (response.isFallback) {
+        setIsFallbackMode(true);
+        setAiModel('Fallback System');
+        setAiError(response.fallbackReason || 'Используется резервная система');
+        
+        if (response.error) {
+          setAiError(`${response.error.message}: ${response.error.details || ''}`);
+        }
+        
+        setSnackbar({ 
+          open: true, 
+          message: `Fallback режим: ${response.fallbackReason || 'AI недоступен'}` 
+        });
+      } else {
+        setAiModel(response.ai_model || 'AI Service');
+        setIsFallbackMode(false);
+        setAiError(null);
+        
+        if (response.note) {
+          setSnackbar({ open: true, message: response.note });
+        }
       }
 
     } catch (err: any) {
@@ -96,6 +126,8 @@ const AIPredictions: React.FC = () => {
         if (history && history.length > 0) {
           setPredictions(history);
           setAiModel('Historical Data');
+          setIsFallbackMode(true);
+          setAiError('AI сервис недоступен, используются исторические данные');
         }
       } catch (historyError) {
         console.error('Failed to load prediction history:', historyError);
@@ -174,16 +206,25 @@ const AIPredictions: React.FC = () => {
       {/* Заголовок с управлением */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SmartToy color="primary" />
+          <SmartToy color={isFallbackMode ? "warning" : "primary"} />
           <Typography variant="h6" component="h2">
             Прогноз ИИ
           </Typography>
           <Chip 
             label={aiModel}
             size="small"
-            variant="outlined"
-            color="primary"
+            variant={isFallbackMode ? "filled" : "outlined"}
+            color={isFallbackMode ? "warning" : "primary"}
+            icon={isFallbackMode ? <Warning /> : undefined}
           />
+          {isFallbackMode && (
+            <Chip 
+              label="Fallback"
+              size="small"
+              color="warning"
+              variant="outlined"
+            />
+          )}
         </Box>
         
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -246,6 +287,28 @@ const AIPredictions: React.FC = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {/* Сообщения об ошибках AI */}
+      {aiError && (
+        <Alert 
+          severity={isFallbackMode ? "warning" : "error"} 
+          sx={{ mb: 2 }} 
+          onClose={() => setAiError(null)}
+          icon={<SmartToy />}
+        >
+          <Typography variant="subtitle2" gutterBottom>
+            {isFallbackMode ? 'Fallback режим активен' : 'Ошибка AI сервиса'}
+          </Typography>
+          <Typography variant="body2">
+            {aiError}
+          </Typography>
+          {isFallbackMode && (
+            <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+              Используются локальные алгоритмы вместо AI для генерации прогнозов
+            </Typography>
+          )}
         </Alert>
       )}
 
@@ -343,8 +406,9 @@ const AIPredictions: React.FC = () => {
       {/* Футер с информацией */}
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
         <Typography variant="caption" color="textSecondary">
-          💡 AI анализирует исторические данные и прогнозирует остатки на {periodDays} дней
+          💡 {isFallbackMode ? 'Локальные алгоритмы' : 'AI'} анализирует исторические данные и прогнозирует остатки на {periodDays} дней
           {lastUpdated && ` • Обновлено: ${lastUpdated.toLocaleString('ru-RU')}`}
+          {isFallbackMode && ' • Fallback режим'}
         </Typography>
       </Box>
 

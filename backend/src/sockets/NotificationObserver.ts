@@ -1,6 +1,12 @@
 // Observer pattern для WebSocket уведомлений
 
 // Интерфейс для наблюдателей
+/**
+ * Наблюдатель за доменно-значимыми событиями уведомлений.
+ *
+ * Почему так:
+ * - Отделяем «что произошло» от «как/куда доставить»: добавление новых каналов доставки (UI, лог, вебхуки) не ломает продюсеров событий.
+ */
 export interface NotificationObserver {
   update(eventType: string, data: any): void;
   getObserverId(): string;
@@ -24,6 +30,12 @@ export enum NotificationEventType {
 }
 
 // Менеджер уведомлений (Subject)
+/**
+ * Subject/Manager, агрегирующий подписчиков и рассылку событий.
+ *
+ * Почему так:
+ * - Централизация маршрутизации позволяет ввести кросс‑срезовые политики (дедупликация, QoS, трейсинг) без изменений отправителей.
+ */
 export class NotificationManager implements NotificationSubject {
   private observers: Map<string, NotificationObserver> = new Map();
   private io: any; // Socket.IO instance
