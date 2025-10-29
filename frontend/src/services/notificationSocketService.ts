@@ -167,7 +167,7 @@ class NotificationSocketService {
           timestamp: Date.now(),
           read: false
         }
-        this.store?.dispatch?.({ type: 'notifications/showNotification', payload: event })
+        store.dispatch(addNotification(event as any))
       }
     } catch {}
   }
