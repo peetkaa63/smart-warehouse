@@ -21,6 +21,21 @@ class NotificationSocketService {
   constructor() {
     this.setupPageVisibilityListener();
   }
+  private hasRecentSimilarNotification(match: (n: any) => boolean, withinMs: number = 5 * 60 * 1000): boolean {
+    try {
+      const state: any = store.getState();
+      const items: any[] = state.notifications?.items || [];
+      const now = Date.now();
+      return items.some((n) => {
+        if (!match(n)) return false;
+        const ts = new Date(n.timestamp).getTime();
+        return now - ts <= withinMs;
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+
 
   // Отслеживаем видимость вкладки
   private setupPageVisibilityListener() {
@@ -135,6 +150,11 @@ class NotificationSocketService {
   }
 
   private handleInventoryAlert(data: any) {
+    // Если уже пришёл критический алерт по этому товару, не дублируем inventory_alert
+    if (data.critical) {
+      console.log('🔁 Skipping duplicate inventory_alert for critical stock');
+      return;
+    }
     const priority: NotificationPriority = data.critical ? 'HIGH' : 'MEDIUM';
     
     const notification = {
@@ -162,6 +182,35 @@ class NotificationSocketService {
   }
 
   private handleRobotAlert(data: any) {
+    // Низкий заряд — отправляем одно уведомление на робота за недавний период
+    if (data.type === 'robot_battery_low' || data.batteryLevel !== undefined) {
+      const robotId = data.robot_id || data.robotId;
+      const batteryLevel = data.batteryLevel;
+      const isDuplicate = this.hasRecentSimilarNotification(
+        (n) => n.type === 'ROBOT_BATTERY_LOW' && n.robot_id === robotId,
+        5 * 60 * 1000
+      );
+      if (isDuplicate) {
+        console.log('🔁 Skipping duplicate battery low alert for robot', robotId);
+        return;
+      }
+
+      const batteryNotification = {
+        id: `robot-battery-${Date.now()}`,
+        type: 'ROBOT_BATTERY_LOW',
+        title: `🔋 НИЗКИЙ ЗАРЯД РОБОТА: ${robotId}`,
+        message: `Робот ${robotId} имеет низкий заряд батареи (${batteryLevel}%)`,
+        priority: 'MEDIUM' as NotificationPriority,
+        robot_id: robotId,
+        timestamp: new Date().toISOString(),
+        read: false,
+        action_required: true
+      };
+      store.dispatch(addNotification(batteryNotification));
+      this.emit('notification_alert', batteryNotification);
+      return;
+    }
+
     const notification = {
       id: `robot-${Date.now()}`,
       type: data.type || 'ROBOT_ISSUE',
@@ -226,21 +275,30 @@ class NotificationSocketService {
         break;
         
       case 'robot_battery_low':
-        console.log(`🔋 ПРИНЯЛ УВЕДОМЛЕНИЕ О НИЗКОМ ЗАРЯДЕ: Робот ${data.data.robotId}, заряд ${data.data.batteryLevel}%`);
-        
-        notification = {
-          id: `robot-battery-${Date.now()}`,
-          type: 'ROBOT_BATTERY_LOW',
-          title: `🔋 НИЗКИЙ ЗАРЯД РОБОТА: ${data.data.robotId}`,
-          message: `Робот ${data.data.robotId} имеет низкий заряд батареи (${data.data.batteryLevel}%)`,
-          priority: 'MEDIUM' as NotificationPriority,
-          robot_id: data.data.robotId,
-          timestamp: new Date().toISOString(),
-          read: false,
-          action_required: true
-        };
-        
-        console.log('✅ УВЕДОМЛЕНИЕ О НИЗКОМ ЗАРЯДЕ БУДЕТ ОТОБРАЖЕНО');
+        {
+          const robotId = data.data.robotId || data.data.robot_id;
+          const batteryLevel = data.data.batteryLevel;
+          const isDuplicate = this.hasRecentSimilarNotification(
+            (n) => n.type === 'ROBOT_BATTERY_LOW' && n.robot_id === robotId,
+            5 * 60 * 1000
+          );
+          if (isDuplicate) {
+            console.log('🔁 Skipping duplicate battery low critical alert for robot', robotId);
+            return;
+          }
+
+          notification = {
+            id: `robot-battery-${Date.now()}`,
+            type: 'ROBOT_BATTERY_LOW',
+            title: `🔋 НИЗКИЙ ЗАРЯД РОБОТА: ${robotId}`,
+            message: `Робот ${robotId} имеет низкий заряд батареи (${batteryLevel}%)`,
+            priority: 'MEDIUM' as NotificationPriority,
+            robot_id: robotId,
+            timestamp: new Date().toISOString(),
+            read: false,
+            action_required: true
+          };
+        }
         break;
         
       case 'system_alert':

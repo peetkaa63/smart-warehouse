@@ -110,7 +110,8 @@ export const exportAPI = {
   exportToExcel: (params: any) => {
     return api.get('/api/export/excel', {
       params: params,
-      responseType: 'blob' // Важно для файлов
+      responseType: 'blob', // Важно для файлов
+      timeout: 60000
     });
   },
 
@@ -118,7 +119,7 @@ export const exportAPI = {
     return api.get('/api/export/pdf', {
       params: params,
       responseType: 'blob',
-      timeout: 60000
+      timeout: 120000
     });
   }
 };
@@ -150,7 +151,7 @@ export const aiAPI = {
   // История предыдущих прогнозов
   getPredictionHistory: async (limit: number = 10) => {
     console.log('📊 Fetching AI prediction history, limit:', limit);
-    const response = await api.get('/api/ai/predictions/history', {
+    const response = await api.get('/api/ai/history', {
       params: { limit }
     });
     return response.data;
@@ -230,7 +231,12 @@ export const advancedAnalyticsAPI = {
         period_days: periodDays
       }
     });
-    return response.data;
+    const data = response.data;
+    // Нормализуем контракт для модалки: ожидается { success, data }
+    if (data && (Array.isArray(data.data) || Array.isArray(data))) {
+      return { success: true, data: Array.isArray(data) ? data : data.data };
+    }
+    return { success: false, error: data?.error || data?.message || 'Unknown error', data: [] };
   },
 
   // Эффективность роботов
@@ -239,14 +245,16 @@ export const advancedAnalyticsAPI = {
     const response = await api.get('/api/advancedAnalytics/efficiency', {
       params: { period_days: periodDays }
     });
-    return response.data;
+    const data = response.data;
+    return { success: true, data };
   },
 
   // AI инсайты
   getAIInsights: async () => {
     console.log('🧠 Fetching AI insights...');
     const response = await api.get('/api/advancedAnalytics/ai-insights');
-    return response.data;
+    const data = response.data;
+    return { success: true, data };
   },
 
   // Уведомления
