@@ -147,7 +147,9 @@ const History: React.FC = () => {
 
       const response = await exportAPI.exportToExcel(params);
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Добавляем BOM для корректной кодировки в Excel/Windows
+      const blob = new Blob(['\uFEFF', response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `warehouse_export_${new Date().toISOString().split('T')[0]}.csv`);

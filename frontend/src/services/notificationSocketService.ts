@@ -208,13 +208,17 @@ class NotificationSocketService {
     
     switch (data.type) {
       case 'critical_stock':
+        // Гарантируем корректное имя товара и русскую "К" в заголовке
+        const productName = data.data.productName || data.data.product_name || data.data.productId || data.data.product_id || 'Товар';
+        const productId = data.data.productId || data.data.product_id;
+
         notification = {
           id: `critical-stock-${Date.now()}`,
           type: 'CRITICAL_STOCK',
-          title: `🚨 KРИТИЧЕСКИЙ ОСТАТОК: ${data.data.productName || data.data.product_id}`,
+          title: `🚨 КРИТИЧЕСКИЙ ОСТАТОК: ${productName}`,
           message: `Товар имеет критически низкий уровень запасов (${data.data.quantity} шт.)`,
           priority: 'HIGH' as NotificationPriority,
-          product_id: data.data.productId || data.data.product_id,
+          product_id: productId,
           timestamp: new Date().toISOString(),
           read: false,
           action_required: true

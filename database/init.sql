@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS ai_predictions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Уникальность для поддержки UPSERT по (product_id, prediction_date)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_predictions_product_date
+ON ai_predictions(product_id, prediction_date);
+
 -- Индексы для оптимизации
 CREATE INDEX IF NOT EXISTS idx_inventory_scanned ON inventory_history(scanned_at DESC);
 CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_history(product_id);

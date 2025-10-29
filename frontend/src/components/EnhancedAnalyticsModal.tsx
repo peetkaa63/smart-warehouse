@@ -172,7 +172,8 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
           : generateFallbackTrendData(selectedProducts, parseInt(period));
         setTrendData(data);
       } else {
-        console.error('❌ Trends API error:', trendsResponse.error);
+        const trendErr = trendsResponse.error || trendsResponse.message || 'Unknown error';
+        console.error('❌ Trends API error:', trendErr, trendsResponse);
         // При ошибке используем fallback данные
         const fallbackData = generateFallbackTrendData(selectedProducts, parseInt(period));
         setTrendData(fallbackData);
@@ -200,8 +201,9 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
         }
       }
 
-    } catch (error) {
-      console.error('❌ Error loading analytics data:', error);
+    } catch (error: any) {
+      const msg = error?.message || error?.response?.data?.message || error?.response?.data?.error || 'Unknown error';
+      console.error('❌ Error loading analytics data:', msg, error);
       // При любой ошибке используем fallback данные для графика
       const fallbackData = generateFallbackTrendData(selectedProducts, parseInt(period));
       setTrendData(fallbackData);

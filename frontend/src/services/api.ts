@@ -30,8 +30,10 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const url = error.config?.url;
+    const method = error.config?.method?.toUpperCase();
+    const msg = error.message || error.response?.data?.message || error.response?.data?.error;
     
-    console.error('🚨 API Error:', status, url);
+    console.error('🚨 API Error:', status, method, url, '-', msg);
     
     // Логируем детали ошибки для отладки
     if (error.response?.data) {
@@ -115,7 +117,8 @@ export const exportAPI = {
   exportToPDF: (params: any) => {
     return api.get('/api/export/pdf', {
       params: params,
-      responseType: 'blob'
+      responseType: 'blob',
+      timeout: 60000
     });
   }
 };
