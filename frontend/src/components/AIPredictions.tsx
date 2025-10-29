@@ -88,7 +88,20 @@ const AIPredictions: React.FC = () => {
 
       console.log('✅ AI predictions loaded:', response.predictions?.length);
       
-      setPredictions(response.predictions || []);
+      // Нормализация полей предсказаний на клиенте
+      const normalized = (response.predictions || []).map((p: any) => ({
+        product_id: p.product_id,
+        product_name: p.product_name || p.name || p.productId || 'Товар',
+        current_stock: p.current_stock ?? p.stock ?? p.currentStock ?? 0,
+        days_until_stockout: p.days_until_stockout ?? p.daysUntilStockout ?? p.days ?? null,
+        recommended_order_quantity: p.recommended_order_quantity ?? p.recommended_order ?? p.recommended ?? 0,
+        confidence_score: typeof p.confidence_score === 'number' ? p.confidence_score : typeof p.confidence === 'number' ? p.confidence : 0,
+        reasoning: p.reasoning,
+        risk_level: p.risk_level || p.risk || undefined,
+        prediction_date: p.prediction_date || p.date || undefined
+      }));
+
+      setPredictions(normalized);
       setLastUpdated(new Date());
       
       // Определяем модель AI и статус

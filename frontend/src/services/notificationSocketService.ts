@@ -186,6 +186,9 @@ class NotificationSocketService {
     if (data.type === 'robot_battery_low' || data.batteryLevel !== undefined) {
       const robotId = data.robot_id || data.robotId;
       const batteryLevel = data.batteryLevel;
+      const zone = data.zone;
+      const row = data.row;
+      const shelf = data.shelf;
       const isDuplicate = this.hasRecentSimilarNotification(
         (n) => n.type === 'ROBOT_BATTERY_LOW' && n.robot_id === robotId,
         5 * 60 * 1000
@@ -202,6 +205,9 @@ class NotificationSocketService {
         message: `Робот ${robotId} имеет низкий заряд батареи (${batteryLevel}%)`,
         priority: 'MEDIUM' as NotificationPriority,
         robot_id: robotId,
+        zone,
+        row,
+        shelf,
         timestamp: new Date().toISOString(),
         read: false,
         action_required: true
