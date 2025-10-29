@@ -6,7 +6,7 @@ import Login from './pages/Login';
 import Main from './pages/Main';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
-import NotificationSystem from './components/NotificationSystem'; 
+// import NotificationSystem from './components/NotificationSystem'; 
 
 const AppRoutes: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -52,8 +52,8 @@ const AppRoutes: React.FC = () => {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
-      {/* Система уведомлений */}
-      // <NotificationSystem />  // Система уведомлений, показывает быстрое всплывающее окно
+      {/* Система уведомлений, показывает быстрое всплывающее окно. */}
+      {/* <NotificationSystem /> */}
     </ErrorBoundary>
   );
 };

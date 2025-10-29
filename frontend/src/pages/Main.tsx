@@ -47,7 +47,7 @@ import { useWebSocket } from '../hooks/useWebSocket'
 import Dashboard from './Dashboard'
 import History from './History'
 import UploadCSVModal from '../components/UploadCSVModal'
-import { markAsRead, markAllAsRead } from '../store/slices/notificationsSlice'
+import { markAsRead, markAllAsRead, removeNotification, clearAllNotifications } from '../store/slices/notificationsSlice'
 import { setMapFocus } from '../store/slices/mapFocusSlice'
 import notificationSocketService from '../services/notificationSocketService'
 
@@ -475,12 +475,13 @@ const Main: React.FC = () => {
 
             {/* Drawer уведомлений */}
             <Drawer anchor="right" open={notificationsDrawerOpen} onClose={() => setNotificationsDrawerOpen(false)}>
-              <Box sx={{ width: 400, p: 2 }}>
+              <Box sx={{ width: 420, p: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                   <Typography variant="h6">
                     Уведомления ({notifications.length})
                   </Typography>
-                  <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button size="small" disabled={notifications.length === 0} onClick={() => dispatch(clearAllNotifications())}>Очистить все</Button>
                     {unreadCount > 0 && (
                       <Button size="small" onClick={handleMarkAllAsRead}>Прочитать все</Button>
                     )}
@@ -489,34 +490,42 @@ const Main: React.FC = () => {
                 </Box>
 
                 <List>
-                  {notifications.slice(0, 10).map((notification) => (
-                    <ListItem key={notification.id} disablePadding sx={{ mb: 1 }}>
+                  {notifications.map((notification) => (
+                    <ListItem key={notification.id} disablePadding sx={{ mb: 1 }}
+                      secondaryAction={
+                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); dispatch(removeNotification(notification.id)); }}>
+                          <Close />
+                        </IconButton>
+                      }
+                    >
                       <ListItemButton
                         onClick={() => handleNotificationClick(notification)}
                         sx={{ 
                           borderLeft: 4,
                           borderColor: getAlertColor(notification.priority),
                           backgroundColor: notification.read ? 'transparent' : 'action.hover',
-                          py: 2
+                          py: 1.5
                         }}
                       >
-                        <ListItemIcon>{getAlertIcon(notification.type)}</ListItemIcon>
+                        <ListItemIcon sx={{ minWidth: 40 }}>{getAlertIcon(notification.type)}</ListItemIcon>
                         <ListItemText
                           primary={
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <Typography variant="subtitle2">{notification.title}</Typography>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: 'wrap' }}>
+                              <Typography variant="subtitle2" sx={{ mr: 0.5 }}>{notification.title}</Typography>
                               <Chip label={notification.priority} size="small" color={getAlertColor(notification.priority)} />
                             </Box>
                           }
                           secondary={
                             <Box>
-                              <Typography variant="body2">{notification.message}</Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                {new Date(notification.timestamp).toLocaleString('ru-RU')}
-                              </Typography>
-                              {notification.action_required && (
-                                <Chip label="Требует действий" size="small" color="error" variant="outlined" sx={{ mt: 0.5 }} />
-                              )}
+                              <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                <Typography variant="caption" color="textSecondary">
+                                  {new Date(notification.timestamp).toLocaleString('ru-RU')}
+                                </Typography>
+                                {notification.action_required && (
+                                  <Chip label="Требует действий" size="small" color="error" variant="outlined" />
+                                )}
+                              </Box>
                             </Box>
                           }
                         />
