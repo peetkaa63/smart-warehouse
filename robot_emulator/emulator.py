@@ -28,6 +28,7 @@ class RobotEmulator:
             {"id": "TEL-3456", "name": "Кабель UTP Cat6"}
         ]
         self.sio = None
+        self.paused = False
         if socketio is not None:
             try:
                 self.sio = socketio.Client()
@@ -41,9 +42,9 @@ class RobotEmulator:
                         return
                     t = data.get('type')
                     if t == 'pause':
-                        time.sleep(5)
+                        self.paused = True
                     elif t == 'resume':
-                        pass
+                        self.paused = False
                     elif t == 'rescan':
                         z = data.get('zone')
                         r = data.get('row')
@@ -154,22 +155,23 @@ class RobotEmulator:
                         tid = task.get('id')
                         payload = task.get('payload') or {}
                         if tid == 'pause' or task.get('type') == 'pause':
-                            print(f"[{self.robot_id}] Received PAUSE")
-                            time.sleep(5)
+                            self.paused = True
                         elif tid == 'resume' or task.get('type') == 'resume':
-                            print(f"[{self.robot_id}] Received RESUME")
-                            # no-op, просто продолжаем цикл
+                            self.paused = False
                         elif tid == 'rescan' or task.get('type') == 'rescan':
                             z = payload.get('zone') or payload.get('targetZone')
                             r = payload.get('row') or payload.get('targetRow')
                             s = payload.get('shelf') or payload.get('targetShelf')
                             if z and r and s:
-                                print(f"[{self.robot_id}] Rescan requested {z}-{r}-{s}")
                                 self.current_zone = z
                                 self.current_row = int(r)
                                 self.current_shelf = int(s)
             except Exception as e:
                 print(f"[{self.robot_id}] Task poll error: {e}")
+
+            if self.paused:
+                time.sleep(2)
+                continue
 
             self.send_data()
             self.move_to_next_location()

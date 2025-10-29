@@ -19,6 +19,7 @@ import AIPredictions from '../components/AIPredictions';
 import { RootState, AppDispatch } from '../store';
 import RobotTasksPanel from '../components/RobotTasksPanel';
 import { useSelector as useReduxSelector } from 'react-redux';
+import ReplenishmentPanel from '../components/ReplenishmentPanel';
 
 const Dashboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -102,6 +103,11 @@ const Dashboard: React.FC = () => {
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
               <Box sx={{ width: '100%', overflow: 'auto', maxWidth: '100%' }}>
                 <WarehouseMap robots={robots || []} />
+                {(user?.role === 'operator' || user?.role === 'admin') && (
+                  <Box sx={{ mt: 2 }}>
+                    <RobotTasksPanel />
+                  </Box>
+                )}
               </Box>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', overflow: 'auto' }}>
@@ -115,13 +121,11 @@ const Dashboard: React.FC = () => {
                   }} />
                 </Box>
                 <Box sx={{ width: '100%', overflow: 'hidden' }}>
+                  <ReplenishmentPanel />
+                </Box>
+                <Box sx={{ width: '100%', overflow: 'hidden' }}>
                   <RecentScans scans={recentScans || []} />
                 </Box>
-              {(user?.role === 'operator' || user?.role === 'admin') && (
-                <Box sx={{ width: '100%', overflow: 'hidden' }}>
-                  <RobotTasksPanel />
-                </Box>
-              )}
                 <Box sx={{ width: '100%', overflow: 'hidden' }}>
                   <AIPredictions />
                 </Box>

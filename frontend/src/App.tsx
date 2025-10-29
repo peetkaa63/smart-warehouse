@@ -54,7 +54,7 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <ErrorBoundary>
-                <Profile />
+                <Main />
               </ErrorBoundary>
             </ProtectedRoute>
           }

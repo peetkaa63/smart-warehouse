@@ -46,6 +46,7 @@ import { logout } from '../store/slices/authSlice'
 import { useWebSocket } from '../hooks/useWebSocket'
 import Dashboard from './Dashboard'
 import History from './History'
+import Profile from './Profile'
 import UploadCSVModal from '../components/UploadCSVModal'
 import { markAsRead, markAllAsRead, removeNotification, clearAllNotifications } from '../store/slices/notificationsSlice'
 import { setMapFocus } from '../store/slices/mapFocusSlice'
@@ -54,7 +55,7 @@ import { useSelector as useReduxSelector } from 'react-redux'
 import ReplenishmentModal from '../components/ReplenishmentModal'
 import api from '../services/api'
 
-type TabType = "dashboard" | "history"
+type TabType = "dashboard" | "history" | "profile"
 
 const logoAnimation = {
   initial: { scale: 0, opacity: 0 },
@@ -109,7 +110,8 @@ const Main: React.FC = () => {
   // Определяем активную вкладку на основе текущего URL
   const getActiveTabFromPath = (pathname: string): TabType => {
     if (pathname.includes('/history')) return 'history'
-    return 'dashboard' // по умолчанию
+    if (pathname.includes('/profile')) return 'profile'
+    return 'dashboard'
   }
 
   const [activeTab, setActiveTab] = useState<TabType>(getActiveTabFromPath(location.pathname))
@@ -421,7 +423,7 @@ const Main: React.FC = () => {
                           <Button
                             color="inherit"
                             startIcon={<AccountCircle />}
-                            onClick={() => navigate('/profile')}
+                            onClick={() => handleTabChange('profile')}
                             sx={{
                               mx: 0.5,
                               minWidth: "auto",
@@ -468,7 +470,7 @@ const Main: React.FC = () => {
                   bottom: 0,
                   width: "100%",
                   transition: "transform 0.5s ease-in-out", 
-                  transform: activeTab === "dashboard" ? "translateX(0)" : "translateX(-100%)",
+                  transform: activeTab === "dashboard" ? "translateX(0)" : activeTab === 'history' ? "translateX(-100%)" : "translateX(-200%)",
                   overflowY: "auto",
                   overflowX: "hidden"
                 }}>
@@ -484,11 +486,27 @@ const Main: React.FC = () => {
                   bottom: 0,
                   width: "100%",
                   transition: "transform 0.5s ease-in-out", 
-                  transform: activeTab === "history" ? "translateX(0)" : "translateX(100%)",
+                  transform: activeTab === "history" ? "translateX(0)" : activeTab === 'dashboard' ? "translateX(100%)" : "translateX(-100%)",
                   overflowY: "auto",
                   overflowX: "hidden"
                 }}>
                   <History />
+                </Box>
+
+                {/* Profile Tab */}
+                <Box sx={{ 
+                  position: "absolute", 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0,
+                  width: "100%",
+                  transition: "transform 0.5s ease-in-out", 
+                  transform: activeTab === "profile" ? "translateX(0)" : activeTab === 'history' ? "translateX(100%)" : "translateX(200%)",
+                  overflowY: "auto",
+                  overflowX: "hidden"
+                }}>
+                  <Profile />
                 </Box>
               </Box>
             </motion.div>
@@ -566,15 +584,12 @@ const Main: React.FC = () => {
               <Box sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1200, borderTop: '1px solid #ddd' }}>
                 <BottomNavigation
                   showLabels
-                  value={mobileBottomValue}
+                  value={activeTab}
                   onChange={(e, newValue) => {
-                    setMobileBottomValue(newValue);
-                    if (newValue === 'dashboard' || newValue === 'history') {
+                    if (newValue === 'dashboard' || newValue === 'history' || newValue === 'profile') {
                       handleTabChange(newValue);
                     } else if (newValue === 'csv') {
                       setUploadModalOpen(true);
-                    } else if (newValue === 'profile') {
-                      setProfileSheetOpen(true);
                     }
                   }}
                 >
@@ -588,16 +603,7 @@ const Main: React.FC = () => {
               </Box>
             )}
 
-            {/* Bottom sheet профиль для мобильных */}
-            <Drawer anchor="bottom" open={profileSheetOpen} onClose={() => setProfileSheetOpen(false)}>
-              <Box sx={{ p: 2 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>Профиль</Typography>
-                <Typography variant="body2">{user?.name}</Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>Роль: {user?.role}</Typography>
-                <Button variant="outlined" fullWidth sx={{ mb: 1 }} onClick={() => setProfileSheetOpen(false)}>Закрыть</Button>
-                <Button variant="contained" color="error" fullWidth onClick={handleLogout}>Выйти</Button>
-              </Box>
-            </Drawer>
+            {/* Убрали bottom sheet для профиля, теперь он как вкладка */}
 
             <UploadCSVModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} onUploadSuccess={() => setUploadModalOpen(false)} />
             <ReplenishmentModal open={replOpen} onClose={() => setReplOpen(false)} suggestions={replData} />

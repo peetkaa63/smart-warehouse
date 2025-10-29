@@ -38,6 +38,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [selectedCellRobots, setSelectedCellRobots] = useState<Robot[]>([]);
   const [selectedCellPosition, setSelectedCellPosition] = useState<{zone: string, row: number, shelf: number} | null>(null);
   const [selectedCellInfo, setSelectedCellInfo] = useState<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string} | null>(null);
+  const [selectedCellHistory, setSelectedCellHistory] = useState<Array<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string}>>([]);
   const [loadingCellInfo, setLoadingCellInfo] = useState(false);
   const [cellHistoryValues, setCellHistoryValues] = useState<number[]>([]);
   const dispatch = useDispatch();
@@ -207,9 +208,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const loadLastScanForCell = async (zone: string, row: number, shelf: number) => {
     try {
       setLoadingCellInfo(true);
-      const resp = await historyAPI.getHistory({ zone: [zone], page: 1, limit: 50 });
+      const resp = await historyAPI.getHistory({ zone: [zone], page: 1, limit: 200 });
       const items = resp.data?.items || [];
-      const match = items.find((it: any) => (it.zone === zone) && (Number(it.rowNumber) === row) && (Number(it.shelfNumber) === shelf));
+      const cellItems = items.filter((it: any) => (it.zone === zone) && (Number(it.rowNumber) === row) && (Number(it.shelfNumber) === shelf));
+      const match = cellItems[0];
       if (match) {
         setSelectedCellInfo({
           productId: match.productId,
@@ -218,6 +220,13 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           status: match.status,
           scannedAt: match.scannedAt
         });
+        setSelectedCellHistory(cellItems.slice(0, 5).map((it: any) => ({
+          productId: it.productId,
+          productName: it.productName,
+          quantity: it.quantity,
+          status: it.status,
+          scannedAt: it.scannedAt
+        })));
         const historyValues = items
           .filter((it: any) => (it.zone === zone) && (Number(it.rowNumber) === row) && (Number(it.shelfNumber) === shelf))
           .slice(0, 12)
@@ -225,10 +234,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         setCellHistoryValues(historyValues.reverse());
       } else {
         setSelectedCellInfo(null);
+        setSelectedCellHistory([]);
         setCellHistoryValues([]);
       }
     } catch (e) {
       setSelectedCellInfo(null);
+      setSelectedCellHistory([]);
       setCellHistoryValues([]);
     } finally {
       setLoadingCellInfo(false);
@@ -263,7 +274,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const groupOpen = Boolean(groupAnchorEl);
 
   return (
-    <Paper elevation={3} sx={{ p: 2, height: '600px', position: 'relative' }}>
+    <Paper elevation={3} sx={{ p: 2, height: { xs: 520, md: 680 }, position: 'relative' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h6">Карта склада</Typography>
@@ -525,6 +536,16 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     <MiniSparkline values={cellHistoryValues} />
                   </Box>
                 )}
+                {selectedCellHistory.length > 1 && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="caption" display="block" sx={{ fontWeight: 'bold', mb: .5 }}>Последние сканы:</Typography>
+                    {selectedCellHistory.map((h, idx) => (
+                      <Typography key={idx} variant="caption" display="block">
+                        {new Date(h.scannedAt).toLocaleString('ru-RU')} • {h.productName || h.productId} • {h.quantity} шт. • {h.status}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
               </Box>
             ) : (
               <Typography variant="caption" color="textSecondary">Нет данных</Typography>
@@ -624,22 +645,19 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                 size="small" 
                 onClick={async () => {
                   if (!selectedRobot) return;
-                  await robotsAPI.pause(selectedRobot.id);
-                  dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${selectedRobot.id} поставлен на паузу`, duration: 3000 } as any));
+                  if (selectedRobot.status === 'paused') {
+                    await robotsAPI.resume(selectedRobot.id);
+                    setSelectedRobot({ ...selectedRobot, status: 'active' } as any);
+                    dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${selectedRobot.id} возобновлен`, duration: 3000 } as any));
+                  } else {
+                    await robotsAPI.pause(selectedRobot.id);
+                    setSelectedRobot({ ...selectedRobot, status: 'paused' } as any);
+                    dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${selectedRobot.id} поставлен на паузу`, duration: 3000 } as any));
+                  }
                 }}
                 sx={{ fontSize: '12px' }}
-                title="Пауза"
-              >⏸</IconButton>
-              <IconButton 
-                size="small" 
-                onClick={async () => {
-                  if (!selectedRobot) return;
-                  await robotsAPI.resume(selectedRobot.id);
-                  dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${selectedRobot.id} возобновлен`, duration: 3000 } as any));
-                }}
-                sx={{ fontSize: '12px' }}
-                title="Продолжить"
-              >▶</IconButton>
+                title={selectedRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
+              >{selectedRobot.status === 'paused' ? '▶' : '⏸'}</IconButton>
               <IconButton 
                 size="small" 
                 onClick={async () => {
