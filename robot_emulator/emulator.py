@@ -4,6 +4,10 @@ import random
 import requests
 from datetime import datetime
 import os
+try:
+    import socketio
+except Exception:
+    socketio = None
 
 class RobotEmulator:
     def __init__(self, robot_id, api_url):
@@ -23,6 +27,34 @@ class RobotEmulator:
             {"id": "TEL-6789", "name": "IP-телефон T46S"},
             {"id": "TEL-3456", "name": "Кабель UTP Cat6"}
         ]
+        self.sio = None
+        if socketio is not None:
+            try:
+                self.sio = socketio.Client()
+                @self.sio.event
+                def connect():
+                    print(f"[{self.robot_id}] Socket connected")
+                @self.sio.on('robot_command')
+                def on_robot_command(data):
+                    rid = data.get('robotId')
+                    if rid and rid != self.robot_id:
+                        return
+                    t = data.get('type')
+                    if t == 'pause':
+                        time.sleep(5)
+                    elif t == 'resume':
+                        pass
+                    elif t == 'rescan':
+                        z = data.get('zone')
+                        r = data.get('row')
+                        s = data.get('shelf')
+                        if z and r and s:
+                            self.current_zone = z
+                            self.current_row = int(r)
+                            self.current_shelf = int(s)
+                self.sio.connect(api_url.replace('http', 'ws'), transports=['websocket'])
+            except Exception as e:
+                print(f"[{self.robot_id}] Socket connection failed: {e}")
 
     def generate_scan_data(self):
         """Генерация данных сканирования"""
@@ -76,6 +108,23 @@ class RobotEmulator:
             "next_checkpoint": f"{self.current_zone}-{self.current_row+1}-{self.current_shelf}"
         }
 
+        # Узнаем глобальный режим
+        mode = 'http'
+        try:
+            cfg = requests.get(f"{self.api_url}/api/config/transport-mode", timeout=3).json()
+            mode = cfg.get('mode') or 'http'
+        except Exception:
+            pass
+
+        if mode == 'socket' and self.sio is not None:
+            try:
+                self.sio.emit('robot_data', data)
+                print(f"[{self.robot_id}] Data sent via socket")
+                return
+            except Exception as e:
+                print(f"[{self.robot_id}] Socket send error: {e}")
+
+        # fallback HTTP
         try:
             response = requests.post(
                 f"{self.api_url}/api/robots/data",
@@ -86,15 +135,42 @@ class RobotEmulator:
                 }
             )
             if response.status_code == 200:
-                print(f"[{self.robot_id}] Data sent successfully")
+                print(f"[{self.robot_id}] Data sent via HTTP")
             else:
-                print(f"[{self.robot_id}] Error: {response.status_code}")
+                print(f"[{self.robot_id}] HTTP error: {response.status_code}")
         except Exception as e:
-            print(f"[{self.robot_id}] Connection error: {e}")
+            print(f"[{self.robot_id}] HTTP connection error: {e}")
 
     def run(self):
         """Основной цикл работы робота"""
         while True:
+            # Получаем следующую задачу (пауза/возобновление/перескан)
+            try:
+                task_resp = requests.get(f"{self.api_url}/api/robots/{self.robot_id}/tasks/next", timeout=5)
+                if task_resp.status_code == 200:
+                    task_json = task_resp.json() or {}
+                    task = task_json.get('task')
+                    if task:
+                        tid = task.get('id')
+                        payload = task.get('payload') or {}
+                        if tid == 'pause' or task.get('type') == 'pause':
+                            print(f"[{self.robot_id}] Received PAUSE")
+                            time.sleep(5)
+                        elif tid == 'resume' or task.get('type') == 'resume':
+                            print(f"[{self.robot_id}] Received RESUME")
+                            # no-op, просто продолжаем цикл
+                        elif tid == 'rescan' or task.get('type') == 'rescan':
+                            z = payload.get('zone') or payload.get('targetZone')
+                            r = payload.get('row') or payload.get('targetRow')
+                            s = payload.get('shelf') or payload.get('targetShelf')
+                            if z and r and s:
+                                print(f"[{self.robot_id}] Rescan requested {z}-{r}-{s}")
+                                self.current_zone = z
+                                self.current_row = int(r)
+                                self.current_shelf = int(s)
+            except Exception as e:
+                print(f"[{self.robot_id}] Task poll error: {e}")
+
             self.send_data()
             self.move_to_next_location()
             time.sleep(int(os.getenv('UPDATE_INTERVAL', 10)))

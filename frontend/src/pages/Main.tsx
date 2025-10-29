@@ -50,6 +50,9 @@ import UploadCSVModal from '../components/UploadCSVModal'
 import { markAsRead, markAllAsRead, removeNotification, clearAllNotifications } from '../store/slices/notificationsSlice'
 import { setMapFocus } from '../store/slices/mapFocusSlice'
 import notificationSocketService from '../services/notificationSocketService'
+import { useSelector as useReduxSelector } from 'react-redux'
+import ReplenishmentModal from '../components/ReplenishmentModal'
+import api from '../services/api'
 
 type TabType = "dashboard" | "history"
 
@@ -96,6 +99,7 @@ const Main: React.FC = () => {
 
   const { user } = useSelector((state: RootState) => state.auth)
   const { items: notifications, unreadCount } = useSelector((state: RootState) => state.notifications)
+  const exportState = useReduxSelector((state: RootState) => (state as any).export)
   const wsConnected = useWebSocket()
 
   const [showInitialAnimation, setShowInitialAnimation] = useState(true)
@@ -117,6 +121,8 @@ const Main: React.FC = () => {
   const [mobileBottomValue, setMobileBottomValue] = useState<string>('dashboard')
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [alert, setAlert] = useState<{ type: "success" | "error" | "warning" | "info"; message: string } | null>(null)
+  const [replOpen, setReplOpen] = useState(false)
+  const [replData, setReplData] = useState<{ low: any[]; surplus: any[] }>({ low: [], surplus: [] })
 
   // Синхронизация активной вкладки с URL при изменении location
   useEffect(() => {
@@ -148,19 +154,34 @@ const Main: React.FC = () => {
     }
   }, [location.state])
 
-  // Подключение к уведомлениям через Socket.io
+  // Подключение к уведомлениям через Socket.io (по настройке dataTransport)
   useEffect(() => {
-    // Запрос разрешения на уведомления
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    const transport = (window as any).store?.getState?.()?.notificationSettings?.dataTransport || 'socket';
+    let interval: any;
+    if (transport === 'socket') {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      notificationSocketService.connect();
     }
 
-    // Подключение уведомлений через Socket.io
-    notificationSocketService.connect();
+    // Периодическая проверка предложений пополнения (каждые 60 сек)
+    interval = setInterval(async () => {
+      try {
+        const resp = await api.get('/api/inventory/suggestions');
+        const data = resp.data?.data;
+        if (data && ((data.low && data.low.length) || (data.surplus && data.surplus.length))) {
+          setReplData({ low: data.low || [], surplus: data.surplus || [] });
+          setReplOpen(true);
+        }
+      } catch {}
+    }, 60000);
 
-    // Отписка при размонтировании компонента
     return () => {
-      notificationSocketService.disconnect();
+      if (transport === 'socket') {
+        notificationSocketService.disconnect();
+      }
+      clearInterval(interval);
     };
   }, [dispatch]);
 
@@ -337,6 +358,16 @@ const Main: React.FC = () => {
                       <IconButton color="inherit">{wsConnected ? <Wifi /> : <WifiOff />}</IconButton>
                     </Tooltip>
 
+                    {exportState?.inProgress && (
+                      <Tooltip title={exportState.kind === 'pdf' ? 'Экспорт PDF...' : 'Экспорт CSV...'}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
+                          <Badge variant="dot" color="secondary">
+                            <TrendingUp />
+                          </Badge>
+                        </Box>
+                      </Tooltip>
+                    )}
+
                     {!isMobile && (
                       <>
                         <Tooltip title="Уведомления">
@@ -373,16 +404,18 @@ const Main: React.FC = () => {
                           </Tooltip>
                         </Box>
 
-                        <Tooltip title="Загрузить CSV">
-                          <Button
-                            color="inherit"
-                            startIcon={<Upload />}
-                            onClick={() => setUploadModalOpen(true)}
-                            sx={{ mx: 0.5, minWidth: "auto" }}
-                          >
-                            CSV
-                          </Button>
-                        </Tooltip>
+                        {user?.role !== 'viewer' && (
+                          <Tooltip title="Загрузить CSV">
+                            <Button
+                              color="inherit"
+                              startIcon={<Upload />}
+                              onClick={() => setUploadModalOpen(true)}
+                              sx={{ mx: 0.5, minWidth: "auto" }}
+                            >
+                              CSV
+                            </Button>
+                          </Tooltip>
+                        )}
 
                         <Tooltip title="Профиль">
                           <Button
@@ -547,7 +580,9 @@ const Main: React.FC = () => {
                 >
                   <BottomNavigationAction label="Мониторинг" value="dashboard" icon={<DashboardIcon />} />
                   <BottomNavigationAction label="История" value="history" icon={<HistoryIcon />} />
-                  <BottomNavigationAction label="CSV" value="csv" icon={<Upload />} />
+                  {user?.role !== 'viewer' && (
+                    <BottomNavigationAction label="CSV" value="csv" icon={<Upload />} />
+                  )}
                   <BottomNavigationAction label="Профиль" value="profile" icon={<AccountCircle />} />
                 </BottomNavigation>
               </Box>
@@ -565,6 +600,7 @@ const Main: React.FC = () => {
             </Drawer>
 
             <UploadCSVModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} onUploadSuccess={() => setUploadModalOpen(false)} />
+            <ReplenishmentModal open={replOpen} onClose={() => setReplOpen(false)} suggestions={replData} />
 
           </motion.div>
         )}

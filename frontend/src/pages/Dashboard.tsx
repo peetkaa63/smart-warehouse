@@ -17,10 +17,13 @@ import RealTimeStats from '../components/RealTimeStats';
 import RecentScans from '../components/RecentScans';
 import AIPredictions from '../components/AIPredictions';
 import { RootState, AppDispatch } from '../store';
+import RobotTasksPanel from '../components/RobotTasksPanel';
+import { useSelector as useReduxSelector } from 'react-redux';
 
 const Dashboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { robots, recentScans, statistics, loading, error } = useSelector((state: RootState) => state.dashboard);
+  const user = useReduxSelector((state: RootState) => state.auth.user);
   
   const [alert, setAlert] = useState<{type: 'success' | 'error' | 'warning' | 'info', message: string} | null>(null);
 
@@ -114,6 +117,11 @@ const Dashboard: React.FC = () => {
                 <Box sx={{ width: '100%', overflow: 'hidden' }}>
                   <RecentScans scans={recentScans || []} />
                 </Box>
+              {(user?.role === 'operator' || user?.role === 'admin') && (
+                <Box sx={{ width: '100%', overflow: 'hidden' }}>
+                  <RobotTasksPanel />
+                </Box>
+              )}
                 <Box sx={{ width: '100%', overflow: 'hidden' }}>
                   <AIPredictions />
                 </Box>

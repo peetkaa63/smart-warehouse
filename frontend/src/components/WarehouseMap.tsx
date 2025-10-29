@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paper, Typography, Box, IconButton, Chip, Popover } from '@mui/material';
+import { Paper, Typography, Box, IconButton, Chip, Popover, FormGroup, FormControlLabel, Switch } from '@mui/material';
+import MiniSparkline from './MiniSparkline';
+import { robotsAPI } from '../services/api';
+import { useDispatch } from 'react-redux';
+import { showNotification } from '../store/slices/notificationsSlice';
 import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -35,7 +39,25 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [selectedCellPosition, setSelectedCellPosition] = useState<{zone: string, row: number, shelf: number} | null>(null);
   const [selectedCellInfo, setSelectedCellInfo] = useState<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string} | null>(null);
   const [loadingCellInfo, setLoadingCellInfo] = useState(false);
+  const [cellHistoryValues, setCellHistoryValues] = useState<number[]>([]);
+  const dispatch = useDispatch();
   const mapFocus = useSelector((state: RootState) => state.mapFocus.target);
+  const recentScans = useSelector((state: RootState) => state.dashboard.recentScans as any[]);
+  const lowBatteryThreshold = useSelector((state: RootState) => state.notificationSettings.thresholds.lowBattery);
+  const [showOnlyCriticalCells, setShowOnlyCriticalCells] = useState(false);
+  const [showOnlyLowBattery, setShowOnlyLowBattery] = useState(false);
+
+  const criticalCells = React.useMemo(() => {
+    const set = new Set<string>();
+    (recentScans || []).forEach((s: any) => {
+      if (s.status === 'CRITICAL') {
+        const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
+        set.add(key);
+      }
+    });
+    return set;
+  }, [recentScans]);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const zones = ['A', 'B', 'C', 'D', 'E'];
@@ -134,6 +156,20 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     return 'Активный';
   };
 
+  const getWearFromId = (id: string) => {
+    let acc = 0; for (let i = 0; i < id.length; i++) acc = (acc * 31 + id.charCodeAt(i)) % 1000;
+    const tire = (acc % 60) + 20; // 20..79
+    const leg = ((acc / 3) % 60) + 20; // 20..79
+    return { tireWear: Math.min(99, Math.floor(tire)), legWear: Math.min(99, Math.floor(leg)) };
+  }
+
+  const getChargingElapsedMinutes = (robot: Robot) => {
+    if (robot.status !== 'charging') return 0;
+    const last = new Date(robot.last_update).getTime();
+    const now = Date.now();
+    return Math.max(0, Math.floor((now - last) / 60000));
+  }
+
   const handleZoomIn = () => setScale(prev => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setScale(prev => Math.max(prev - 0.1, 0.5));
   const handleCenter = () => setScale(1);
@@ -144,11 +180,15 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 
   // Функция для получения всех роботов в ячейке
   const getRobotsInCell = (zone: string, row: number, shelf: number) => {
-    return currentRobots.filter(robot => 
+    const robotsIn = currentRobots.filter(robot => 
       robot.current_zone === zone && 
       robot.current_row === row && 
       robot.current_shelf === shelf
     );
+    if (showOnlyLowBattery) {
+      return robotsIn.filter(r => r.battery_level < lowBatteryThreshold);
+    }
+    return robotsIn;
   };
 
   // Обработчик клика по ячейке с группой роботов
@@ -178,11 +218,18 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           status: match.status,
           scannedAt: match.scannedAt
         });
+        const historyValues = items
+          .filter((it: any) => (it.zone === zone) && (Number(it.rowNumber) === row) && (Number(it.shelfNumber) === shelf))
+          .slice(0, 12)
+          .map((it: any) => Number(it.quantity) || 0)
+        setCellHistoryValues(historyValues.reverse());
       } else {
         setSelectedCellInfo(null);
+        setCellHistoryValues([]);
       }
     } catch (e) {
       setSelectedCellInfo(null);
+      setCellHistoryValues([]);
     } finally {
       setLoadingCellInfo(false);
     }
@@ -269,6 +316,13 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           />
         </Box>
         
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <FormGroup row>
+            <FormControlLabel control={<Switch checked={showOnlyCriticalCells} onChange={(e) => setShowOnlyCriticalCells(e.target.checked)} />} label="Только критические ячейки" />
+            <FormControlLabel control={<Switch checked={showOnlyLowBattery} onChange={(e) => setShowOnlyLowBattery(e.target.checked)} />} label={`Только роботы < ${lowBatteryThreshold}%`} />
+          </FormGroup>
+        </Box>
+
         <Box sx={{ display: 'flex', gap: 1 }}>
           {zones.map(zone => {
             const stats = getZoneStats(zone);
@@ -320,6 +374,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     const cellId = `${zone}-${row}-${shelf}`;
                     const robotsInCell = getRobotsInCell(zone, row, shelf);
                     const robotsCount = robotsInCell.length;
+                    const isCritical = criticalCells.has(cellId);
+                    if (showOnlyCriticalCells && !isCritical) {
+                      return null;
+                    }
 
                     return (
                       <Box
@@ -332,12 +390,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: robotsCount > 0 ? '#e3f2fd' : 'white',
+                          backgroundColor: robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white'),
                           borderRadius: 1,
                           cursor: robotsCount > 0 ? 'pointer' : 'default',
                           position: 'relative',
                           '&:hover': {
-                            backgroundColor: robotsCount > 0 ? '#bbdefb' : '#f5f5f5',
+                            backgroundColor: robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5'),
                             transform: robotsCount > 0 ? 'scale(1.05)' : 'none',
                             transition: 'all 0.2s ease'
                           }
@@ -462,6 +520,11 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                 <Typography variant="caption" display="block">Количество: {selectedCellInfo.quantity} шт.</Typography>
                 <Typography variant="caption" display="block">Статус: {selectedCellInfo.status}</Typography>
                 <Typography variant="caption" display="block">Время: {new Date(selectedCellInfo.scannedAt).toLocaleString('ru-RU')}</Typography>
+                {cellHistoryValues.length > 1 && (
+                  <Box sx={{ mt: 1 }}>
+                    <MiniSparkline values={cellHistoryValues} />
+                  </Box>
+                )}
               </Box>
             ) : (
               <Typography variant="caption" color="textSecondary">Нет данных</Typography>
@@ -538,19 +601,61 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
               {selectedRobot.current_zone}-{selectedRobot.current_row}-{selectedRobot.current_shelf}
             </strong>
           </Typography>
+
+          {/* Профиль робота */}
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="subtitle2">Профиль</Typography>
+            <Typography variant="caption" display="block">Время на зарядке: {getChargingElapsedMinutes(selectedRobot)} мин.</Typography>
+            {(() => { const w = getWearFromId(selectedRobot.id); return (
+              <>
+                <Typography variant="caption" display="block">Износ шин: {w.tireWear}%</Typography>
+                <Typography variant="caption" display="block">Износ лап: {w.legWear}%</Typography>
+              </>
+            )})()}
+          </Box>
           
           <Typography variant="caption" color="textSecondary">
             Последнее обновление: {new Date(selectedRobot.last_update).toLocaleTimeString()}
           </Typography>
           
           <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #eee' }}>
-            <IconButton 
-              size="small" 
-              onClick={() => setSelectedRobot(null)}
-              sx={{ fontSize: '12px' }}
-            >
-              ✕ Закрыть
-            </IconButton>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              <IconButton 
+                size="small" 
+                onClick={async () => {
+                  if (!selectedRobot) return;
+                  await robotsAPI.pause(selectedRobot.id);
+                  dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${selectedRobot.id} поставлен на паузу`, duration: 3000 } as any));
+                }}
+                sx={{ fontSize: '12px' }}
+                title="Пауза"
+              >⏸</IconButton>
+              <IconButton 
+                size="small" 
+                onClick={async () => {
+                  if (!selectedRobot) return;
+                  await robotsAPI.resume(selectedRobot.id);
+                  dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${selectedRobot.id} возобновлен`, duration: 3000 } as any));
+                }}
+                sx={{ fontSize: '12px' }}
+                title="Продолжить"
+              >▶</IconButton>
+              <IconButton 
+                size="small" 
+                onClick={async () => {
+                  if (!selectedRobot) return;
+                  await robotsAPI.rescan(selectedRobot.id, { zone: selectedRobot.current_zone, row: selectedRobot.current_row, shelf: selectedRobot.current_shelf });
+                  dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${selectedRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
+                }}
+                sx={{ fontSize: '12px' }}
+                title="Пересканировать ячейку"
+              >🔄</IconButton>
+              <IconButton 
+                size="small" 
+                onClick={() => setSelectedRobot(null)}
+                sx={{ fontSize: '12px' }}
+              >✕ Закрыть</IconButton>
+            </Box>
           </Box>
         </Paper>
       )}

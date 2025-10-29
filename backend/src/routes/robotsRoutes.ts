@@ -2,6 +2,10 @@ import express from 'express';
 import { robotsService } from '../services/AllServices';
 import { robotService } from '../sockets/websocket';
 import notificationAnalyzerService from '../services/notificationAnalyzerService';
+import { pool } from '../config/database';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware';
+import { taskQueueService } from '../services/TaskQueueService';
+import { getTransportMode } from '../services/TransportMode';
 
 const router = express.Router();
 
@@ -63,6 +67,9 @@ const router = express.Router();
  */
 router.post('/data', async (req, res) => {
   try {
+    if (getTransportMode() !== 'http') {
+      return res.status(409).json({ success: false, error: 'Transport mode is socket. HTTP data disabled' });
+    }
     const robotData = req.body;
     const result = await robotsService.processRobotData(robotData);
     
@@ -130,6 +137,116 @@ router.get('/', async (req, res) => {
   } catch (error: any) {
     console.error('❌ Get robots error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Пауза робота (оператор/админ)
+router.post('/:id/pause', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE robots SET status = 'paused', last_update = NOW() WHERE id = $1`, [id]);
+    robotService.io.emit('robot_command', { type: 'pause', robotId: id, timestamp: new Date().toISOString() });
+    // Переназначение задач на другого активного робота с наибольшим зарядом
+    const candidates = await pool.query(`SELECT id FROM robots WHERE status = 'active' ORDER BY battery_level DESC LIMIT 1`);
+    const target = candidates.rows?.[0]?.id;
+    if (target) {
+      taskQueueService.moveTasks(id, target);
+      robotService.io.emit('task_reassigned', { from: id, to: target, timestamp: new Date().toISOString() });
+    }
+    res.json({ success: true, message: `Robot ${id} paused` });
+  } catch (error: any) {
+    console.error('❌ Pause robot error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Возобновление робота (оператор/админ)
+router.post('/:id/resume', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE robots SET status = 'active', last_update = NOW() WHERE id = $1`, [id]);
+    robotService.io.emit('robot_command', { type: 'resume', robotId: id, timestamp: new Date().toISOString() });
+    res.json({ success: true, message: `Robot ${id} resumed` });
+  } catch (error: any) {
+    console.error('❌ Resume robot error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Пересканировать зону или ячейку (оператор/админ)
+router.post('/:id/rescan', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { zone, row, shelf } = req.body || {};
+    robotService.io.emit('robot_command', { type: 'rescan', robotId: id, zone, row, shelf, timestamp: new Date().toISOString() });
+    res.json({ success: true, message: `Robot ${id} requested to rescan`, target: { zone, row, shelf } });
+  } catch (error: any) {
+    console.error('❌ Rescan command error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Назначить задачу роботу
+router.post('/:id/tasks/assign', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taskId, priority, payload } = req.body || {};
+    if (!taskId) return res.status(400).json({ error: 'taskId required' });
+    taskQueueService.enqueue(id, { id: String(taskId), priority, payload });
+    robotService.io.emit('task_assigned', { robotId: id, taskId, priority, timestamp: new Date().toISOString() });
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('❌ Assign task error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить следующую задачу робота (эмулятор будет опрашивать)
+router.get('/:id/tasks/next', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const task = taskQueueService.dequeue(id);
+    if (!task) return res.json({ success: true, task: null });
+    res.json({ success: true, task });
+  } catch (error: any) {
+    console.error('❌ Next task error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Получить список задач для робота
+router.get('/:id/tasks', authenticateToken, requireRole(['operator','admin']), (req, res) => {
+  try {
+    const { id } = req.params;
+    const list = taskQueueService.getTasks(id);
+    res.json({ success: true, data: list });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Получить сводный список задач по всем роботам
+router.get('/tasks', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
+  try {
+    // В простом варианте соберём роботов и подтянем списки задач
+    const robots = await robotsService.getAllRobots();
+    const data = (robots || []).map((r: any) => ({ robotId: r.id, tasks: taskQueueService.getTasks(r.id) }));
+    res.json({ success: true, data });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Ручное переназначение задач между роботами
+router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin']), (req, res) => {
+  try {
+    const { from, to } = req.body || {};
+    if (!from || !to) return res.status(400).json({ success: false, error: 'from and to required' });
+    taskQueueService.moveTasks(String(from), String(to));
+    robotService.io.emit('task_reassigned', { from, to, timestamp: new Date().toISOString() });
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 

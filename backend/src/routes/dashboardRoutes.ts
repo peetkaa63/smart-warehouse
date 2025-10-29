@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { robotService } from '../sockets/websocket';
+import { pool } from '../config/database';
 
 const router = express.Router();
 
@@ -113,3 +114,31 @@ router.post('/refresh', authenticateToken, async (req, res) => {
 });
 
 export default router;
+
+// Дополнительно: предложения по пополнению (простая эвристика)
+export const replenishmentRouter = express.Router();
+
+replenishmentRouter.get('/suggestions', authenticateToken, async (req, res) => {
+  try {
+    const low = await pool.query(`
+      SELECT product_id, zone, SUM(quantity) as qty
+      FROM inventory_history
+      WHERE status IN ('LOW_STOCK','CRITICAL') AND scanned_at > NOW() - INTERVAL '1 day'
+      GROUP BY product_id, zone
+      ORDER BY qty ASC
+      LIMIT 5
+    `);
+    // Заглушка источника избыточных зон — берем любые OK за 1д
+    const surplus = await pool.query(`
+      SELECT product_id, zone, SUM(quantity) as qty
+      FROM inventory_history
+      WHERE status = 'OK' AND scanned_at > NOW() - INTERVAL '1 day'
+      GROUP BY product_id, zone
+      ORDER BY qty DESC
+      LIMIT 5
+    `);
+    res.json({ success: true, data: { low: low.rows, surplus: surplus.rows } });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});

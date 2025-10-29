@@ -13,6 +13,11 @@ import { HistoryFilters } from '../components/HistoryFilters';
 import { HistoryStats } from '../components/HistoryStats';
 import { HistoryTable } from '../components/HistoryTable';
 import { HistoryActions } from '../components/HistoryActions';
+import { useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
+import { startExport, finishExport } from '../store/slices/exportSlice';
+import { showNotification } from '../store/slices/notificationsSlice';
 
 interface HistoryItem {
   id: number;
@@ -46,7 +51,9 @@ const History: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [exporting, setExporting] = useState<{excel: boolean; pdf: boolean}>({ excel: false, pdf: false });
-  
+  const dispatch = useDispatch();
+  const exportState = useSelector((state: RootState) => state.export);
+
   // Фильтры
   const [filters, setFilters] = useState({
     from: '',
@@ -148,6 +155,7 @@ const History: React.FC = () => {
       if (filters.productId) params.product_id = filters.productId;
       if (filters.robotId) params.robot_id = filters.robotId;
 
+      dispatch(startExport('excel'));
       const response = await exportAPI.exportToExcel(params);
       
       // Добавляем BOM для корректной кодировки в Excel/Windows
@@ -162,11 +170,18 @@ const History: React.FC = () => {
       window.URL.revokeObjectURL(url);
 
       console.log('✅ Excel export completed');
+      dispatch(showNotification({
+        type: 'success',
+        title: 'Экспорт завершен',
+        message: 'CSV экспорт успешно завершен',
+        duration: 4000
+      } as any));
     } catch (error) {
       console.error('❌ Excel export error:', error);
       alert('Ошибка при экспорте в Excel');
     } finally {
       setExporting(prev => ({ ...prev, excel: false }));
+      dispatch(finishExport());
     }
   };
 
@@ -180,6 +195,7 @@ const History: React.FC = () => {
       if (filters.zones.length) params.zone = filters.zones;
       if (filters.statuses.length) params.status = filters.statuses;
 
+      dispatch(startExport('pdf'));
       const response = await exportAPI.exportToPDF(params);
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -192,11 +208,18 @@ const History: React.FC = () => {
       window.URL.revokeObjectURL(url);
 
       console.log('✅ PDF export completed');
+      dispatch(showNotification({
+        type: 'success',
+        title: 'Экспорт завершен',
+        message: 'PDF экспорт успешно завершен',
+        duration: 4000
+      } as any));
     } catch (error) {
       console.error('❌ PDF export error:', error);
       alert('Ошибка при генерации PDF');
     } finally {
       setExporting(prev => ({ ...prev, pdf: false }));
+      dispatch(finishExport());
     }
   };
 

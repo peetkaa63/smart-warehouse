@@ -271,6 +271,15 @@ export const advancedAnalyticsAPI = {
 // Robots API
 export const robotsAPI = {
   sendData: (data: any) => api.post('/api/robots/data', data),
+  pause: (robotId: string) => api.post(`/api/robots/${robotId}/pause`),
+  resume: (robotId: string) => api.post(`/api/robots/${robotId}/resume`),
+  rescan: (robotId: string, payload: { zone?: string; row?: number; shelf?: number }) => api.post(`/api/robots/${robotId}/rescan`, payload),
 };
 
 export default api;
+
+// Profile API
+export const profileAPI = {
+  getSettings: async () => (await api.get('/api/profile/settings')).data,
+  saveSettings: async (settings: any) => (await api.post('/api/profile/settings', { settings })).data,
+};

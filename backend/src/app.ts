@@ -6,7 +6,7 @@ import { Server } from 'socket.io';
 import authRoutes from './routes/authRoutes';
 import { testConnection } from './config/database';
 import { setupWebSocket } from './sockets/websocket';
-import dashboardRoutes from './routes/dashboardRoutes';
+import dashboardRoutes, { replenishmentRouter } from './routes/dashboardRoutes';
 import robotsRoutes from './routes/robotsRoutes';
 import historyRoutes from './routes/historyRoutes';
 import uploadRoutes from './routes/uploadRoutes';
@@ -14,6 +14,10 @@ import exportRoutes from './routes/exportRoutes';
 import aiRoutes from './routes/aiRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 import advancedAnalyticsRoutes from './routes/advancedAnalyticsRoutes';
+import adminRoutes from './routes/adminRoutes';
+import profileRoutes from './routes/profileRoutes';
+import configRoutes from './routes/configRoutes';
+import { initTransportMode } from './services/TransportMode';
 import { setupSwagger } from './config/swagger';
 import { 
   errorHandler, 
@@ -83,9 +87,13 @@ app.use('/api/export', exportRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/advancedAnalytics', advancedAnalyticsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/config', configRoutes);
+app.use('/api/inventory', replenishmentRouter);
 
-// WebSocket инициализация
-setupWebSocket(io);
+// Инициализация режима транспорта и WebSocket
+initTransportMode().then(() => setupWebSocket(io));
 
 // Error handling middleware (должен быть последним)
 app.use(notFoundHandler);

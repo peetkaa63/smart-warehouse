@@ -104,6 +104,11 @@ class NotificationSocketService {
       this.handleCriticalAlert(data);
     });
 
+    socket.on('system_notice', (data: any) => {
+      console.log('📢 Received system notice:', data);
+      this.handleSystemNotice(data);
+    });
+
     this.isConnected = true;
   }
 
@@ -147,6 +152,24 @@ class NotificationSocketService {
     } else if (this.isTabVisible) {
       console.log('🚫 Skipping browser notification (tab is visible)');
     }
+  }
+
+  private handleSystemNotice(data: any) {
+    try {
+      const { type } = data || {}
+      if (type === 'transport_mode') {
+        // Покажем уведомление пользователю
+        const event = {
+          id: `system_${Date.now()}`,
+          type: 'info',
+          title: 'Режим передачи данных изменен',
+          message: `Новый режим: ${data.mode}`,
+          timestamp: Date.now(),
+          read: false
+        }
+        this.store?.dispatch?.({ type: 'notifications/showNotification', payload: event })
+      }
+    } catch {}
   }
 
   private handleInventoryAlert(data: any) {

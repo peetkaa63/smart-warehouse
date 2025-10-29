@@ -7,6 +7,7 @@ import {
   RobotObserver,
   NotificationEventType 
 } from './NotificationObserver';
+import { getTransportMode } from '../services/TransportMode';
 
 let robotService: RobotService;
 let notificationManager: NotificationManager;
@@ -62,6 +63,16 @@ export const setupWebSocket = (io: Server) => {
     socket.on('request_dashboard_update', async () => {
       console.log(`📊 Client ${socket.id} requested dashboard update`);
       await robotService.broadcastDashboardUpdate();
+    });
+
+    // Прием данных роботов через сокет (альтернатива HTTP POST)
+    socket.on('robot_data', async (payload) => {
+      try {
+        if (getTransportMode() !== 'socket') return;
+        await robotService.processRobotData(payload);
+      } catch (e) {
+        console.error('❌ robot_data handler error:', e);
+      }
     });
 
     // Обработка отключения клиента

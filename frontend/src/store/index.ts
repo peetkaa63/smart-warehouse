@@ -3,6 +3,8 @@ import authReducer from './slices/authSlice';
 import dashboardReducer from './slices/dashboardSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import mapFocusReducer from './slices/mapFocusSlice';
+import notificationSettingsReducer from './slices/notificationSettingsSlice';
+import exportReducer from './slices/exportSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +12,8 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     notifications: notificationsReducer,
     mapFocus: mapFocusReducer,
+    notificationSettings: notificationSettingsReducer,
+    export: exportReducer,
   },
 });
 

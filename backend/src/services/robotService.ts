@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { pool } from '../config/database';
 import { NotificationManager, NotificationEventType } from '../sockets/NotificationObserver';
+import { taskQueueService } from './TaskQueueService';
 
 export class RobotService {
   public io: Server; // Сделали публичным
@@ -193,6 +194,17 @@ export class RobotService {
       if (this.notificationManager) {
         this.notificationManager.notifyRobotBatteryLow(robotId, batteryLevel);
       }
+    }
+    // Если оффлайн или очень низкий заряд — переносим задачи на самого заряженного активного робота
+    if (status === 'offline' || batteryLevel < 10) {
+      try {
+        const candidates = await pool.query(`SELECT id FROM robots WHERE status = 'active' ORDER BY battery_level DESC LIMIT 1`);
+        const target = candidates.rows?.[0]?.id;
+        if (target && target !== robotId) {
+          taskQueueService.moveTasks(robotId, target);
+          this.io.emit('task_reassigned', { from: robotId, to: target, reason: status === 'offline' ? 'offline' : 'low_battery', timestamp: new Date().toISOString() });
+        }
+      } catch {}
     }
     
     // Здесь можно добавить логику для отслеживания изменений статуса

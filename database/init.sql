@@ -56,6 +56,20 @@ CREATE TABLE IF NOT EXISTS ai_predictions (
 );
 
 -- Уникальность для поддержки UPSERT по (product_id, prediction_date)
+
+-- Настройки пользователя
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    settings JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Глобальные настройки системы
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_ai_predictions_product_date
 ON ai_predictions(product_id, prediction_date);
 

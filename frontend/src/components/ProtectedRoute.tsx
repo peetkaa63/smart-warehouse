@@ -6,11 +6,13 @@ import { RootState } from '../store';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: string;
+  allowedRoles?: string[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requiredRole 
+  requiredRole,
+  allowedRoles
 }) => {
   const { user, token } = useSelector((state: RootState) => state.auth);
 
@@ -19,6 +21,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 
