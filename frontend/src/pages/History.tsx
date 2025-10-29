@@ -44,6 +44,7 @@ const History: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [chartModalOpen, setChartModalOpen] = useState(false);
+  const [exporting, setExporting] = useState<{excel: boolean; pdf: boolean}>({ excel: false, pdf: false });
   
   // Фильтры
   const [filters, setFilters] = useState({
@@ -136,6 +137,7 @@ const History: React.FC = () => {
 
   const handleExportExcel = async () => {
     try {
+      setExporting(prev => ({ ...prev, excel: true }));
       const params: any = {};
 
       if (filters.from) params.from = filters.from;
@@ -162,11 +164,14 @@ const History: React.FC = () => {
     } catch (error) {
       console.error('❌ Excel export error:', error);
       alert('Ошибка при экспорте в Excel');
+    } finally {
+      setExporting(prev => ({ ...prev, excel: false }));
     }
   };
 
   const handleExportPDF = async () => {
     try {
+      setExporting(prev => ({ ...prev, pdf: true }));
       const params: any = {};
 
       if (filters.from) params.from = filters.from;
@@ -189,6 +194,8 @@ const History: React.FC = () => {
     } catch (error) {
       console.error('❌ PDF export error:', error);
       alert('Ошибка при генерации PDF');
+    } finally {
+      setExporting(prev => ({ ...prev, pdf: false }));
     }
   };
 
@@ -210,6 +217,14 @@ const History: React.FC = () => {
         <Typography variant="h4" component="h1" fontWeight="bold">
           Исторические данные
         </Typography>
+        {(exporting.excel || exporting.pdf) && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CircularProgress size={18} />
+            <Typography variant="caption" color="textSecondary">
+              {exporting.excel ? 'Экспорт CSV...' : exporting.pdf ? 'Экспорт PDF...' : ''}
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {error && (

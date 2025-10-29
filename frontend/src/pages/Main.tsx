@@ -199,14 +199,16 @@ const Main: React.FC = () => {
 
   const handleNotificationClick = (notification: any) => {
     dispatch(markAsRead(notification.id))
-    if (notification.type === 'CRITICAL_STOCK' || notification.type === 'INVENTORY_ALERT') {
-      console.log('Переход к товару:', notification.product_id)
-      // Переключаемся на dashboard для просмотра проблемы
+    // Всегда переходим на dashboard при клике по уведомлению, если есть координаты
+    if (notification.zone && notification.row && notification.shelf) {
       handleTabChange('dashboard');
-      // Прокидываем целевую ячейку для карты
-      if (notification.zone && notification.row && notification.shelf) {
-        dispatch(setMapFocus({ zone: notification.zone, row: Number(notification.row), shelf: Number(notification.shelf) }))
-      }
+      dispatch(setMapFocus({ zone: notification.zone, row: Number(notification.row), shelf: Number(notification.shelf) }))
+      return;
+    }
+
+    // Специальные кейсы без координат
+    if (notification.type === 'CRITICAL_STOCK' || notification.type === 'INVENTORY_ALERT' || notification.type === 'ROBOT_BATTERY_LOW') {
+      handleTabChange('dashboard');
     }
   }
 
