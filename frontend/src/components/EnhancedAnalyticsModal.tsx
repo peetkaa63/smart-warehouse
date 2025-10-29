@@ -172,7 +172,7 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
           : generateFallbackTrendData(selectedProducts, parseInt(period));
         setTrendData(data);
       } else {
-        const trendErr = trendsResponse.error || trendsResponse.message || 'Unknown error';
+        const trendErr = (trendsResponse as any)?.error || 'Unknown error';
         console.error('❌ Trends API error:', trendErr, trendsResponse);
         // При ошибке используем fallback данные
         const fallbackData = generateFallbackTrendData(selectedProducts, parseInt(period));
