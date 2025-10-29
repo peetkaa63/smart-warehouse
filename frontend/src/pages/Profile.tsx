@@ -2,7 +2,6 @@ import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '../store'
 import { Box, Paper, Typography, Avatar, Divider, List, ListItem, ListItemText, Switch, Button, Chip, Slider, FormGroup, FormControlLabel } from '@mui/material'
-import Grid from '@mui/material/Unstable_Grid2'
 import { logout } from '../store/slices/authSlice'
 import AdminLogsWidget from '../components/AdminLogsWidget'
 import { useDispatch as useReduxDispatch } from 'react-redux'
@@ -50,15 +49,15 @@ const Profile: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3 }}>
-        <Grid container spacing={3}>
-          <Grid xs={12} sm={4} md={3}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 3fr' }, gap: 3 }}>
+          <Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
               <Avatar sx={{ width: 96, height: 96 }}>{user?.name?.[0] || 'U'}</Avatar>
               <Typography variant="h6">{user?.name}</Typography>
               <Chip label={user?.role || 'role'} size="small" color="primary" variant="outlined" />
             </Box>
-          </Grid>
-          <Grid xs={12} sm={8} md={9}>
+          </Box>
+          <Box>
             <Typography variant="subtitle1" gutterBottom>Учетная запись</Typography>
             <List>
               <ListItem>
@@ -107,8 +106,8 @@ const Profile: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button variant="contained" color="error" onClick={() => dispatch(logout())}>Выйти</Button>
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
     </Box>
   )
