@@ -268,6 +268,9 @@ class NotificationSocketService {
           message: `Товар имеет критически низкий уровень запасов (${data.data.quantity} шт.)`,
           priority: 'HIGH' as NotificationPriority,
           product_id: productId,
+          zone: data.data.zone,
+          row: data.data.row,
+          shelf: data.data.shelf,
           timestamp: new Date().toISOString(),
           read: false,
           action_required: true
@@ -294,6 +297,9 @@ class NotificationSocketService {
             message: `Робот ${robotId} имеет низкий заряд батареи (${batteryLevel}%)`,
             priority: 'MEDIUM' as NotificationPriority,
             robot_id: robotId,
+            zone: data.data.zone,
+            row: data.data.row,
+            shelf: data.data.shelf,
             timestamp: new Date().toISOString(),
             read: false,
             action_required: true

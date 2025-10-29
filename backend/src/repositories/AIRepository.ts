@@ -62,7 +62,8 @@ export class AIRepository {
   // Сохранение прогнозов AI в БД
   async savePredictions(predictions: any[]): Promise<void> {
     for (const prediction of predictions) {
-      await pool.query(`
+      try {
+        await pool.query(`
         INSERT INTO ai_predictions (
           product_id,
           prediction_date,
@@ -77,14 +78,23 @@ export class AIRepository {
           recommended_order = EXCLUDED.recommended_order,
           confidence_score = EXCLUDED.confidence_score,
           created_at = EXCLUDED.created_at
-      `, [
-        prediction.product_id,
-        prediction.prediction_date || new Date().toISOString().split('T')[0],
-        prediction.days_until_stockout,
-        prediction.recommended_order_quantity,
-        prediction.confidence_score,
-        new Date()
-      ]);
+        `, [
+          prediction.product_id,
+          prediction.prediction_date || new Date().toISOString().split('T')[0],
+          prediction.days_until_stockout,
+          prediction.recommended_order_quantity,
+          prediction.confidence_score,
+          new Date()
+        ]);
+      } catch (error: any) {
+        // Если нет нужного индекса (42P10) — пропускаем сохранение, чтобы не ломать основной сценарий
+        if (error?.code === '42P10') {
+          console.warn('⚠️ Skipping AI predictions upsert due to missing unique index. Prediction not persisted.');
+          continue;
+        }
+        // Прочие ошибки не игнорируем
+        throw error;
+      }
     }
   }
 

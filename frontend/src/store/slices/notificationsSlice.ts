@@ -17,8 +17,11 @@ export interface Notification {
   message: string;
   priority: NotificationPriority;
   product_id?: string;
+  product_name?: string;
   robot_id?: string;
   zone?: string;
+  row?: number;
+  shelf?: number;
   timestamp: string;
   read: boolean;
   action_required: boolean;

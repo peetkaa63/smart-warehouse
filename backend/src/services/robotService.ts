@@ -169,12 +169,22 @@ export class RobotService {
   private async updateRobotStatus(robotId: string, status: string, batteryLevel: number) {
     // Проверяем критический уровень батареи
     if (batteryLevel < 20 && status !== 'offline') {
-      // Отправляем критическое уведомление о низком заряде
+      // Получаем текущую позицию робота для навигации на карте
+      const posResult = await pool.query(
+        `SELECT current_zone, current_row, current_shelf FROM robots WHERE id = $1`,
+        [robotId]
+      );
+      const pos = posResult.rows[0] || {};
+
+      // Отправляем критическое уведомление о низком заряде с позицией
       this.io.emit('critical_alert', {
         type: 'robot_battery_low',
         data: {
           robotId: robotId,
           batteryLevel: batteryLevel,
+          zone: pos.current_zone,
+          row: pos.current_row,
+          shelf: pos.current_shelf,
           timestamp: new Date().toISOString()
         }
       });
