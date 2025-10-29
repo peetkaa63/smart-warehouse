@@ -11,7 +11,7 @@ import { historyAPI } from '../services/api';
 
 interface Robot {
   id: string;
-  status: 'active' | 'charging' | 'offline';
+  status: 'active' | 'charging' | 'offline' | 'paused';
   battery_level: number;
   current_zone: string;
   current_row: number;
