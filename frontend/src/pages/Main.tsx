@@ -384,11 +384,11 @@ const Main: React.FC = () => {
                           </Button>
                         </Tooltip>
 
-                        <Tooltip title="Аккаунт">
+                        <Tooltip title="Профиль">
                           <Button
                             color="inherit"
                             startIcon={<AccountCircle />}
-                            onClick={handleMenu}
+                            onClick={() => navigate('/profile')}
                             sx={{
                               mx: 0.5,
                               minWidth: "auto",
@@ -399,24 +399,9 @@ const Main: React.FC = () => {
                               transition: 'all 0.3s ease'
                             }}
                           >
-                            <Typography variant="body2" sx={{ ml: 0.5 }}>
-                              {user?.name}
-                            </Typography>
+                            <Typography variant="body2" sx={{ ml: 0.5 }}>{user?.name}</Typography>
                           </Button>
                         </Tooltip>
-
-                        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-                          <MenuItem onClick={handleClose}>
-                            <AccountCircle sx={{ mr: 1 }} />
-                            {user?.name}
-                          </MenuItem>
-                          <MenuItem onClick={handleClose}>Роль: {user?.role}</MenuItem>
-                          <Divider />
-                          <MenuItem onClick={handleLogout}>
-                            <Logout sx={{ mr: 1 }} />
-                            Выход
-                          </MenuItem>
-                        </Menu>
                       </>
                     )}
                   </Box>

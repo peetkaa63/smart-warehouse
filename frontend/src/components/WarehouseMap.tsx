@@ -3,6 +3,7 @@ import { Paper, Typography, Box, IconButton, Chip, Popover } from '@mui/material
 import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { historyAPI } from '../services/api';
 
 interface Robot {
   id: string;
@@ -32,6 +33,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedCellRobots, setSelectedCellRobots] = useState<Robot[]>([]);
   const [selectedCellPosition, setSelectedCellPosition] = useState<{zone: string, row: number, shelf: number} | null>(null);
+  const [selectedCellInfo, setSelectedCellInfo] = useState<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string} | null>(null);
+  const [loadingCellInfo, setLoadingCellInfo] = useState(false);
   const mapFocus = useSelector((state: RootState) => state.mapFocus.target);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -158,7 +161,32 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     } else if (robotsInCell.length === 1) {
       handleRobotClick(robotsInCell[0]);
     }
+    void loadLastScanForCell(zone, row, shelf);
   };
+
+  const loadLastScanForCell = async (zone: string, row: number, shelf: number) => {
+    try {
+      setLoadingCellInfo(true);
+      const resp = await historyAPI.getHistory({ zone: [zone], page: 1, limit: 50 });
+      const items = resp.data?.items || [];
+      const match = items.find((it: any) => (it.zone === zone) && (Number(it.rowNumber) === row) && (Number(it.shelfNumber) === shelf));
+      if (match) {
+        setSelectedCellInfo({
+          productId: match.productId,
+          productName: match.productName,
+          quantity: match.quantity,
+          status: match.status,
+          scannedAt: match.scannedAt
+        });
+      } else {
+        setSelectedCellInfo(null);
+      }
+    } catch (e) {
+      setSelectedCellInfo(null);
+    } finally {
+      setLoadingCellInfo(false);
+    }
+  }
 
   const handleGroupClose = () => {
     setGroupAnchorEl(null);
@@ -417,13 +445,28 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           horizontal: 'center',
         }}
       >
-        <Paper sx={{ p: 2, minWidth: 200, maxWidth: 300 }}>
+        <Paper sx={{ p: 2, minWidth: 220, maxWidth: 340 }}>
           <Typography variant="h6" gutterBottom>
             🤖 Группа роботов
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
             Позиция: {selectedCellPosition?.zone}-{selectedCellPosition?.row}-{selectedCellPosition?.shelf}
           </Typography>
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="subtitle2">Последнее сканирование</Typography>
+            {loadingCellInfo ? (
+              <Typography variant="caption" color="textSecondary">Загрузка...</Typography>
+            ) : selectedCellInfo ? (
+              <Box>
+                <Typography variant="caption" display="block">Товар: {selectedCellInfo.productName || selectedCellInfo.productId}</Typography>
+                <Typography variant="caption" display="block">Количество: {selectedCellInfo.quantity} шт.</Typography>
+                <Typography variant="caption" display="block">Статус: {selectedCellInfo.status}</Typography>
+                <Typography variant="caption" display="block">Время: {new Date(selectedCellInfo.scannedAt).toLocaleString('ru-RU')}</Typography>
+              </Box>
+            ) : (
+              <Typography variant="caption" color="textSecondary">Нет данных</Typography>
+            )}
+          </Box>
           
           <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
             {selectedCellRobots.map((robot, index) => (

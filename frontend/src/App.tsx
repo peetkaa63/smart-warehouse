@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from './store';
 import Login from './pages/Login';
 import Main from './pages/Main';
+import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 // import NotificationSystem from './components/NotificationSystem'; 
@@ -44,6 +45,16 @@ const AppRoutes: React.FC = () => {
             <ProtectedRoute>
               <ErrorBoundary>
                 <Main />
+              </ErrorBoundary>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ErrorBoundary>
+                <Profile />
               </ErrorBoundary>
             </ProtectedRoute>
           }
