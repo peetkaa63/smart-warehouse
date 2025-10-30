@@ -33,6 +33,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [scale, setScale] = useState(1);
   const [selectedRobot, setSelectedRobot] = useState<Robot | null>(null);
   const [popoverRobot, setPopoverRobot] = useState<Robot | null>(null);
+  const [cardAnimatingOut, setCardAnimatingOut] = useState(false);
   const [currentRobots, setCurrentRobots] = useState<Robot[]>(robots);
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
   const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
@@ -592,7 +593,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
               )}
             </Box>
           ) : (
-            <Box sx={{ opacity: 0, transform: 'translateY(8px)', animation: 'fadeSlideIn .2s ease forwards' }}>
+            <Box sx={{ opacity: 0, transform: 'translateY(8px)', animation: cardAnimatingOut ? 'cardOut .22s ease forwards' : 'cardIn .22s ease forwards' }}>
               <Typography variant="h6" gutterBottom>
                 🤖 Робот {popoverRobot.id}
               </Typography>
@@ -649,7 +650,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                 >🔄</IconButton>
                 <IconButton 
                   size="small" 
-                  onClick={() => setPopoverRobot(null)}
+                  onClick={() => {
+                    setCardAnimatingOut(true);
+                    setTimeout(() => { setPopoverRobot(null); setCardAnimatingOut(false); }, 200);
+                  }}
                   sx={{ fontSize: '12px' }}
                 >
                   <ArrowBack fontSize="small" />
@@ -674,9 +678,13 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
             box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.5) inset;
             transition: box-shadow 0.3s ease;
           }
-          @keyframes fadeSlideIn {
-            0% { opacity: 0; transform: translateY(8px); }
-            100% { opacity: 1; transform: translateY(0); }
+          @keyframes cardIn {
+            0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes cardOut {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(8px) scale(0.98); }
           }
         `}
       </style>

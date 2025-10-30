@@ -4,6 +4,9 @@ import { Pause, PlayArrow, DeleteOutline } from '@mui/icons-material'
 import api, { pauseRobotUniversal, resumeRobotUniversal } from '../services/api'
 import { useEffect, useRef } from 'react';
 import update from 'immutability-helper';
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const polling = 5000;
 
@@ -85,21 +88,16 @@ const RobotTasksPanel: React.FC = () => {
     setNewTask(t => ({ ...t, [robotId]: task }));
   };
 
-  const handleDragStart = (robotId: string, idx: number) => {
-    setDragIdx({ robotId, idx });
-  };
-  const handleDragOver = (robotId: string, idx: number, e: React.DragEvent) => {
-    e.preventDefault();
-  };
-  const handleDrop = async (robotId: string, idx: number) => {
-    if (!dragIdx) return;
+  const onDragEnd = async (robotId: string) => async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     const robot = data.find(d => d.robotId === robotId);
     if (!robot) return;
-    const updated = [...robot.tasks];
-    const [moved] = updated.splice(dragIdx.idx, 1);
-    updated.splice(idx, 0, moved);
+    const oldIndex = robot.tasks.findIndex((_: any, i: number) => `task-${i}` === active.id);
+    const newIndex = robot.tasks.findIndex((_: any, i: number) => `task-${i}` === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const updated = arrayMove(robot.tasks, oldIndex, newIndex);
     await api.post('/api/robots/tasks/reorder', { robotId, tasks: updated });
-    setDragIdx(null);
     await load();
   };
   const handleDelete = async (robotId: string, idx: number) => {
@@ -170,25 +168,23 @@ const RobotTasksPanel: React.FC = () => {
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
               <Button size="small" variant="outlined" onClick={load}>Обновить</Button>
             </Box>
-            <List dense>
-              {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => (
-                <ListItem key={`${group.robotId}-${idx}`}
-                  draggable
-                  onDragStart={() => handleDragStart(group.robotId, idx)}
-                  onDragOver={e => handleDragOver(group.robotId, idx, e)}
-                  onDrop={() => handleDrop(group.robotId, idx)}
-                  sx={{ transition: 'transform 0.2s ease, background 0.2s ease', borderRadius: 1, mb: .5, background: dragIdx && dragIdx.idx === idx && dragIdx.robotId === group.robotId ? '#e0f7fa' : '#fafafa', '&:hover': { background: '#f0f7ff' } }}
-                >
-                  <ListItemText
-                    primary={<span style={{ fontWeight: 500 }}>{ruTaskName(t.id || t.type)}</span>}
-                    secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
-                  />
-                  <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(group.robotId, idx)} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
-                </ListItem>
-              )) : (
-                <ListItem><ListItemText primary="Нет задач" /></ListItem>
-              )}
-            </List>
+            <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd(group.robotId)}>
+              <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
+                <List dense>
+                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => (
+                    <SortableTask
+                      key={`task-${idx}`}
+                      id={`task-${idx}`}
+                      onDelete={() => handleDelete(group.robotId, idx)}
+                      primary={ruTaskName(t.id || t.type)}
+                      secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
+                    />
+                  )) : (
+                    <ListItem><ListItemText primary="Нет задач" /></ListItem>
+                  )}
+                </List>
+              </SortableContext>
+            </DndContext>
           </Paper>
         ))}
       </Box>
@@ -209,5 +205,25 @@ function ruTaskName(taskId: string) {
 }
 
 export default RobotTasksPanel
+
+// Sortable task item component
+import { useSortable } from '@dnd-kit/sortable'
+type SortableTaskProps = { id: string; primary: string; secondary?: string; onDelete: () => void }
+const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onDelete }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    background: isDragging ? '#e0f7fa' : '#fafafa',
+    borderRadius: 4,
+    marginBottom: 4
+  }
+  return (
+    <ListItem ref={setNodeRef} style={style} {...attributes} {...listeners} sx={{ '&:hover': { background: '#f0f7ff' } }}>
+      <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
+      <Button size="small" variant="outlined" color="error" onClick={onDelete} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
+    </ListItem>
+  )
+}
 
 

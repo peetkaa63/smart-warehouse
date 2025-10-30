@@ -59,7 +59,8 @@ class RobotEmulator:
                             self.current_zone = z
                             self.current_row = int(r)
                             self.current_shelf = int(s)
-                self.sio.connect(api_url.replace('http', 'ws'), transports=['websocket'])
+                # Подключаемся к Socket.IO серверу по HTTP URL (python-socketio сам управляет транспортом)
+                self.sio.connect(api_url, transports=['websocket'])
             except Exception as e:
                 print(f"[{self.robot_id}] Socket connection failed: {e}")
 

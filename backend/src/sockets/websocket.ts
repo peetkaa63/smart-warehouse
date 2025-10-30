@@ -9,6 +9,7 @@ import {
 } from './NotificationObserver';
 import { getTransportMode } from '../services/TransportMode';
 import { taskQueueService } from '../services/TaskQueueService';
+import { pool } from '../config/database';
 
 let robotService: RobotService;
 let notificationManager: NotificationManager;
@@ -77,8 +78,14 @@ export const setupWebSocket = (io: Server) => {
     });
 
     // Проксирование команд для роботов от клиентов UI к симуляторам
-    socket.on('robot_command', (data) => {
+    socket.on('robot_command', async (data) => {
       try {
+        const { type, robotId } = data || {};
+        if (robotId && (type === 'pause' || type === 'resume')) {
+          const newStatus = type === 'pause' ? 'paused' : 'active';
+          await pool.query(`UPDATE robots SET status = $1, last_update = NOW() WHERE id = $2`, [newStatus, robotId]);
+          await robotService.broadcastDashboardUpdate();
+        }
         io.emit('robot_command', data);
       } catch (e) {
         console.error('❌ robot_command relay error:', e);
