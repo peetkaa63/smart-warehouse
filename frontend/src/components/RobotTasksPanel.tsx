@@ -15,7 +15,7 @@ const RobotTasksPanel: React.FC = () => {
       window.socket.emit('request_robot_tasks');
       // при получении от сокета обновить data
       window.socket.off('robot_tasks_update'); // снять предыдущую подписку
-      window.socket.on('robot_tasks_update', (tasks) => {
+      window.socket.on('robot_tasks_update', (tasks: any) => {
         setData(tasks || []);
       });
     } else {
