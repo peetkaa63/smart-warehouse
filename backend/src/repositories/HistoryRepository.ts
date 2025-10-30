@@ -31,6 +31,8 @@ export class HistoryRepository {
       page = '1',
       limit = '20'
     } = filters;
+    const row = (filters as any).row as string | undefined;
+    const shelf = (filters as any).shelf as string | undefined;
 
     let query = `
       SELECT 
@@ -62,6 +64,32 @@ export class HistoryRepository {
     if (to && typeof to === 'string' && to.trim() !== '') {
       params.push(new Date(to));
       query += ` AND ih.scanned_at <= $${params.length}`;
+    }
+
+    // Фильтры по зоне/ряду/полке/статусу/роботу/продукту
+    if (zone && typeof zone === 'string' && zone.trim() !== '') {
+      params.push(zone);
+      query += ` AND ih.zone = $${params.length}`;
+    }
+    if (row && row.trim() !== '') {
+      params.push(parseInt(row));
+      query += ` AND ih.row_number = $${params.length}`;
+    }
+    if (shelf && shelf.trim() !== '') {
+      params.push(parseInt(shelf));
+      query += ` AND ih.shelf_number = $${params.length}`;
+    }
+    if (status && typeof status === 'string' && status.trim() !== '') {
+      params.push(status);
+      query += ` AND ih.status = $${params.length}`;
+    }
+    if (product_id && typeof product_id === 'string' && product_id.trim() !== '') {
+      params.push(product_id);
+      query += ` AND ih.product_id = $${params.length}`;
+    }
+    if (robot_id && typeof robot_id === 'string' && robot_id.trim() !== '') {
+      params.push(robot_id);
+      query += ` AND ih.robot_id = $${params.length}`;
     }
 
     // Сортировка и пагинация

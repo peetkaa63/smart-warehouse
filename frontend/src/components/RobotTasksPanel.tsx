@@ -136,7 +136,7 @@ const RobotTasksPanel: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2">{group.robotId}</Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                {(group.status === 'active') && (
+                {(group.status !== 'paused') && (
                   <Button size="small" variant="outlined" startIcon={<Pause />} onClick={async () => { await pauseRobotUniversal(group.robotId); await load(); }} title="Пауза">Пауза</Button>
                 )}
                 {(group.status === 'paused') && (
@@ -177,10 +177,11 @@ const RobotTasksPanel: React.FC = () => {
                   onDragStart={() => handleDragStart(group.robotId, idx)}
                   onDragOver={e => handleDragOver(group.robotId, idx, e)}
                   onDrop={() => handleDrop(group.robotId, idx)}
-                  sx={{ transition: 'all 0.2s ease', borderRadius: 1, mb: .5, background: dragIdx && dragIdx.idx === idx && dragIdx.robotId === group.robotId ? '#e0f7fa' : '#fafafa', '&:hover': { background: '#f0f7ff' } }}
+                  sx={{ transition: 'transform 0.2s ease, background 0.2s ease', borderRadius: 1, mb: .5, background: dragIdx && dragIdx.idx === idx && dragIdx.robotId === group.robotId ? '#e0f7fa' : '#fafafa', '&:hover': { background: '#f0f7ff' } }}
                 >
                   <ListItemText
                     primary={<span style={{ fontWeight: 500 }}>{ruTaskName(t.id || t.type)}</span>}
+                    secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
                   />
                   <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(group.robotId, idx)} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
                 </ListItem>

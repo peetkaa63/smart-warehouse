@@ -267,7 +267,7 @@ router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin
 });
 
 // Удалить задачу из очереди по индексу
-router.post('/tasks/delete', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
+router.post('/tasks/delete', async (req, res) => {
   try {
     const { robotId, idx } = req.body;
     const tasks = taskQueueService.getTasks(robotId);

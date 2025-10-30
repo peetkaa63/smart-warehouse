@@ -4,7 +4,7 @@ import MiniSparkline from './MiniSparkline';
 import { robotsAPI, pauseRobotUniversal, resumeRobotUniversal } from '../services/api';
 import { useDispatch } from 'react-redux';
 import { showNotification } from '../store/slices/notificationsSlice';
-import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups } from '@mui/icons-material';
+import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups, PlayArrow, Pause, ArrowBack } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { historyAPI } from '../services/api';
@@ -218,7 +218,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const loadLastScanForCell = async (zone: string, row: number, shelf: number) => {
     try {
       setLoadingCellInfo(true);
-      const resp = await historyAPI.getHistory({ zone: [zone], page: 1, limit: 200 });
+      const resp = await historyAPI.getHistory({ zone, row, shelf, page: 1, limit: 50 });
       const items = resp.data?.items || [];
       const cellItems = items.filter((it: any) => (it.zone === zone) && (Number(it.rowNumber) === row) && (Number(it.shelfNumber) === shelf));
       const match = cellItems[0];
@@ -636,7 +636,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   }}
                   sx={{ fontSize: '12px' }}
                   title={popoverRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
-                >{popoverRobot.status === 'paused' ? '▶' : '⏸'}</IconButton>
+                >{popoverRobot.status === 'paused' ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}</IconButton>
                 <IconButton 
                   size="small" 
                   onClick={async () => {
@@ -651,7 +651,9 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   size="small" 
                   onClick={() => setPopoverRobot(null)}
                   sx={{ fontSize: '12px' }}
-                >← Назад</IconButton>
+                >
+                  <ArrowBack fontSize="small" />
+                </IconButton>
               </Box>
             </Box>
           )}

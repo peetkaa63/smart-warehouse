@@ -76,6 +76,15 @@ export const setupWebSocket = (io: Server) => {
       }
     });
 
+    // Проксирование команд для роботов от клиентов UI к симуляторам
+    socket.on('robot_command', (data) => {
+      try {
+        io.emit('robot_command', data);
+      } catch (e) {
+        console.error('❌ robot_command relay error:', e);
+      }
+    });
+
     // Запрос задач роботов
     socket.on('request_robot_tasks', async () => {
       const robotIds = Array.from(taskQueueService['robotTasks'].keys());
