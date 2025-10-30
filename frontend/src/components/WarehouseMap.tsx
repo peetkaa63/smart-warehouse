@@ -610,6 +610,15 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   {popoverRobot.current_zone}-{popoverRobot.current_row}-{popoverRobot.current_shelf}
                 </strong>
               </Typography>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2">Профиль</Typography>
+                {(() => { const w = getWearFromId(popoverRobot.id); return (
+                  <>
+                    <Typography variant="caption" display="block">Износ шин: {w.tireWear}%</Typography>
+                    <Typography variant="caption" display="block">Износ лап: {w.legWear}%</Typography>
+                  </>
+                )})()}
+              </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
                 <IconButton 
                   size="small" 

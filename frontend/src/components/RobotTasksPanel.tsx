@@ -1,5 +1,6 @@
 import React from 'react'
 import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField } from '@mui/material'
+import { Pause, PlayArrow, DeleteOutline } from '@mui/icons-material'
 import api, { pauseRobotUniversal, resumeRobotUniversal } from '../services/api'
 import { useEffect, useRef } from 'react';
 import update from 'immutability-helper';
@@ -135,9 +136,13 @@ const RobotTasksPanel: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2">{group.robotId}</Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button size="small" onClick={async () => { await pauseRobotUniversal(group.robotId); await load(); }} title="Пауза">⏸</Button>
-                <Button size="small" onClick={async () => { await resumeRobotUniversal(group.robotId); await load(); }} title="Продолжить">▶️</Button>
-                <Button size="small" color="error" onClick={() => deleteAllTasks(group.robotId)} title="Очистить задачи">🗑 Очистить</Button>
+                {(group.status === 'active') && (
+                  <Button size="small" variant="outlined" startIcon={<Pause />} onClick={async () => { await pauseRobotUniversal(group.robotId); await load(); }} title="Пауза">Пауза</Button>
+                )}
+                {(group.status === 'paused') && (
+                  <Button size="small" variant="outlined" startIcon={<PlayArrow />} onClick={async () => { await resumeRobotUniversal(group.robotId); await load(); }} title="Продолжить">Продолжить</Button>
+                )}
+                <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutline />} onClick={() => deleteAllTasks(group.robotId)} title="Очистить задачи">Очистить</Button>
               </Box>
             </Box>
 
@@ -177,7 +182,7 @@ const RobotTasksPanel: React.FC = () => {
                   <ListItemText
                     primary={<span style={{ fontWeight: 500 }}>{ruTaskName(t.id || t.type)}</span>}
                   />
-                  <Button size="small" color="error" onClick={() => handleDelete(group.robotId, idx)} title="Удалить">🗑</Button>
+                  <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(group.robotId, idx)} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
                 </ListItem>
               )) : (
                 <ListItem><ListItemText primary="Нет задач" /></ListItem>

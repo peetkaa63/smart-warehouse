@@ -32,6 +32,9 @@ class RobotEmulator:
         self.scan_active = False
         self._scan_start = None
         self._scan_steps = 0
+        # Эмуляция износа
+        self.tire_wear = random.randint(10, 25)
+        self.leg_wear = random.randint(5, 20)
         if socketio is not None:
             try:
                 self.sio = socketio.Client()
@@ -109,7 +112,11 @@ class RobotEmulator:
             },
             "scan_results": self.generate_scan_data(),
             "battery_level": round(self.battery, 1),
-            "next_checkpoint": f"{self.current_zone}-{self.current_row+1}-{self.current_shelf}"
+            "next_checkpoint": f"{self.current_zone}-{self.current_row+1}-{self.current_shelf}",
+            "wear": {
+                "tire": int(self.tire_wear),
+                "leg": int(self.leg_wear)
+            }
         }
 
         # Узнаем глобальный режим
@@ -212,6 +219,9 @@ class RobotEmulator:
                         self.scan_active = False
                         self._scan_start = None
                         self._scan_steps = 0
+            # Лёгкий рост износа со временем
+            self.tire_wear = min(99, self.tire_wear + random.uniform(0.05, 0.2))
+            self.leg_wear = min(99, self.leg_wear + random.uniform(0.03, 0.15))
             time.sleep(int(os.getenv('UPDATE_INTERVAL', 10)))
 
 if __name__ == "__main__":
