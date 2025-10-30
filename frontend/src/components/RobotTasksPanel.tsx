@@ -123,8 +123,11 @@ const RobotTasksPanel: React.FC = () => {
           <Paper key={group.robotId} sx={{ p: 1 }} variant="outlined">
             <Typography variant="subtitle2" sx={{ mb: 1 }}>{group.robotId}</Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-              <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }}>Пауза</Button>
-              <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }}>Продолжить</Button>
+              {group.status === 'active' ? (
+                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }}>Пауза</Button>
+              ) : (
+                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }}>Продолжить</Button>
+              )}
               <Button size="small" color="error" onClick={() => deleteAllTasks(group.robotId)}>Удалить задачи</Button>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -166,6 +169,7 @@ const RobotTasksPanel: React.FC = () => {
 // вспомогательная функция
 function ruTaskName(taskId: string) {
   switch (taskId) {
+    case 'scan_warehouse': return 'Сканировать склад';
     case 'pause': return 'Пауза';
     case 'resume': return 'Продолжить';
     case 'rescan': return 'Пересканировать локацию';

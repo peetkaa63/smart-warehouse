@@ -209,11 +209,9 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     const robotsInCell = getRobotsInCell(zone, row, shelf);
     setSelectedCellPosition({ zone, row, shelf });
     setSelectedCellRobots(robotsInCell);
+    setGroupAnchorEl(event.currentTarget); // теперь anchorEl всегда актуальный!
     if (robotsInCell.length === 1) {
       setSelectedRobot(robotsInCell[0]);
-      setGroupAnchorEl(null); // меню не нужно
-    } else {
-      setGroupAnchorEl(event.currentTarget); // меню роботов
     }
     void loadLastScanForCell(zone, row, shelf);
   };

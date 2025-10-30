@@ -144,28 +144,23 @@ class RobotEmulator:
 
     def run(self):
         """Основной цикл работы робота"""
+        warehouse_full_scan_active = False
         while True:
-            # Получаем следующую задачу (пауза/возобновление/перескан)
+            # Получаем следующую задачу (peek вместо dequeue!)
             try:
-                task_resp = requests.get(f"{self.api_url}/api/robots/{self.robot_id}/tasks/next", timeout=5)
+                task_resp = requests.get(f"{self.api_url}/api/robots/{self.robot_id}/tasks/peek", timeout=5)
                 if task_resp.status_code == 200:
-                    task_json = task_resp.json() or {}
-                    task = task_json.get('task')
-                    if task:
+                    tasks_json = task_resp.json() or {}
+                    tasks = tasks_json.get('tasks', [])
+                    if tasks:
+                        task = tasks[0]
                         tid = task.get('id')
                         payload = task.get('payload') or {}
-                        if tid == 'pause' or task.get('type') == 'pause':
+                        print(f"[{self.robot_id}] peek задача: {tid}; очередь: {tasks}")
+                        if tid == 'pause':
                             self.paused = True
-                        elif tid == 'resume' or task.get('type') == 'resume':
+                        elif tid == 'resume':
                             self.paused = False
-                        elif tid == 'rescan' or task.get('type') == 'rescan':
-                            z = payload.get('zone') or payload.get('targetZone')
-                            r = payload.get('row') or payload.get('targetRow')
-                            s = payload.get('shelf') or payload.get('targetShelf')
-                            if z and r and s:
-                                self.current_zone = z
-                                self.current_row = int(r)
-                                self.current_shelf = int(s)
                         elif tid == 'move' or task.get('type') == 'move':
                             payload_zone = payload.get('zone') or payload.get('targetZone')
                             payload_row = payload.get('row') or payload.get('targetRow')
@@ -175,6 +170,12 @@ class RobotEmulator:
                                 self.current_row = int(payload_row)
                                 self.current_shelf = int(payload_shelf)
                                 print(f"[{self.robot_id}] move: goto {self.current_zone}-{self.current_row}-{self.current_shelf}")
+                        elif tid == 'scan_warehouse':
+                            warehouse_full_scan_active = True
+                        else:
+                            warehouse_full_scan_active = False
+                    else:
+                        warehouse_full_scan_active = False
             except Exception as e:
                 print(f"[{self.robot_id}] Task poll error: {e}")
 
@@ -183,7 +184,8 @@ class RobotEmulator:
                 continue
 
             self.send_data()
-            self.move_to_next_location()
+            if warehouse_full_scan_active:
+                self.move_to_next_location()
             time.sleep(int(os.getenv('UPDATE_INTERVAL', 10)))
 
 if __name__ == "__main__":

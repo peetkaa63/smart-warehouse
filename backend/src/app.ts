@@ -125,17 +125,13 @@ const waitForDatabase = async (maxAttempts = 10, delay = 5000) => {
 
 async function initializeStartTasksForAllRobots() {
   const robots = await pool.query('SELECT id FROM robots');
-  const zones = ['A', 'B', 'C', 'D', 'E'];
   for (const robot of robots.rows) {
     // Очистить задачи для гарантии появления
     taskQueueService['robotTasks'].set(robot.id, []);
-    zones.forEach((zone, idx) => {
-      const taskId = `scan-${zone}`;
-      taskQueueService.enqueue(robot.id, {
-        id: taskId,
-        priority: 1,
-        payload: { zone, row: idx + 1, shelf: 1 }
-      });
+    taskQueueService.enqueue(robot.id, {
+      id: 'scan_warehouse',
+      priority: 1,
+      payload: { description: 'Сканировать все ряды и полки в складе' }
     });
   }
 }

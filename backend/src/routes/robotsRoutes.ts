@@ -146,8 +146,10 @@ router.post('/:id/pause', authenticateToken, requireRole(['operator', 'admin']),
     const { id } = req.params;
     await pool.query(`UPDATE robots SET status = 'paused', last_update = NOW() WHERE id = $1`, [id]);
     robotService.io.emit('robot_command', { type: 'pause', robotId: id, timestamp: new Date().toISOString() });
-    // Добавлено: ставим задачу паузы для эмулятора
     taskQueueService.enqueue(id, { id: 'pause' });
+    console.log(`[PAUSE] Поставили задачу pause в очередь ${id} — состояние очереди:`, taskQueueService.getTasks(id));
+    const rob = await pool.query('SELECT * FROM robots WHERE id = $1', [id]);
+    console.log(`[PAUSE] Текущий статус робота после паузы:`, rob.rows[0]);
     // Переназначение задач на другого активного робота с наибольшим зарядом
     const candidates = await pool.query(`SELECT id FROM robots WHERE status = 'active' ORDER BY battery_level DESC LIMIT 1`);
     const target = candidates.rows?.[0]?.id;
@@ -168,8 +170,10 @@ router.post('/:id/resume', authenticateToken, requireRole(['operator', 'admin'])
     const { id } = req.params;
     await pool.query(`UPDATE robots SET status = 'active', last_update = NOW() WHERE id = $1`, [id]);
     robotService.io.emit('robot_command', { type: 'resume', robotId: id, timestamp: new Date().toISOString() });
-    // Добавлено: ставим задачу resume для эмулятора
     taskQueueService.enqueue(id, { id: 'resume' });
+    console.log(`[RESUME] Поставили задачу resume в очередь ${id} — состояние очереди:`, taskQueueService.getTasks(id));
+    const rob = await pool.query('SELECT * FROM robots WHERE id = $1', [id]);
+    console.log(`[RESUME] Текущий статус робота после продолжения:`, rob.rows[0]);
     res.json({ success: true, message: `Robot ${id} resumed` });
   } catch (error: any) {
     console.error('❌ Resume robot error:', error);
