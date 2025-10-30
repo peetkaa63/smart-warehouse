@@ -389,7 +389,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   )}
                 </Box>
                 
-                <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${shelves}, 50px)`, gap: 1 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${shelves}, 36px)`, gap: 0.5 }}>
                   {Array.from({ length: rows * shelves }, (_, index) => {
                     const row = Math.floor(index / shelves) + 1;
                     const shelf = (index % shelves) + 1;
@@ -406,8 +406,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                         key={cellId}
                         id={`cell-${zone}-${row}-${shelf}`}
                         sx={{
-                          width: 50,
-                          height: 50,
+                          width: 36,
+                          height: 36,
                           border: '1px solid #ccc',
                           display: 'flex',
                           alignItems: 'center',
@@ -418,8 +418,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                           position: 'relative',
                           '&:hover': {
                             backgroundColor: robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5'),
-                            transform: robotsCount > 0 ? 'scale(1.05)' : 'none',
-                            transition: 'all 0.2s ease'
+                            transform: robotsCount > 0 ? 'scale(1.04)' : 'none',
+                            transition: 'all 0.15s ease'
                           }
                         }}
                         onClick={(event) => handleCellClick(event, zone, row, shelf)}
@@ -430,15 +430,15 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                             {robotsCount === 1 && (
                               <Box
                                 sx={{
-                                  width: 30,
-                                  height: 30,
+                                  width: 24,
+                                  height: 24,
                                   borderRadius: '50%',
                                   backgroundColor: getRobotColor(robotsInCell[0].status, robotsInCell[0].battery_level),
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   color: 'white',
-                                  fontSize: '10px',
+                                  fontSize: '9px',
                                   fontWeight: 'bold',
                                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                 }}
@@ -458,17 +458,17 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                             {robotsCount > 1 && (
                               <Box
                                 sx={{
-                                  width: 35,
-                                  height: 35,
+                                  width: 28,
+                                  height: 28,
                                   borderRadius: '50%',
                                   backgroundColor: '#9c27b0',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   color: 'white',
-                                  fontSize: '12px',
+                                  fontSize: '10px',
                                   fontWeight: 'bold',
-                                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
                                   flexDirection: 'column'
                                 }}
                                 title={`${robotsCount} роботов в этой ячейке\nНажмите для просмотра списка`}
@@ -493,8 +493,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                               position: 'absolute',
                               top: 2,
                               right: 2,
-                              width: 8,
-                              height: 8,
+                              width: 6,
+                              height: 6,
                               borderRadius: '50%',
                               backgroundColor: '#ff9800',
                               animation: 'pulse 1.5s infinite'

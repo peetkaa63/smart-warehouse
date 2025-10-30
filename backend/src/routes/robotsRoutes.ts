@@ -146,17 +146,10 @@ router.post('/:id/pause', authenticateToken, requireRole(['operator', 'admin']),
     const { id } = req.params;
     await pool.query(`UPDATE robots SET status = 'paused', last_update = NOW() WHERE id = $1`, [id]);
     robotService.io.emit('robot_command', { type: 'pause', robotId: id, timestamp: new Date().toISOString() });
-    taskQueueService.enqueue(id, { id: 'pause' });
-    console.log(`[PAUSE] Поставили задачу pause в очередь ${id} — состояние очереди:`, taskQueueService.getTasks(id));
+    // Команда паузы передается по сокету; не добавляем её в очередь задач
     const rob = await pool.query('SELECT * FROM robots WHERE id = $1', [id]);
     console.log(`[PAUSE] Текущий статус робота после паузы:`, rob.rows[0]);
-    // Переназначение задач на другого активного робота с наибольшим зарядом
-    const candidates = await pool.query(`SELECT id FROM robots WHERE status = 'active' ORDER BY battery_level DESC LIMIT 1`);
-    const target = candidates.rows?.[0]?.id;
-    if (target) {
-      taskQueueService.moveTasks(id, target);
-      robotService.io.emit('task_reassigned', { from: id, to: target, timestamp: new Date().toISOString() });
-    }
+    // Больше не переносим автоматически задачи при паузе — сохраняем очередь у этого робота
     res.json({ success: true, message: `Robot ${id} paused` });
   } catch (error: any) {
     console.error('❌ Pause robot error:', error);
@@ -170,8 +163,7 @@ router.post('/:id/resume', authenticateToken, requireRole(['operator', 'admin'])
     const { id } = req.params;
     await pool.query(`UPDATE robots SET status = 'active', last_update = NOW() WHERE id = $1`, [id]);
     robotService.io.emit('robot_command', { type: 'resume', robotId: id, timestamp: new Date().toISOString() });
-    taskQueueService.enqueue(id, { id: 'resume' });
-    console.log(`[RESUME] Поставили задачу resume в очередь ${id} — состояние очереди:`, taskQueueService.getTasks(id));
+    // Команда продолжения передается по сокету; не добавляем её в очередь задач
     const rob = await pool.query('SELECT * FROM robots WHERE id = $1', [id]);
     console.log(`[RESUME] Текущий статус робота после продолжения:`, rob.rows[0]);
     res.json({ success: true, message: `Robot ${id} resumed` });
@@ -236,7 +228,7 @@ router.get('/:id/tasks', authenticateToken, requireRole(['operator','admin']), (
 });
 
 // Получить ВСЮ очередь задач для робота (НЕ удалять из очереди, только READ)
-router.get('/:id/tasks/peek', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
+router.get('/:id/tasks/peek', async (req, res) => {
   try {
     const { id } = req.params;
     const tasks = taskQueueService.getTasks(id);

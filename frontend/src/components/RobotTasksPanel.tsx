@@ -143,8 +143,6 @@ const RobotTasksPanel: React.FC = () => {
                   <MenuItem value="scan_warehouse">Сканировать склад</MenuItem>
                   <MenuItem value="rescan">Пересканировать локацию</MenuItem>
                   <MenuItem value="move">Поехать в точку</MenuItem>
-                  <MenuItem value="pause">Пауза</MenuItem>
-                  <MenuItem value="resume">Продолжить</MenuItem>
                 </Select>
               </FormControl>
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>

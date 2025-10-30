@@ -29,6 +29,9 @@ class RobotEmulator:
         ]
         self.sio = None
         self.paused = False
+        self.scan_active = False
+        self._scan_start = None
+        self._scan_steps = 0
         if socketio is not None:
             try:
                 self.sio = socketio.Client()
@@ -145,7 +148,14 @@ class RobotEmulator:
     def run(self):
         """Основной цикл работы робота"""
         lastTaskId = ''
+        tasks = []
         while True:
+            # Если робот на паузе — не двигаемся и не выполняем задачи, только отправляем телеметрию
+            if self.paused:
+                print(f"[{self.robot_id}] Пауза активна — остановка движения и задач")
+                self.send_data()
+                time.sleep(int(os.getenv('UPDATE_INTERVAL', 10)))
+                continue
             # Получаем очередь задач (peek, не снимаем!)
             try:
                 task_resp = requests.get(f"{self.api_url}/api/robots/{self.robot_id}/tasks/peek", timeout=5)
@@ -159,15 +169,8 @@ class RobotEmulator:
                         if tid != lastTaskId:
                             print(f"[{self.robot_id}] Выбираем новую задачу: {tid}; очередь: {tasks}")
                             lastTaskId = tid
-                        if tid == 'pause':
-                            print(f"[{self.robot_id}] НА ПАУЗЕ! Ожидание...")
-                            time.sleep(2)
-                            continue
-                        elif tid == 'resume':
-                            print(f"[{self.robot_id}] Снимаемся с паузы...")
-                            tasks.pop(0)
-                            continue
-                        elif tid == 'move' or task.get('type') == 'move':
+                        # Команды pause/resume теперь приходят по сокету и не лежат в очереди — игнорируем, если вдруг встретятся
+                        if tid == 'move' or task.get('type') == 'move':
                             payload_zone = payload.get('zone') or payload.get('targetZone')
                             payload_row = payload.get('row') or payload.get('targetRow')
                             payload_shelf = payload.get('shelf') or payload.get('targetShelf')
@@ -178,6 +181,13 @@ class RobotEmulator:
                                 print(f"[{self.robot_id}] move: goto {self.current_zone}-{self.current_row}-{self.current_shelf}")
                             # Move задача после исполнения сразу удалять из очереди (POST /tasks/delete)
                             requests.post(f"{self.api_url}/api/robots/tasks/delete", json={"robotId":self.robot_id, "idx":0})
+                        elif tid == 'scan_warehouse':
+                            # Инициализация сканирования, если ещё не начали
+                            if not self.scan_active:
+                                self._scan_start = (self.current_zone, self.current_row, self.current_shelf)
+                                self._scan_steps = 0
+                                self.scan_active = True
+                                print(f"[{self.robot_id}] Начинаем сканирование склада c позиции {self._scan_start}")
                     else:
                         print(f"[{self.robot_id}] Нет задач в очереди...")
                         lastTaskId = ''
@@ -187,8 +197,21 @@ class RobotEmulator:
                 print(f"[{self.robot_id}] Task poll error: {e}")
 
             self.send_data()
+            # Выполнение сканирования склада: двигаемся шаг за шагом и завершаем при замыкании цикла
             if tasks and tasks[0].get('id') == 'scan_warehouse':
                 self.move_to_next_location()
+                self._scan_steps += 1
+                if self.scan_active and self._scan_start and (self.current_zone, self.current_row, self.current_shelf) == self._scan_start and self._scan_steps > 0:
+                    # Сканирование завершено — удаляем задачу из очереди
+                    try:
+                        requests.post(f"{self.api_url}/api/robots/tasks/delete", json={"robotId": self.robot_id, "idx": 0})
+                        print(f"[{self.robot_id}] Завершили сканирование склада. Удаляем задачу из очереди.")
+                    except Exception as e:
+                        print(f"[{self.robot_id}] Не удалось удалить задачу scan_warehouse: {e}")
+                    finally:
+                        self.scan_active = False
+                        self._scan_start = None
+                        self._scan_steps = 0
             time.sleep(int(os.getenv('UPDATE_INTERVAL', 10)))
 
 if __name__ == "__main__":
