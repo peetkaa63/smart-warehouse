@@ -144,9 +144,9 @@ class RobotEmulator:
 
     def run(self):
         """Основной цикл работы робота"""
-        warehouse_full_scan_active = False
+        lastTaskId = ''
         while True:
-            # Получаем следующую задачу (peek вместо dequeue!)
+            # Получаем очередь задач (peek, не снимаем!)
             try:
                 task_resp = requests.get(f"{self.api_url}/api/robots/{self.robot_id}/tasks/peek", timeout=5)
                 if task_resp.status_code == 200:
@@ -156,11 +156,17 @@ class RobotEmulator:
                         task = tasks[0]
                         tid = task.get('id')
                         payload = task.get('payload') or {}
-                        print(f"[{self.robot_id}] peek задача: {tid}; очередь: {tasks}")
+                        if tid != lastTaskId:
+                            print(f"[{self.robot_id}] Выбираем новую задачу: {tid}; очередь: {tasks}")
+                            lastTaskId = tid
                         if tid == 'pause':
-                            self.paused = True
+                            print(f"[{self.robot_id}] НА ПАУЗЕ! Ожидание...")
+                            time.sleep(2)
+                            continue
                         elif tid == 'resume':
-                            self.paused = False
+                            print(f"[{self.robot_id}] Снимаемся с паузы...")
+                            tasks.pop(0)
+                            continue
                         elif tid == 'move' or task.get('type') == 'move':
                             payload_zone = payload.get('zone') or payload.get('targetZone')
                             payload_row = payload.get('row') or payload.get('targetRow')
@@ -170,21 +176,18 @@ class RobotEmulator:
                                 self.current_row = int(payload_row)
                                 self.current_shelf = int(payload_shelf)
                                 print(f"[{self.robot_id}] move: goto {self.current_zone}-{self.current_row}-{self.current_shelf}")
-                        elif tid == 'scan_warehouse':
-                            warehouse_full_scan_active = True
-                        else:
-                            warehouse_full_scan_active = False
+                            # Move задача после исполнения сразу удалять из очереди (POST /tasks/delete)
+                            requests.post(f"{self.api_url}/api/robots/tasks/delete", json={"robotId":self.robot_id, "idx":0})
                     else:
-                        warehouse_full_scan_active = False
+                        print(f"[{self.robot_id}] Нет задач в очереди...")
+                        lastTaskId = ''
+                else:
+                    print(f"[{self.robot_id}] Не удалось получить очередь задач (status {task_resp.status_code})")
             except Exception as e:
                 print(f"[{self.robot_id}] Task poll error: {e}")
 
-            if self.paused:
-                time.sleep(2)
-                continue
-
             self.send_data()
-            if warehouse_full_scan_active:
+            if tasks and tasks[0].get('id') == 'scan_warehouse':
                 self.move_to_next_location()
             time.sleep(int(os.getenv('UPDATE_INTERVAL', 10)))
 

@@ -1,8 +1,12 @@
 import React from 'react'
 import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider } from '@mui/material'
 import api from '../services/api'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react';
 import update from 'immutability-helper';
+
+const polling = 5000;
+const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
+const timerRef = useRef<any>();
 
 const RobotTasksPanel: React.FC = () => {
   const [data, setData] = React.useState<{ robotId: string; tasks: any[]; status: string }[]>([])
@@ -40,12 +44,13 @@ const RobotTasksPanel: React.FC = () => {
   }
 
   useEffect(() => {
-    load();
-    // очистить обработчик при размонтировании
-    return () => {
-      if (window.socket) window.socket.off('robot_tasks_update');
-    }
-  }, [])
+    const poll = async () => {
+      await load();
+      timerRef.current = setTimeout(poll, polling);
+    };
+    poll();
+    return () => { clearTimeout(timerRef.current); };
+  }, []);
 
   const handleReassign = async () => {
     if (!from || !to || from === to) return
@@ -76,24 +81,27 @@ const RobotTasksPanel: React.FC = () => {
     setNewTask(t => ({ ...t, [robotId]: task }));
   };
 
-  // драг-н-дроп простейший для тасков:
-  const moveTask = (robotId: string, dragIndex: number, hoverIndex: number) => {
+  const handleDragStart = (robotId: string, idx: number) => {
+    setDragIdx({ robotId, idx });
+  };
+  const handleDragOver = (robotId: string, idx: number, e: React.DragEvent) => {
+    e.preventDefault();
+  };
+  const handleDrop = async (robotId: string, idx: number) => {
+    if (!dragIdx) return;
     const robot = data.find(d => d.robotId === robotId);
     if (!robot) return;
-    const updatedTasks = update(robot.tasks, {
-      $splice: [
-        [dragIndex, 1],
-        [hoverIndex, 0, robot.tasks[dragIndex]],
-      ],
-    });
-    setData(arr => arr.map(d => d.robotId === robotId ? { ...d, tasks: updatedTasks } : d));
-  };
-  const reorderTasks = async (robotId: string, newOrder: any[]) => {
-    // Можно реализовать эндпоинт на бэке для reorder списка очереди задач;
-    // здесь заглушка: пересоздадим очередь
-    await api.post('/api/robots/tasks/reorder', { robotId, tasks: newOrder });
+    const updated = [...robot.tasks];
+    const [moved] = updated.splice(dragIdx.idx, 1);
+    updated.splice(idx, 0, moved);
+    await api.post('/api/robots/tasks/reorder', { robotId, tasks: updated });
+    setDragIdx(null);
     await load();
   };
+  const handleDelete = async (robotId: string, idx: number) => {
+    await api.post('/api/robots/tasks/delete', { robotId, idx });
+    await load();
+  }
 
   return (
     <Paper sx={{ p: 2 }}>
@@ -120,42 +128,44 @@ const RobotTasksPanel: React.FC = () => {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         {data.map(group => (
-          <Paper key={group.robotId} sx={{ p: 1 }} variant="outlined">
+          <Paper key={group.robotId} sx={{ p: 1, mb: 2 }} variant="outlined">
             <Typography variant="subtitle2" sx={{ mb: 1 }}>{group.robotId}</Typography>
-            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
               {group.status === 'active' ? (
-                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }}>Пауза</Button>
+                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }} title="Пауза">⏸</Button>
               ) : group.status === 'paused' ? (
-                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }}>Продолжить</Button>
+                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }} title="Продолжить">▶️</Button>
               ) : null}
-              <Button size="small" color="error" onClick={() => deleteAllTasks(group.robotId)}>Удалить задачи</Button>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <FormControl size="small">
+              {/* Добавить задачу/drag-n-drop — селектор и кнопка */}
+              <FormControl size="small" sx={{ minWidth: 120 }}>
                 <Select value={newTask[group.robotId] || ''} displayEmpty onChange={e => setTask(group.robotId, e.target.value)}>
                   <MenuItem value="" disabled>Выбрать задачу</MenuItem>
+                  <MenuItem value="scan_warehouse">Сканировать склад</MenuItem>
                   <MenuItem value="rescan">Пересканировать локацию</MenuItem>
                   <MenuItem value="move">Поехать в точку</MenuItem>
-                  <MenuItem value="custom">Своя команда</MenuItem>
+                  <MenuItem value="pause">Пауза</MenuItem>
+                  <MenuItem value="resume">Продолжить</MenuItem>
                 </Select>
               </FormControl>
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
+              <Button size="small" variant="outlined" onClick={load}>Обновить</Button>
             </Box>
-            <Divider sx={{ mb: 1 }} />
             <List dense>
-              {(group.tasks || []).map((t, idx) => (
-                <ListItem key={`${group.robotId}-${idx}`} draggable onDragStart={e => e.dataTransfer.setData('task-idx', String(idx))}
-                  onDrop={e => { const drag = Number(e.dataTransfer.getData('task-idx')); moveTask(group.robotId, drag, idx); /* можно сбрасывать порядок через reorderTasks!*/ }}
-                  onDragOver={e => e.preventDefault()}>
+              {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => (
+                <ListItem key={`${group.robotId}-${idx}`}
+                  draggable
+                  onDragStart={() => handleDragStart(group.robotId, idx)}
+                  onDragOver={e => handleDragOver(group.robotId, idx, e)}
+                  onDrop={() => handleDrop(group.robotId, idx)}
+                  sx={{ transition: 'background 0.3s', background: dragIdx && dragIdx.idx === idx && dragIdx.robotId === group.robotId ? '#e0f7fa' : undefined }}
+                >
                   <ListItemText
-                    primary={`Задача: ${ruTaskName(t.id || t.type)}`}
+                    primary={<span>{ruTaskName(t.id || t.type)}</span>}
                     secondary={t.priority ? `Приоритет: ${t.priority}` : undefined}
                   />
-                  <Button size="small" onClick={async () => { /* выполнить сейчас (например, rescan/move) */ await api.post(`/api/robots/${group.robotId}/tasks/assign`, { taskId: t.id, payload: t.payload || {} }); await load(); }}>Выполнить</Button>
-                  <Button size="small" color="error" onClick={async () => { await api.post('/api/robots/tasks/delete', { robotId: group.robotId, idx }); await load(); }}>Удалить</Button>
+                  <Button size="small" color="error" onClick={() => handleDelete(group.robotId, idx)} title="Удалить">🗑</Button>
                 </ListItem>
-              ))}
-              {(!group.tasks || group.tasks.length === 0) && (
+              )) : (
                 <ListItem><ListItemText primary="Нет задач" /></ListItem>
               )}
             </List>
