@@ -206,8 +206,15 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   };
 
   const handleCellClick = (event: React.MouseEvent<HTMLElement>, zone: string, row: number, shelf: number) => {
+    const robotsInCell = getRobotsInCell(zone, row, shelf);
     setSelectedCellPosition({ zone, row, shelf });
-    setGroupAnchorEl(event.currentTarget);
+    setSelectedCellRobots(robotsInCell);
+    if (robotsInCell.length === 1) {
+      setSelectedRobot(robotsInCell[0]);
+      setGroupAnchorEl(null); // меню не нужно
+    } else {
+      setGroupAnchorEl(event.currentTarget); // меню роботов
+    }
     void loadLastScanForCell(zone, row, shelf);
   };
 
@@ -570,7 +577,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     cursor: 'pointer',
                     '&:hover': { backgroundColor: '#e0e0e0' }
                   }}
-                  onClick={() => { handleRobotClick(robot); handleGroupClose(); }}
+                  onClick={() => {
+                    setSelectedRobot(robot);
+                    handleGroupClose();
+                  }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="body2" fontWeight="bold">{robot.id}</Typography>

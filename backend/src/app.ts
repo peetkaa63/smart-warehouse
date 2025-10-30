@@ -25,6 +25,8 @@ import {
   requestIdMiddleware,
   requestLoggerMiddleware 
 } from './middleware/errorMiddleware';
+import { taskQueueService } from './services/TaskQueueService';
+import { pool } from './config/database';
 
 dotenv.config();
 
@@ -121,6 +123,21 @@ const waitForDatabase = async (maxAttempts = 10, delay = 5000) => {
   throw new Error(`Failed to connect to database after ${maxAttempts} attempts`);
 };
 
+async function initializeStartTasksForAllRobots() {
+  const robots = await pool.query('SELECT id FROM robots');
+  const zones = ['A', 'B', 'C', 'D', 'E'];
+  for (const robot of robots.rows) {
+    zones.forEach((zone, idx) => {
+      const taskId = `scan-${zone}`;
+      taskQueueService.enqueue(robot.id, {
+        id: taskId,
+        priority: 1,
+        payload: { zone, row: idx + 1, shelf: 1 }
+      });
+    });
+  }
+}
+
 // Запуск сервера
 const startServer = async () => {
   try {
@@ -128,6 +145,7 @@ const startServer = async () => {
     
     // Ждем подключения к БД
     await waitForDatabase();
+    await initializeStartTasksForAllRobots();
     
     server.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
