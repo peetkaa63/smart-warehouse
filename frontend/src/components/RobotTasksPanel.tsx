@@ -5,15 +5,15 @@ import { useEffect, useRef } from 'react';
 import update from 'immutability-helper';
 
 const polling = 5000;
-const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
-const timerRef = useRef<any>();
 
 const RobotTasksPanel: React.FC = () => {
-  const [data, setData] = React.useState<{ robotId: string; tasks: any[]; status: string }[]>([])
-  const [from, setFrom] = React.useState('')
-  const [to, setTo] = React.useState('')
+  const [data, setData] = React.useState<{ robotId: string; tasks: any[]; status?: string }[]>([]);
+  const [from, setFrom] = React.useState('');
+  const [to, setTo] = React.useState('');
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
   const [newTaskPayload, setNewTaskPayload] = React.useState<{[key: string]: string}>({});
+  const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
+  const timerRef = useRef<any>();
 
   // функция для получения задач робота с peek
   const fetchRobotTasks = async (robotId: string) => {
