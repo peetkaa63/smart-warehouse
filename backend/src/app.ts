@@ -130,7 +130,6 @@ async function initializeStartTasksForAllRobots() {
     taskQueueService['robotTasks'].set(robot.id, []);
     taskQueueService.enqueue(robot.id, {
       id: 'scan_warehouse',
-      priority: 1,
       payload: { description: 'Сканировать все ряды и полки в складе' }
     });
   }

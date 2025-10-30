@@ -32,6 +32,7 @@ declare global {
 const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [scale, setScale] = useState(1);
   const [selectedRobot, setSelectedRobot] = useState<Robot | null>(null);
+  const [popoverRobot, setPopoverRobot] = useState<Robot | null>(null);
   const [currentRobots, setCurrentRobots] = useState<Robot[]>(robots);
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
   const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
@@ -209,10 +210,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     const robotsInCell = getRobotsInCell(zone, row, shelf);
     setSelectedCellPosition({ zone, row, shelf });
     setSelectedCellRobots(robotsInCell);
-    setGroupAnchorEl(event.currentTarget); // теперь anchorEl всегда актуальный!
-    if (robotsInCell.length === 1) {
-      setSelectedRobot(robotsInCell[0]);
-    }
+    setGroupAnchorEl(event.currentTarget);
+    setPopoverRobot(null);
     void loadLastScanForCell(zone, row, shelf);
   };
 
@@ -261,6 +260,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     setGroupAnchorEl(null);
     setSelectedCellRobots([]);
     setSelectedCellPosition(null);
+    setPopoverRobot(null);
   };
 
   // Подсчет роботов по зонам для статистики
@@ -513,7 +513,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 
       {/* Поповер с группой роботов */}
       <Popover
-        open={Boolean(groupAnchorEl || selectedCellPosition)}
+        open={Boolean(groupAnchorEl)}
         anchorEl={groupAnchorEl}
         onClose={handleGroupClose}
         anchorOrigin={{
@@ -525,165 +525,131 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           horizontal: 'center',
         }}
       >
-        <Paper sx={{ p: 2, minWidth: 220, maxWidth: 340 }}>
-          <Typography variant="h6" gutterBottom>
-            Содержимое ячейки
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Позиция: {selectedCellPosition?.zone}-{selectedCellPosition?.row}-{selectedCellPosition?.shelf}
-          </Typography>
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="subtitle2">Последнее сканирование</Typography>
-            {loadingCellInfo ? (
-              <Typography variant="caption" color="textSecondary">Загрузка...</Typography>
-            ) : selectedCellInfo ? (
-              <Box>
-                <Typography variant="caption" display="block">Товар: {selectedCellInfo.productName || selectedCellInfo.productId}</Typography>
-                <Typography variant="caption" display="block">Количество: {selectedCellInfo.quantity} шт.</Typography>
-                <Typography variant="caption" display="block">Статус: {selectedCellInfo.status}</Typography>
-                <Typography variant="caption" display="block">Время: {new Date(selectedCellInfo.scannedAt).toLocaleString('ru-RU')}</Typography>
-                {cellHistoryValues.length > 1 && (
-                  <Box sx={{ mt: 1 }}>
-                    <MiniSparkline values={cellHistoryValues} />
+        <Paper sx={{ p: 2, minWidth: 260, maxWidth: 380 }}>
+          {!popoverRobot ? (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Содержимое ячейки
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Позиция: {selectedCellPosition?.zone}-{selectedCellPosition?.row}-{selectedCellPosition?.shelf}
+              </Typography>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2">Последнее сканирование</Typography>
+                {loadingCellInfo ? (
+                  <Typography variant="caption" color="textSecondary">Загрузка...</Typography>
+                ) : selectedCellInfo ? (
+                  <Box>
+                    <Typography variant="caption" display="block">Товар: {selectedCellInfo.productName || selectedCellInfo.productId}</Typography>
+                    <Typography variant="caption" display="block">Количество: {selectedCellInfo.quantity} шт.</Typography>
+                    <Typography variant="caption" display="block">Статус: {selectedCellInfo.status}</Typography>
+                    <Typography variant="caption" display="block">Время: {new Date(selectedCellInfo.scannedAt).toLocaleString('ru-RU')}</Typography>
+                    {cellHistoryValues.length > 1 && (
+                      <Box sx={{ mt: 1 }}>
+                        <MiniSparkline values={cellHistoryValues} />
+                      </Box>
+                    )}
+                    {selectedCellHistory.length > 1 && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" display="block" sx={{ fontWeight: 'bold', mb: .5 }}>Последние сканы:</Typography>
+                        {selectedCellHistory.map((h, idx) => (
+                          <Typography key={idx} variant="caption" display="block">
+                            {new Date(h.scannedAt).toLocaleString('ru-RU')} • {h.productName || h.productId} • {h.quantity} шт. • {h.status}
+                          </Typography>
+                        ))}
+                      </Box>
+                    )}
                   </Box>
-                )}
-                {selectedCellHistory.length > 1 && (
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="caption" display="block" sx={{ fontWeight: 'bold', mb: .5 }}>Последние сканы:</Typography>
-                    {selectedCellHistory.map((h, idx) => (
-                      <Typography key={idx} variant="caption" display="block">
-                        {new Date(h.scannedAt).toLocaleString('ru-RU')} • {h.productName || h.productId} • {h.quantity} шт. • {h.status}
-                      </Typography>
-                    ))}
-                  </Box>
+                ) : (
+                  <Typography variant="caption" color="textSecondary">Нет данных</Typography>
                 )}
               </Box>
-            ) : (
-              <Typography variant="caption" color="textSecondary">Нет данных</Typography>
-            )}
-          </Box>
-          {selectedCellRobots && selectedCellRobots.length > 0 && (
-            <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
-              <Typography variant="subtitle2">Роботы в ячейке:</Typography>
-              {selectedCellRobots.map((robot, index) => (
-                <Box
-                  key={robot.id}
-                  sx={{
-                    p: 1, mb: 1, borderRadius: 1,
-                    backgroundColor: '#f5f5f5',
-                    border: `1px solid ${getRobotColor(robot.status, robot.battery_level)}`,
-                    cursor: 'pointer',
-                    '&:hover': { backgroundColor: '#e0e0e0' }
-                  }}
-                  onClick={() => {
-                    setSelectedRobot(robot);
-                    handleGroupClose();
-                  }}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" fontWeight="bold">{robot.id}</Typography>
-                    {getBatteryIcon(robot.battery_level)}
-                  </Box>
-                  <Typography variant="caption" display="block">
-                    Заряд: {robot.battery_level}% • {getRobotStatusText(robot.status, robot.battery_level)}
-                  </Typography>
+              {selectedCellRobots && selectedCellRobots.length > 0 && (
+                <Box sx={{ maxHeight: 220, overflow: 'auto' }}>
+                  <Typography variant="subtitle2">Роботы в ячейке:</Typography>
+                  {selectedCellRobots.map((robot) => (
+                    <Box
+                      key={robot.id}
+                      sx={{
+                        p: 1, mb: 1, borderRadius: 1,
+                        backgroundColor: '#f5f5f5',
+                        border: `1px solid ${getRobotColor(robot.status, robot.battery_level)}`,
+                        cursor: 'pointer',
+                        '&:hover': { backgroundColor: '#e0e0e0' }
+                      }}
+                      onClick={() => setPopoverRobot(robot)}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" fontWeight="bold">{robot.id}</Typography>
+                        {getBatteryIcon(robot.battery_level)}
+                      </Box>
+                      <Typography variant="caption" display="block">
+                        Заряд: {robot.battery_level}% • {getRobotStatusText(robot.status, robot.battery_level)}
+                      </Typography>
+                    </Box>
+                  ))}
                 </Box>
-              ))}
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ opacity: 0, transform: 'translateY(8px)', animation: 'fadeSlideIn .2s ease forwards' }}>
+              <Typography variant="h6" gutterBottom>
+                🤖 Робот {popoverRobot.id}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                {getBatteryIcon(popoverRobot.battery_level)}
+                <Typography variant="body1" fontWeight="bold">
+                  {popoverRobot.battery_level}%
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Статус: <strong>{getRobotStatusText(popoverRobot.status, popoverRobot.battery_level)}</strong>
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Позиция: <strong>
+                  {popoverRobot.current_zone}-{popoverRobot.current_row}-{popoverRobot.current_shelf}
+                </strong>
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
+                <IconButton 
+                  size="small" 
+                  onClick={async () => {
+                    if (!popoverRobot) return;
+                    if (popoverRobot.status === 'paused') {
+                      await resumeRobotUniversal(popoverRobot.id);
+                      setPopoverRobot({ ...popoverRobot, status: 'active' } as any);
+                      dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${popoverRobot.id} возобновлен`, duration: 3000 } as any));
+                    } else {
+                      await pauseRobotUniversal(popoverRobot.id);
+                      setPopoverRobot({ ...popoverRobot, status: 'paused' } as any);
+                      dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${popoverRobot.id} поставлен на паузу`, duration: 3000 } as any));
+                    }
+                  }}
+                  sx={{ fontSize: '12px' }}
+                  title={popoverRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
+                >{popoverRobot.status === 'paused' ? '▶' : '⏸'}</IconButton>
+                <IconButton 
+                  size="small" 
+                  onClick={async () => {
+                    if (!popoverRobot) return;
+                    await robotsAPI.rescan(popoverRobot.id, { zone: popoverRobot.current_zone, row: popoverRobot.current_row, shelf: popoverRobot.current_shelf });
+                    dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${popoverRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
+                  }}
+                  sx={{ fontSize: '12px' }}
+                  title="Пересканировать ячейку"
+                >🔄</IconButton>
+                <IconButton 
+                  size="small" 
+                  onClick={() => setPopoverRobot(null)}
+                  sx={{ fontSize: '12px' }}
+                >← Назад</IconButton>
+              </Box>
             </Box>
           )}
         </Paper>
       </Popover>
 
-      {/* Информация о выбранном роботе */}
-      {selectedRobot && (
-        <Paper 
-          elevation={4} 
-          sx={{ 
-            position: 'absolute', 
-            top: 100, 
-            right: 20, 
-            p: 2, 
-            minWidth: 250,
-            backgroundColor: 'white',
-            zIndex: 1000,
-            border: `2px solid ${getRobotColor(selectedRobot.status, selectedRobot.battery_level)}`
-          }}
-        >
-          <Typography variant="h6" gutterBottom>
-            🤖 Робот {selectedRobot.id}
-          </Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            {getBatteryIcon(selectedRobot.battery_level)}
-            <Typography variant="body1" fontWeight="bold">
-              {selectedRobot.battery_level}%
-            </Typography>
-          </Box>
-          
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            Статус: <strong>{getRobotStatusText(selectedRobot.status, selectedRobot.battery_level)}</strong>
-          </Typography>
-          
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            Позиция: <strong>
-              {selectedRobot.current_zone}-{selectedRobot.current_row}-{selectedRobot.current_shelf}
-            </strong>
-          </Typography>
-
-          {/* Профиль робота */}
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="subtitle2">Профиль</Typography>
-            <Typography variant="caption" display="block">Время на зарядке: {getChargingElapsedMinutes(selectedRobot)} мин.</Typography>
-            {(() => { const w = getWearFromId(selectedRobot.id); return (
-              <>
-                <Typography variant="caption" display="block">Износ шин: {w.tireWear}%</Typography>
-                <Typography variant="caption" display="block">Износ лап: {w.legWear}%</Typography>
-              </>
-            )})()}
-          </Box>
-          
-          <Typography variant="caption" color="textSecondary">
-            Последнее обновление: {new Date(selectedRobot.last_update).toLocaleTimeString()}
-          </Typography>
-          
-          <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #eee' }}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-              <IconButton 
-                size="small" 
-                onClick={async () => {
-                  if (!selectedRobot) return;
-                  if (selectedRobot.status === 'paused') {
-                    await resumeRobotUniversal(selectedRobot.id);
-                    setSelectedRobot({ ...selectedRobot, status: 'active' } as any);
-                    dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${selectedRobot.id} возобновлен`, duration: 3000 } as any));
-                  } else {
-                    await pauseRobotUniversal(selectedRobot.id);
-                    setSelectedRobot({ ...selectedRobot, status: 'paused' } as any);
-                    dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${selectedRobot.id} поставлен на паузу`, duration: 3000 } as any));
-                  }
-                }}
-                sx={{ fontSize: '12px' }}
-                title={selectedRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
-              >{selectedRobot.status === 'paused' ? '▶' : '⏸'}</IconButton>
-              <IconButton 
-                size="small" 
-                onClick={async () => {
-                  if (!selectedRobot) return;
-                  await robotsAPI.rescan(selectedRobot.id, { zone: selectedRobot.current_zone, row: selectedRobot.current_row, shelf: selectedRobot.current_shelf });
-                  dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${selectedRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
-                }}
-                sx={{ fontSize: '12px' }}
-                title="Пересканировать ячейку"
-              >🔄</IconButton>
-              <IconButton 
-                size="small" 
-                onClick={() => setSelectedRobot(null)}
-                sx={{ fontSize: '12px' }}
-              >✕ Закрыть</IconButton>
-            </Box>
-          </Box>
-        </Paper>
-      )}
+      {/* Карточка робота показывается теперь внутри поповера */}
 
       {/* Стили для анимации пульсации */}
       <style>
@@ -696,6 +662,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           .highlight-cell {
             box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.5) inset;
             transition: box-shadow 0.3s ease;
+          }
+          @keyframes fadeSlideIn {
+            0% { opacity: 0; transform: translateY(8px); }
+            100% { opacity: 1; transform: translateY(0); }
           }
         `}
       </style>

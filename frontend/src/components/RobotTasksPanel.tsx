@@ -1,6 +1,6 @@
 import React from 'react'
-import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider } from '@mui/material'
-import api from '../services/api'
+import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField } from '@mui/material'
+import api, { pauseRobotUniversal, resumeRobotUniversal } from '../services/api'
 import { useEffect, useRef } from 'react';
 import update from 'immutability-helper';
 
@@ -12,6 +12,7 @@ const RobotTasksPanel: React.FC = () => {
   const [to, setTo] = React.useState('');
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
   const [newTaskPayload, setNewTaskPayload] = React.useState<{[key: string]: string}>({});
+  const [moveParams, setMoveParams] = React.useState<{[key: string]: { zone: string; row: number; shelf: number }}>({});
   const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
   const timerRef = React.useRef<any>(null);
 
@@ -62,15 +63,17 @@ const RobotTasksPanel: React.FC = () => {
 
   const addTask = async (robotId: string) => {
     if (!newTask[robotId]) return;
-    const payload: any = {}; // Явно any для динамических полей
-    if (newTask[robotId] === 'move') {
-      payload.zone = prompt('Задайте зону (например, A)') || 'A';
-      payload.row = Number(prompt('Задайте ряд (например, 1)') || 1);
-      payload.shelf = Number(prompt('Задайте полку (например, 1)') || 1);
+    const payload: any = {};
+    if (newTask[robotId] === 'move' || newTask[robotId] === 'rescan') {
+      const p = moveParams[robotId] || { zone: 'A', row: 1, shelf: 1 };
+      payload.zone = p.zone;
+      payload.row = Number(p.row) || 1;
+      payload.shelf = Number(p.shelf) || 1;
     }
     await api.post(`/api/robots/${robotId}/tasks/assign`, { taskId: newTask[robotId], payload });
     setNewTask(t => ({ ...t, [robotId]: '' }));
     setNewTaskPayload(t => ({ ...t, [robotId]: '' }));
+    setMoveParams(ms => ({ ...ms, [robotId]: { zone: 'A', row: 1, shelf: 1 } }));
     await load();
   };
   const deleteAllTasks = async (robotId: string) => {
@@ -128,16 +131,18 @@ const RobotTasksPanel: React.FC = () => {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         {data.map(group => (
-          <Paper key={group.robotId} sx={{ p: 1, mb: 2 }} variant="outlined">
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>{group.robotId}</Typography>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
-              {group.status === 'active' ? (
-                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }} title="Пауза">⏸</Button>
-              ) : group.status === 'paused' ? (
-                <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }} title="Продолжить">▶️</Button>
-              ) : null}
-              {/* Добавить задачу/drag-n-drop — селектор и кнопка */}
-              <FormControl size="small" sx={{ minWidth: 120 }}>
+          <Paper key={group.robotId} sx={{ p: 1.5, mb: 2 }} variant="outlined">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle2">{group.robotId}</Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button size="small" onClick={async () => { await pauseRobotUniversal(group.robotId); await load(); }} title="Пауза">⏸</Button>
+                <Button size="small" onClick={async () => { await resumeRobotUniversal(group.robotId); await load(); }} title="Продолжить">▶️</Button>
+                <Button size="small" color="error" onClick={() => deleteAllTasks(group.robotId)} title="Очистить задачи">🗑 Очистить</Button>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
                 <Select value={newTask[group.robotId] || ''} displayEmpty onChange={e => setTask(group.robotId, e.target.value)}>
                   <MenuItem value="" disabled>Выбрать задачу</MenuItem>
                   <MenuItem value="scan_warehouse">Сканировать склад</MenuItem>
@@ -145,6 +150,18 @@ const RobotTasksPanel: React.FC = () => {
                   <MenuItem value="move">Поехать в точку</MenuItem>
                 </Select>
               </FormControl>
+              {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', transition: 'all .2s ease' }}>
+                  <FormControl size="small" sx={{ minWidth: 80 }}>
+                    <InputLabel id={`zone-${group.robotId}`}>Зона</InputLabel>
+                    <Select labelId={`zone-${group.robotId}`} label="Зона" value={(moveParams[group.robotId]?.zone) || 'A'} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), zone: String(e.target.value) } }))}>
+                      {['A','B','C','D','E'].map(z => <MenuItem key={z} value={z}>{z}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                  <TextField size="small" type="number" label="Ряд" value={(moveParams[group.robotId]?.row) || 1} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), row: Number(e.target.value) } }))} sx={{ width: 90 }} />
+                  <TextField size="small" type="number" label="Полка" value={(moveParams[group.robotId]?.shelf) || 1} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), shelf: Number(e.target.value) } }))} sx={{ width: 100 }} />
+                </Box>
+              )}
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
               <Button size="small" variant="outlined" onClick={load}>Обновить</Button>
             </Box>
@@ -155,11 +172,10 @@ const RobotTasksPanel: React.FC = () => {
                   onDragStart={() => handleDragStart(group.robotId, idx)}
                   onDragOver={e => handleDragOver(group.robotId, idx, e)}
                   onDrop={() => handleDrop(group.robotId, idx)}
-                  sx={{ transition: 'background 0.3s', background: dragIdx && dragIdx.idx === idx && dragIdx.robotId === group.robotId ? '#e0f7fa' : undefined }}
+                  sx={{ transition: 'all 0.2s ease', borderRadius: 1, mb: .5, background: dragIdx && dragIdx.idx === idx && dragIdx.robotId === group.robotId ? '#e0f7fa' : '#fafafa', '&:hover': { background: '#f0f7ff' } }}
                 >
                   <ListItemText
-                    primary={<span>{ruTaskName(t.id || t.type)}</span>}
-                    secondary={t.priority ? `Приоритет: ${t.priority}` : undefined}
+                    primary={<span style={{ fontWeight: 500 }}>{ruTaskName(t.id || t.type)}</span>}
                   />
                   <Button size="small" color="error" onClick={() => handleDelete(group.robotId, idx)} title="Удалить">🗑</Button>
                 </ListItem>
