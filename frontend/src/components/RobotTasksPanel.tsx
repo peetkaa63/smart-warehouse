@@ -7,6 +7,26 @@ import update from 'immutability-helper';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useSortable } from '@dnd-kit/sortable'
+
+// Sortable task item component
+type SortableTaskProps = { id: string; primary: string; secondary?: string; onDelete: () => void }
+const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onDelete }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    background: isDragging ? '#e0f7fa' : '#fafafa',
+    borderRadius: 4,
+    marginBottom: 4
+  }
+  return (
+    <ListItem ref={setNodeRef} style={style} {...attributes} {...listeners} sx={{ '&:hover': { background: '#f0f7ff' } }}>
+      <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
+      <Button size="small" variant="outlined" color="error" onClick={onDelete} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
+    </ListItem>
+  )
+}
 
 const polling = 5000;
 
@@ -205,25 +225,3 @@ function ruTaskName(taskId: string) {
 }
 
 export default RobotTasksPanel
-
-// Sortable task item component
-import { useSortable } from '@dnd-kit/sortable'
-type SortableTaskProps = { id: string; primary: string; secondary?: string; onDelete: () => void }
-const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onDelete }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    background: isDragging ? '#e0f7fa' : '#fafafa',
-    borderRadius: 4,
-    marginBottom: 4
-  }
-  return (
-    <ListItem ref={setNodeRef} style={style} {...attributes} {...listeners} sx={{ '&:hover': { background: '#f0f7ff' } }}>
-      <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
-      <Button size="small" variant="outlined" color="error" onClick={onDelete} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
-    </ListItem>
-  )
-}
-
-
