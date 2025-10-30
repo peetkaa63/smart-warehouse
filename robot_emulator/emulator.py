@@ -166,6 +166,15 @@ class RobotEmulator:
                                 self.current_zone = z
                                 self.current_row = int(r)
                                 self.current_shelf = int(s)
+                        elif tid == 'move' or task.get('type') == 'move':
+                            payload_zone = payload.get('zone') or payload.get('targetZone')
+                            payload_row = payload.get('row') or payload.get('targetRow')
+                            payload_shelf = payload.get('shelf') or payload.get('targetShelf')
+                            if payload_zone and payload_row and payload_shelf:
+                                self.current_zone = payload_zone
+                                self.current_row = int(payload_row)
+                                self.current_shelf = int(payload_shelf)
+                                print(f"[{self.robot_id}] move: goto {self.current_zone}-{self.current_row}-{self.current_shelf}")
             except Exception as e:
                 print(f"[{self.robot_id}] Task poll error: {e}")
 

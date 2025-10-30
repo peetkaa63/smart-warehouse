@@ -231,7 +231,18 @@ router.get('/:id/tasks', authenticateToken, requireRole(['operator','admin']), (
   }
 });
 
-// Получить сводный список задач по всем роботам
+// Получить ВСЮ очередь задач для робота (НЕ удалять из очереди, только READ)
+router.get('/:id/tasks/peek', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tasks = taskQueueService.getTasks(id);
+    res.json({ success: true, tasks });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Получить список задач по всем роботам
 router.get('/tasks', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
   try {
     // В простом варианте соберём роботов и подтянем списки задач

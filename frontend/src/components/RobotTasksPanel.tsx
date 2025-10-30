@@ -2,6 +2,7 @@ import React from 'react'
 import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider } from '@mui/material'
 import api from '../services/api'
 import { useEffect } from 'react'
+import update from 'immutability-helper';
 
 const RobotTasksPanel: React.FC = () => {
   const [data, setData] = React.useState<{ robotId: string; tasks: any[] }[]>([])
@@ -9,6 +10,12 @@ const RobotTasksPanel: React.FC = () => {
   const [to, setTo] = React.useState('')
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
   const [newTaskPayload, setNewTaskPayload] = React.useState<{[key: string]: string}>({});
+
+  // функция для получения задач робота с peek
+  const fetchRobotTasks = async (robotId: string) => {
+    const resp = await api.get(`/api/robots/${robotId}/tasks/peek`);
+    return resp.data.tasks || [];
+  };
 
   const load = async () => {
     const mode = localStorage.getItem('dataTransport') || 'socket';
@@ -21,8 +28,14 @@ const RobotTasksPanel: React.FC = () => {
         setData(tasks || []);
       });
     } else {
-      const resp = await api.get('/api/robots/tasks')
-      setData(resp.data?.data || [])
+      // получаем список роботов:
+      const robotsResp = await api.get('/api/robots');
+      const robotList = robotsResp.data?.robots || [];
+      const allData = await Promise.all(robotList.map(async (rob: any) => {
+        const tasks = await fetchRobotTasks(rob.id);
+        return { robotId: rob.id, tasks };
+      }));
+      setData(allData);
     }
   }
 
@@ -61,6 +74,25 @@ const RobotTasksPanel: React.FC = () => {
   };
   const setTask = (robotId: string, task: string) => {
     setNewTask(t => ({ ...t, [robotId]: task }));
+  };
+
+  // драг-н-дроп простейший для тасков:
+  const moveTask = (robotId: string, dragIndex: number, hoverIndex: number) => {
+    const robot = data.find(d => d.robotId === robotId);
+    if (!robot) return;
+    const updatedTasks = update(robot.tasks, {
+      $splice: [
+        [dragIndex, 1],
+        [hoverIndex, 0, robot.tasks[dragIndex]],
+      ],
+    });
+    setData(arr => arr.map(d => d.robotId === robotId ? { ...d, tasks: updatedTasks } : d));
+  };
+  const reorderTasks = async (robotId: string, newOrder: any[]) => {
+    // Можно реализовать эндпоинт на бэке для reorder списка очереди задач;
+    // здесь заглушка: пересоздадим очередь
+    await api.post('/api/robots/tasks/reorder', { robotId, tasks: newOrder });
+    await load();
   };
 
   return (
@@ -109,8 +141,15 @@ const RobotTasksPanel: React.FC = () => {
             <Divider sx={{ mb: 1 }} />
             <List dense>
               {(group.tasks || []).map((t, idx) => (
-                <ListItem key={`${group.robotId}-${idx}`}>
-                  <ListItemText primary={`Задача: ${t.id || t.type}`} secondary={t.priority ? `Приоритет: ${t.priority}` : undefined} />
+                <ListItem key={`${group.robotId}-${idx}`} draggable onDragStart={e => e.dataTransfer.setData('task-idx', String(idx))}
+                  onDrop={e => { const drag = Number(e.dataTransfer.getData('task-idx')); moveTask(group.robotId, drag, idx); /* можно сбрасывать порядок через reorderTasks!*/ }}
+                  onDragOver={e => e.preventDefault()}>
+                  <ListItemText
+                    primary={`Задача: ${ruTaskName(t.id || t.type)}`}
+                    secondary={t.priority ? `Приоритет: ${t.priority}` : undefined}
+                  />
+                  <Button size="small" onClick={async () => { /* выполнить сейчас (например, rescan/move) */ await api.post(`/api/robots/${group.robotId}/tasks/assign`, { taskId: t.id, payload: t.payload || {} }); await load(); }}>Выполнить</Button>
+                  <Button size="small" color="error" onClick={async () => { await api.post('/api/robots/tasks/delete', { robotId: group.robotId, idx }); await load(); }}>Удалить</Button>
                 </ListItem>
               ))}
               {(!group.tasks || group.tasks.length === 0) && (
@@ -122,6 +161,17 @@ const RobotTasksPanel: React.FC = () => {
       </Box>
     </Paper>
   )
+}
+
+// вспомогательная функция
+function ruTaskName(taskId: string) {
+  switch (taskId) {
+    case 'pause': return 'Пауза';
+    case 'resume': return 'Продолжить';
+    case 'rescan': return 'Пересканировать локацию';
+    case 'move': return 'Поехать в точку';
+    default: return taskId ? `Кастомная задача: ${taskId}` : '';
+  }
 }
 
 export default RobotTasksPanel
