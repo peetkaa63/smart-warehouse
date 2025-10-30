@@ -12,7 +12,6 @@ import { taskQueueService } from '../services/TaskQueueService';
 
 let robotService: RobotService;
 let notificationManager: NotificationManager;
-let taskQueueService: TaskQueueService;
 
 /**
  * Инициализирует Socket.IO слой и регистрирует обработчики подписок.
@@ -25,7 +24,6 @@ let taskQueueService: TaskQueueService;
 export const setupWebSocket = (io: Server) => {
   robotService = new RobotService(io);
   notificationManager = new NotificationManager(io);
-  taskQueueService = new TaskQueueService(io);
 
   io.on('connection', (socket) => {
     console.log('🔌 Client connected:', socket.id);
@@ -80,7 +78,8 @@ export const setupWebSocket = (io: Server) => {
 
     // Запрос задач роботов
     socket.on('request_robot_tasks', async () => {
-      const tasks = await taskQueueService.getAllTasks();
+      const robotIds = Array.from(taskQueueService['robotTasks'].keys());
+      const tasks = robotIds.map(robotId => ({ robotId, tasks: taskQueueService.getTasks(robotId) }));
       socket.emit('robot_tasks_update', tasks);
     });
 
