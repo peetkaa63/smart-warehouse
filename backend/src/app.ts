@@ -127,6 +127,8 @@ async function initializeStartTasksForAllRobots() {
   const robots = await pool.query('SELECT id FROM robots');
   const zones = ['A', 'B', 'C', 'D', 'E'];
   for (const robot of robots.rows) {
+    // Очистить задачи для гарантии появления
+    taskQueueService['robotTasks'].set(robot.id, []);
     zones.forEach((zone, idx) => {
       const taskId = `scan-${zone}`;
       taskQueueService.enqueue(robot.id, {

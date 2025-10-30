@@ -7,6 +7,8 @@ const RobotTasksPanel: React.FC = () => {
   const [data, setData] = React.useState<{ robotId: string; tasks: any[] }[]>([])
   const [from, setFrom] = React.useState('')
   const [to, setTo] = React.useState('')
+  const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
+  const [newTaskPayload, setNewTaskPayload] = React.useState<{[key: string]: string}>({});
 
   const load = async () => {
     const mode = localStorage.getItem('dataTransport') || 'socket';
@@ -40,6 +42,27 @@ const RobotTasksPanel: React.FC = () => {
 
   const robotIds = data.map(d => d.robotId)
 
+  const addTask = async (robotId: string) => {
+    if (!newTask[robotId]) return;
+    const payload = {};
+    if (newTask[robotId] === 'move') {
+      payload.zone = prompt('Задайте зону (например, A)') || 'A';
+      payload.row = Number(prompt('Задайте ряд (например, 1)') || 1);
+      payload.shelf = Number(prompt('Задайте полку (например, 1)') || 1);
+    }
+    await api.post(`/api/robots/${robotId}/tasks/assign`, { taskId: newTask[robotId], payload });
+    setNewTask(t => ({ ...t, [robotId]: '' }));
+    setNewTaskPayload(t => ({ ...t, [robotId]: '' }));
+    await load();
+  };
+  const deleteAllTasks = async (robotId: string) => {
+    await api.post('/api/robots/tasks/reassign', { from: robotId, to: '__trash__' });
+    await load();
+  };
+  const setTask = (robotId: string, task: string) => {
+    setNewTask(t => ({ ...t, [robotId]: task }));
+  };
+
   return (
     <Paper sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -67,6 +90,22 @@ const RobotTasksPanel: React.FC = () => {
         {data.map(group => (
           <Paper key={group.robotId} sx={{ p: 1 }} variant="outlined">
             <Typography variant="subtitle2" sx={{ mb: 1 }}>{group.robotId}</Typography>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+              <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }}>Пауза</Button>
+              <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }}>Продолжить</Button>
+              <Button size="small" color="error" onClick={() => deleteAllTasks(group.robotId)}>Удалить задачи</Button>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <FormControl size="small">
+                <Select value={newTask[group.robotId] || ''} displayEmpty onChange={e => setTask(group.robotId, e.target.value)}>
+                  <MenuItem value="" disabled>Выбрать задачу</MenuItem>
+                  <MenuItem value="rescan">Пересканировать локацию</MenuItem>
+                  <MenuItem value="move">Поехать в точку</MenuItem>
+                  <MenuItem value="custom">Своя команда</MenuItem>
+                </Select>
+              </FormControl>
+              <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
+            </Box>
             <Divider sx={{ mb: 1 }} />
             <List dense>
               {(group.tasks || []).map((t, idx) => (
