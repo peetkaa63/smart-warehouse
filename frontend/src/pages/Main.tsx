@@ -52,7 +52,6 @@ import { markAsRead, markAllAsRead, removeNotification, clearAllNotifications } 
 import { setMapFocus } from '../store/slices/mapFocusSlice'
 import notificationSocketService from '../services/notificationSocketService'
 import { useSelector as useReduxSelector } from 'react-redux'
-import ReplenishmentModal from '../components/ReplenishmentModal'
 import api from '../services/api'
 
 type TabType = "dashboard" | "history" | "profile"
@@ -123,8 +122,6 @@ const Main: React.FC = () => {
   const [mobileBottomValue, setMobileBottomValue] = useState<string>('dashboard')
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [alert, setAlert] = useState<{ type: "success" | "error" | "warning" | "info"; message: string } | null>(null)
-  const [replOpen, setReplOpen] = useState(false)
-  const [replData, setReplData] = useState<{ low: any[]; surplus: any[] }>({ low: [], surplus: [] })
 
   // Синхронизация активной вкладки с URL при изменении location
   useEffect(() => {
@@ -167,17 +164,7 @@ const Main: React.FC = () => {
       notificationSocketService.connect();
     }
 
-    // Периодическая проверка предложений пополнения (каждые 60 сек)
-    interval = setInterval(async () => {
-      try {
-        const resp = await api.get('/api/inventory/suggestions');
-        const data = resp.data?.data;
-        if (data && ((data.low && data.low.length) || (data.surplus && data.surplus.length))) {
-          setReplData({ low: data.low || [], surplus: data.surplus || [] });
-          setReplOpen(true);
-        }
-      } catch {}
-    }, 60000);
+  
 
     return () => {
       if (transport === 'socket') {
@@ -606,7 +593,6 @@ const Main: React.FC = () => {
             {/* Убрали bottom sheet для профиля, теперь он как вкладка */}
 
             <UploadCSVModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} onUploadSuccess={() => setUploadModalOpen(false)} />
-            <ReplenishmentModal open={replOpen} onClose={() => setReplOpen(false)} suggestions={replData} />
 
           </motion.div>
         )}

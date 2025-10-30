@@ -355,7 +355,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         sx={{ 
           border: '1px solid #ddd',
           backgroundColor: '#f9f9f9',
-          height: 'calc(100% - 120px)',
+          height: 'calc(100% - 190px)',
           overflow: 'auto',
           position: 'relative'
         }}
