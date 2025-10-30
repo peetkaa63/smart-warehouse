@@ -13,7 +13,7 @@ const RobotTasksPanel: React.FC = () => {
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
   const [newTaskPayload, setNewTaskPayload] = React.useState<{[key: string]: string}>({});
   const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
-  const timerRef = useRef<any>();
+  const timerRef = React.useRef<any>(null);
 
   // функция для получения задач робота с peek
   const fetchRobotTasks = async (robotId: string) => {
