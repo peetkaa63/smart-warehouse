@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Typography, Box, IconButton, Chip, Popover, FormGroup, FormControlLabel, Switch } from '@mui/material';
 import MiniSparkline from './MiniSparkline';
-import { robotsAPI } from '../services/api';
+import { robotsAPI, pauseRobotUniversal, resumeRobotUniversal } from '../services/api';
 import { useDispatch } from 'react-redux';
 import { showNotification } from '../store/slices/notificationsSlice';
 import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups } from '@mui/icons-material';
@@ -205,6 +205,19 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     void loadLastScanForCell(zone, row, shelf);
   };
 
+  const handleCellClick = (event: React.MouseEvent<HTMLElement>, zone: string, row: number, shelf: number) => {
+    const robotsInCell = getRobotsInCell(zone, row, shelf);
+    setSelectedCellPosition({ zone, row, shelf });
+    setSelectedCellRobots(robotsInCell);
+    if (robotsInCell.length === 1) {
+      setSelectedRobot(robotsInCell[0]);
+      setGroupAnchorEl(null); // меню не нужно
+    } else {
+      setGroupAnchorEl(event.currentTarget); // меню роботов
+    }
+    void loadLastScanForCell(zone, row, shelf);
+  };
+
   const loadLastScanForCell = async (zone: string, row: number, shelf: number) => {
     try {
       setLoadingCellInfo(true);
@@ -403,7 +416,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                           justifyContent: 'center',
                           backgroundColor: robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white'),
                           borderRadius: 1,
-                          cursor: robotsCount > 0 ? 'pointer' : 'default',
+                          cursor: 'pointer',
                           position: 'relative',
                           '&:hover': {
                             backgroundColor: robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5'),
@@ -411,7 +424,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                             transition: 'all 0.2s ease'
                           }
                         }}
-                        onClick={(event) => robotsCount > 0 && handleCellWithMultipleRobotsClick(event, zone, row, shelf)}
+                        onClick={(event) => handleCellClick(event, zone, row, shelf)}
                       >
                         {robotsCount > 0 ? (
                           <>
@@ -502,7 +515,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 
       {/* Поповер с группой роботов */}
       <Popover
-        open={groupOpen}
+        open={Boolean(groupAnchorEl || selectedCellPosition)}
         anchorEl={groupAnchorEl}
         onClose={handleGroupClose}
         anchorOrigin={{
@@ -516,7 +529,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
       >
         <Paper sx={{ p: 2, minWidth: 220, maxWidth: 340 }}>
           <Typography variant="h6" gutterBottom>
-            🤖 Группа роботов
+            Содержимое ячейки
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
             Позиция: {selectedCellPosition?.zone}-{selectedCellPosition?.row}-{selectedCellPosition?.shelf}
@@ -551,39 +564,35 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
               <Typography variant="caption" color="textSecondary">Нет данных</Typography>
             )}
           </Box>
-          
-          <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
-            {selectedCellRobots.map((robot, index) => (
-              <Box
-                key={robot.id}
-                sx={{
-                  p: 1,
-                  mb: 1,
-                  borderRadius: 1,
-                  backgroundColor: '#f5f5f5',
-                  border: `1px solid ${getRobotColor(robot.status, robot.battery_level)}`,
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: '#e0e0e0'
-                  }
-                }}
-                onClick={() => {
-                  handleRobotClick(robot);
-                  handleGroupClose();
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" fontWeight="bold">
-                    {robot.id}
+          {selectedCellRobots && selectedCellRobots.length > 0 && (
+            <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+              <Typography variant="subtitle2">Роботы в ячейке:</Typography>
+              {selectedCellRobots.map((robot, index) => (
+                <Box
+                  key={robot.id}
+                  sx={{
+                    p: 1, mb: 1, borderRadius: 1,
+                    backgroundColor: '#f5f5f5',
+                    border: `1px solid ${getRobotColor(robot.status, robot.battery_level)}`,
+                    cursor: 'pointer',
+                    '&:hover': { backgroundColor: '#e0e0e0' }
+                  }}
+                  onClick={() => {
+                    setSelectedRobot(robot);
+                    handleGroupClose();
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" fontWeight="bold">{robot.id}</Typography>
+                    {getBatteryIcon(robot.battery_level)}
+                  </Box>
+                  <Typography variant="caption" display="block">
+                    Заряд: {robot.battery_level}% • {getRobotStatusText(robot.status, robot.battery_level)}
                   </Typography>
-                  {getBatteryIcon(robot.battery_level)}
                 </Box>
-                <Typography variant="caption" display="block">
-                  Заряд: {robot.battery_level}% • {getRobotStatusText(robot.status, robot.battery_level)}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
+              ))}
+            </Box>
+          )}
         </Paper>
       </Popover>
 
@@ -646,11 +655,11 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                 onClick={async () => {
                   if (!selectedRobot) return;
                   if (selectedRobot.status === 'paused') {
-                    await robotsAPI.resume(selectedRobot.id);
+                    await resumeRobotUniversal(selectedRobot.id);
                     setSelectedRobot({ ...selectedRobot, status: 'active' } as any);
                     dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${selectedRobot.id} возобновлен`, duration: 3000 } as any));
                   } else {
-                    await robotsAPI.pause(selectedRobot.id);
+                    await pauseRobotUniversal(selectedRobot.id);
                     setSelectedRobot({ ...selectedRobot, status: 'paused' } as any);
                     dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${selectedRobot.id} поставлен на паузу`, duration: 3000 } as any));
                   }

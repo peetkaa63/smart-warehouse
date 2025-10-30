@@ -1,6 +1,7 @@
 import React from 'react'
 import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider } from '@mui/material'
 import api from '../services/api'
+import { useEffect } from 'react'
 
 const RobotTasksPanel: React.FC = () => {
   const [data, setData] = React.useState<{ robotId: string; tasks: any[] }[]>([])
@@ -8,11 +9,28 @@ const RobotTasksPanel: React.FC = () => {
   const [to, setTo] = React.useState('')
 
   const load = async () => {
-    const resp = await api.get('/api/robots/tasks')
-    setData(resp.data?.data || [])
+    const mode = localStorage.getItem('dataTransport') || 'socket';
+    if (mode === 'socket' && window.socket) {
+      // запросить актуальные задачи через сокет
+      window.socket.emit('request_robot_tasks');
+      // при получении от сокета обновить data
+      window.socket.off('robot_tasks_update'); // снять предыдущую подписку
+      window.socket.on('robot_tasks_update', (tasks: any) => {
+        setData(tasks || []);
+      });
+    } else {
+      const resp = await api.get('/api/robots/tasks')
+      setData(resp.data?.data || [])
+    }
   }
 
-  React.useEffect(() => { load() }, [])
+  useEffect(() => {
+    load();
+    // очистить обработчик при размонтировании
+    return () => {
+      if (window.socket) window.socket.off('robot_tasks_update');
+    }
+  }, [])
 
   const handleReassign = async () => {
     if (!from || !to || from === to) return

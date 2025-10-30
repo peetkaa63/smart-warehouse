@@ -194,6 +194,8 @@ router.post('/:id/tasks/assign', authenticateToken, requireRole(['operator', 'ad
     if (!taskId) return res.status(400).json({ error: 'taskId required' });
     taskQueueService.enqueue(id, { id: String(taskId), priority, payload });
     robotService.io.emit('task_assigned', { robotId: id, taskId, priority, timestamp: new Date().toISOString() });
+    // Новое: обновить очереди задач для всех подписчиков
+    robotService.io.emit('robot_tasks_update', await getAllRobotTasks());
     res.json({ success: true });
   } catch (error: any) {
     console.error('❌ Assign task error:', error);
@@ -238,15 +240,18 @@ router.get('/tasks', authenticateToken, requireRole(['operator','admin']), async
 });
 
 // Ручное переназначение задач между роботами
-router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin']), (req, res) => {
+router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
   try {
-    const { from, to } = req.body || {};
-    if (!from || !to) return res.status(400).json({ success: false, error: 'from and to required' });
-    taskQueueService.moveTasks(String(from), String(to));
+    const { from, to } = req.body;
+    if (!from || !to) return res.status(400).json({ error: 'from/to robot ids required' });
+    await taskQueueService.moveTasks(from, to);
     robotService.io.emit('task_reassigned', { from, to, timestamp: new Date().toISOString() });
+    // Новое: обновить очереди задач для всех подписчиков
+    robotService.io.emit('robot_tasks_update', await getAllRobotTasks());
     res.json({ success: true });
-  } catch (e: any) {
-    res.status(500).json({ success: false, error: e.message });
+  } catch (error: any) {
+    console.error('❌ Move tasks error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -308,5 +313,11 @@ router.get('/stats', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+const getAllRobotTasks = async () => {
+  // Заменяем на выборку по всем текущим роботам
+  const robotIds = Array.from(taskQueueService['robotTasks'].keys());
+  return robotIds.map(robotId => ({ robotId, tasks: taskQueueService.getTasks(robotId) }));
+};
 
 export default router;

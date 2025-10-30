@@ -283,3 +283,24 @@ export const profileAPI = {
   getSettings: async () => (await api.get('/api/profile/settings')).data,
   saveSettings: async (settings: any) => (await api.post('/api/profile/settings', { settings })).data,
 };
+
+// Универсальные команды для роботов, выбор транспорта по настройке
+export const pauseRobotUniversal = async (robotId: string) => {
+  const mode = localStorage.getItem('dataTransport') || 'socket';
+  if (mode === 'socket' && window.socket) {
+    window.socket.emit('robot_command', { type: 'pause', robotId });
+    return { success: true };
+  } else {
+    return await robotsAPI.pause(robotId);
+  }
+};
+
+export const resumeRobotUniversal = async (robotId: string) => {
+  const mode = localStorage.getItem('dataTransport') || 'socket';
+  if (mode === 'socket' && window.socket) {
+    window.socket.emit('robot_command', { type: 'resume', robotId });
+    return { success: true };
+  } else {
+    return await robotsAPI.resume(robotId);
+  }
+};

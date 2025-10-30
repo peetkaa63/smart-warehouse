@@ -8,6 +8,7 @@ import {
   NotificationEventType 
 } from './NotificationObserver';
 import { getTransportMode } from '../services/TransportMode';
+import { taskQueueService } from '../services/TaskQueueService';
 
 let robotService: RobotService;
 let notificationManager: NotificationManager;
@@ -73,6 +74,13 @@ export const setupWebSocket = (io: Server) => {
       } catch (e) {
         console.error('❌ robot_data handler error:', e);
       }
+    });
+
+    // Запрос задач роботов
+    socket.on('request_robot_tasks', async () => {
+      const robotIds = Array.from(taskQueueService['robotTasks'].keys());
+      const tasks = robotIds.map(robotId => ({ robotId, tasks: taskQueueService.getTasks(robotId) }));
+      socket.emit('robot_tasks_update', tasks);
     });
 
     // Обработка отключения клиента

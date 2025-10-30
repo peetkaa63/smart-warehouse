@@ -214,6 +214,14 @@ export class RobotService {
 
   private async processScanResults(robotId: string, scanResults: any[]) {
     for (const result of scanResults) {
+      // Антидублирование — если есть точно такой же скан за последние 20 сек, пропускаем
+      const exists = await pool.query(
+        `SELECT 1 FROM inventory_history
+         WHERE robot_id = $1 AND product_id = $2 AND zone = $3 AND row_number = $4 AND shelf_number = $5
+         AND ABS(EXTRACT(EPOCH FROM (scanned_at - $6))) < 20`,
+        [robotId, result.product_id, result.zone, result.row_number, result.shelf_number, result.scanned_at || new Date()]
+      );
+      if (exists.rowCount > 0) continue;
       // Проверяем критические уровни запасов
       if (result.status === 'CRITICAL' || Number(result.quantity) < 5) {
         // Отправляем через NotificationManager (для подписанных клиентов)
