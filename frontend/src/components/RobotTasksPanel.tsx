@@ -44,7 +44,7 @@ const RobotTasksPanel: React.FC = () => {
 
   const addTask = async (robotId: string) => {
     if (!newTask[robotId]) return;
-    const payload = {};
+    const payload: any = {}; // Явно any для динамических полей
     if (newTask[robotId] === 'move') {
       payload.zone = prompt('Задайте зону (например, A)') || 'A';
       payload.row = Number(prompt('Задайте ряд (например, 1)') || 1);
