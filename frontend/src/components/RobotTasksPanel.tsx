@@ -108,7 +108,7 @@ const RobotTasksPanel: React.FC = () => {
     setNewTask(t => ({ ...t, [robotId]: task }));
   };
 
-  const onDragEnd = async (robotId: string) => async (event: DragEndEvent) => {
+  const onDragEnd = (robotId: string) => async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const robot = data.find(d => d.robotId === robotId);
@@ -120,6 +120,7 @@ const RobotTasksPanel: React.FC = () => {
     await api.post('/api/robots/tasks/reorder', { robotId, tasks: updated });
     await load();
   };
+
   const handleDelete = async (robotId: string, idx: number) => {
     await api.post('/api/robots/tasks/delete', { robotId, idx });
     await load();
