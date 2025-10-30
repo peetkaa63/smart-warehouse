@@ -8,7 +8,7 @@ import {
   NotificationEventType 
 } from './NotificationObserver';
 import { getTransportMode } from '../services/TransportMode';
-import { TaskQueueService } from '../services/TaskQueueService';
+import { taskQueueService } from '../services/TaskQueueService';
 
 let robotService: RobotService;
 let notificationManager: NotificationManager;

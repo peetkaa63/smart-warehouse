@@ -315,9 +315,9 @@ router.get('/stats', async (req, res) => {
 });
 
 const getAllRobotTasks = async () => {
-  // Здесь получить задачи так же, как и в HTTP-роуте /api/robots/tasks
-  const queueData = await taskQueueService.getAllTasks();
-  return queueData;
+  // Заменяем на выборку по всем текущим роботам
+  const robotIds = Array.from(taskQueueService['robotTasks'].keys());
+  return robotIds.map(robotId => ({ robotId, tasks: taskQueueService.getTasks(robotId) }));
 };
 
 export default router;
