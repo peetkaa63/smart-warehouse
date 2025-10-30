@@ -221,7 +221,7 @@ export class RobotService {
          AND ABS(EXTRACT(EPOCH FROM (scanned_at - $6))) < 20`,
         [robotId, result.product_id, result.zone, result.row_number, result.shelf_number, result.scanned_at || new Date()]
       );
-      if (exists.rowCount > 0) continue;
+      if ((exists.rowCount || 0) > 0) continue;
       // Проверяем критические уровни запасов
       if (result.status === 'CRITICAL' || Number(result.quantity) < 5) {
         // Отправляем через NotificationManager (для подписанных клиентов)
