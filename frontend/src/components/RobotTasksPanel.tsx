@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import update from 'immutability-helper';
 
 const RobotTasksPanel: React.FC = () => {
-  const [data, setData] = React.useState<{ robotId: string; tasks: any[] }[]>([])
+  const [data, setData] = React.useState<{ robotId: string; tasks: any[]; status: string }[]>([])
   const [from, setFrom] = React.useState('')
   const [to, setTo] = React.useState('')
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
@@ -33,7 +33,7 @@ const RobotTasksPanel: React.FC = () => {
       const robotList = robotsResp.data?.robots || [];
       const allData = await Promise.all(robotList.map(async (rob: any) => {
         const tasks = await fetchRobotTasks(rob.id);
-        return { robotId: rob.id, tasks };
+        return { robotId: rob.id, tasks, status: rob.status };
       }));
       setData(allData);
     }
@@ -125,9 +125,9 @@ const RobotTasksPanel: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
               {group.status === 'active' ? (
                 <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/pause`); await load(); }}>Пауза</Button>
-              ) : (
+              ) : group.status === 'paused' ? (
                 <Button size="small" onClick={async () => { await api.post(`/api/robots/${group.robotId}/resume`); await load(); }}>Продолжить</Button>
-              )}
+              ) : null}
               <Button size="small" color="error" onClick={() => deleteAllTasks(group.robotId)}>Удалить задачи</Button>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
