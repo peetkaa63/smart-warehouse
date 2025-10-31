@@ -88,10 +88,9 @@ const Profile: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark-mode')
     }
-    // Отправляем событие для обновления темы в других компонентах
+    // Отправляем событие для обновления темы в других компонентах (анимированно)
     window.dispatchEvent(new Event('theme-change'))
-    // Перезагружаем страницу для применения темы в ThemeProvider
-    window.location.reload()
+    // Не перезагружаем страницу, ThemeProvider обновится через событие
   }
 
   return (

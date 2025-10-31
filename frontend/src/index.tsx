@@ -25,16 +25,91 @@ const lightTheme = createTheme({
       main: '#dc004e',
     },
   },
+  // Анимация для перехода темы
+  transitions: {
+    duration: {
+      shortest: 150,
+      shorter: 200,
+      short: 250,
+      standard: 300,
+      complex: 375,
+      enteringScreen: 225,
+      leavingScreen: 195,
+    },
+    easing: {
+      easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      easeOut: 'cubic-bezier(0.0, 0, 0.2, 1)',
+      easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+      sharp: 'cubic-bezier(0.4, 0, 0.6, 1)',
+    },
+  },
+  // Глобальные стили для анимации
+  components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        '*': {
+          transition: 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          transition: 'background-color 0.3s ease',
+        },
+      },
+    },
+  },
 });
 
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#90caf9',
+      main: '#1976d2', // Голубой как в светлой теме
     },
     secondary: {
-      main: '#f48fb1',
+      main: '#dc004e', // Как в светлой теме
+    },
+    background: {
+      default: '#121212',
+      paper: '#1e1e1e',
+    },
+  },
+  // Анимация для перехода темы
+  transitions: {
+    duration: {
+      shortest: 150,
+      shorter: 200,
+      short: 250,
+      standard: 300,
+      complex: 375,
+      enteringScreen: 225,
+      leavingScreen: 195,
+    },
+    easing: {
+      easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      easeOut: 'cubic-bezier(0.0, 0, 0.2, 1)',
+      easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+      sharp: 'cubic-bezier(0.4, 0, 0.6, 1)',
+    },
+  },
+  // Глобальные стили для анимации
+  components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        '*': {
+          transition: 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#1976d2 !important', // Голубой AppBar
+          transition: 'background-color 0.3s ease',
+        },
+      },
     },
   },
 });
@@ -49,29 +124,32 @@ if (themeMode === 'dark') {
 const AppWithTheme: React.FC = () => {
   const [mode, setMode] = React.useState<'light' | 'dark'>(themeMode);
   
-  // Слушаем изменения темы
+  // Слушаем изменения темы для анимированного переключения
   React.useEffect(() => {
     const handleThemeChange = () => {
       const newTheme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
-      setMode(newTheme);
-      if (newTheme === 'dark') {
-        document.documentElement.classList.add('dark-mode');
-      } else {
-        document.documentElement.classList.remove('dark-mode');
+      // Анимированное изменение темы (без перезагрузки)
+      if (newTheme !== mode) {
+        setMode(newTheme);
+        if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark-mode');
+        } else {
+          document.documentElement.classList.remove('dark-mode');
+        }
       }
     };
     
     // Слушаем изменения в localStorage (если тема меняется в другом компоненте)
     window.addEventListener('storage', handleThemeChange);
     
-    // Кастомное событие для синхронного обновления темы
+    // Кастомное событие для синхронного обновления темы (анимированно)
     window.addEventListener('theme-change', handleThemeChange);
     
     return () => {
       window.removeEventListener('storage', handleThemeChange);
       window.removeEventListener('theme-change', handleThemeChange);
     };
-  }, []);
+  }, [mode]);
 
   const theme = mode === 'dark' ? darkTheme : lightTheme;
 

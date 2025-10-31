@@ -258,9 +258,10 @@ const Main: React.FC = () => {
     <Box sx={{ 
       flexGrow: 1, 
       minHeight: "100vh", 
-      backgroundColor: "#f5f5f5", 
+      backgroundColor: (theme) => theme.palette.background.default, 
       position: "relative",
-      overflow: "hidden"
+      overflow: "hidden",
+      transition: 'background-color 0.3s ease'
     }}>
       {/* Начальная анимация логотипа */}
       <AnimatePresence>
@@ -277,7 +278,7 @@ const Main: React.FC = () => {
 			  width: "100vw",
 			  height: "100vh",
 			  zIndex: 9999,
-			  backgroundColor: "#f5f5f5",
+			  backgroundColor: theme.palette.background.default,
 			  display: "flex",
 			  alignItems: "center",
 			  justifyContent: "center",
@@ -324,7 +325,14 @@ const Main: React.FC = () => {
           >
             {/* AppBar */}
             <motion.div variants={appBarAnimation}>
-              <AppBar position="static" elevation={2}>
+              <AppBar 
+                position="static" 
+                elevation={2}
+                sx={{
+                  backgroundColor: '#1976d2 !important', // Голубой AppBar всегда
+                  transition: 'background-color 0.3s ease',
+                }}
+              >
                 <Toolbar>
                   <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
                     <img

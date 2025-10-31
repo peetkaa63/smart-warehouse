@@ -173,14 +173,42 @@ const RobotTasksPanel: React.FC = () => {
   };
 
   const handleDelete = async (robotId: string, idx: number) => {
+    // Получаем задачу для удаления
+    const group = data.find(d => d.robotId === robotId);
+    if (!group || !group.tasks || idx < 0 || idx >= group.tasks.length) return;
+    
+    // Помечаем задачу для анимации удаления (задача остается в массиве до завершения анимации!)
     setLeavingMap(m => ({ ...m, [robotId]: Array.from(new Set([...(m[robotId] || []), idx])) }));
+    
+    // Вызываем API для удаления на сервере сразу (анимация происходит независимо)
     setTimeout(async () => {
-      await api.post('/api/robots/tasks/delete', { robotId, idx });
-      const mode = localStorage.getItem('dataTransport') || 'socket';
-      if (!(mode === 'socket' && window.socket)) {
+      try {
+        await api.post('/api/robots/tasks/delete', { robotId, idx });
+        
+        // В socket режиме обновление придет через socket
+        const mode = localStorage.getItem('dataTransport') || 'socket';
+        if (mode === 'socket' && window.socket) {
+          window.socket.emit('request_robot_tasks');
+        } else {
+          // В HTTP режиме загружаем обновленные данные после небольшой задержки для завершения анимации
+          setTimeout(() => load(), 300);
+        }
+      } catch (error) {
+        console.error('Error deleting task:', error);
+        // В случае ошибки восстанавливаем задачу
+        setLeavingMap(m => {
+          const newMap = { ...m };
+          if (newMap[robotId]) {
+            newMap[robotId] = newMap[robotId].filter(i => i !== idx);
+            if (newMap[robotId].length === 0) {
+              delete newMap[robotId];
+            }
+          }
+          return newMap;
+        });
         await load();
       }
-    }, 220);
+    }, 50);
   }
 
   return (
@@ -285,24 +313,80 @@ const RobotTasksPanel: React.FC = () => {
               <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
                 <List dense>
                   <AnimatePresence initial={false}>
-                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => (
-                    <motion.div
-                      key={`wrapper-${group.robotId}-${idx}`}
-                      layout
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.22 }}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      <SortableTask
-                        id={`task-${idx}`}
-                        onDelete={() => handleDelete(group.robotId, idx)}
-                        primary={ruTaskName(t.id || t.type)}
-                        secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
-                      />
-                    </motion.div>
-                  )) : (
+                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => {
+                    const isLeaving = leavingMap[group.robotId]?.includes(idx);
+                    // Используем уникальный ключ на основе данных задачи БЕЗ индекса для стабильности
+                    const taskSignature = JSON.stringify({ id: t.id || t.type, payload: t.payload });
+                    const taskKey = `${group.robotId}-${taskSignature}`;
+                    
+                    // Пропускаем отрисовку удаляемых задач, но они остаются в массиве для анимации exit
+                    if (isLeaving) {
+                      return (
+                        <motion.div
+                          key={taskKey}
+                          initial={{ opacity: 1, x: 0, height: 'auto' }}
+                          animate={{ opacity: 0, x: 20, height: 0 }}
+                          exit={{ opacity: 0, x: 20, height: 0 }}
+                          transition={{ duration: 0.22, ease: 'easeInOut' }}
+                          onAnimationComplete={() => {
+                            // После завершения анимации удаляем задачу из массива
+                            setData(prev => prev.map(g => {
+                              if (g.robotId === group.robotId) {
+                                const newTasks = [...(g.tasks || [])];
+                                const taskToRemove = newTasks.findIndex((task: any) => {
+                                  const sig = JSON.stringify({ id: task.id || task.type, payload: task.payload });
+                                  return sig === taskSignature;
+                                });
+                                if (taskToRemove >= 0) {
+                                  newTasks.splice(taskToRemove, 1);
+                                }
+                                return { ...g, tasks: newTasks };
+                              }
+                              return g;
+                            }));
+                            // Убираем из leavingMap
+                            setLeavingMap(m => {
+                              const newMap = { ...m };
+                              if (newMap[group.robotId]) {
+                                newMap[group.robotId] = newMap[group.robotId].filter(i => i !== idx);
+                                if (newMap[group.robotId].length === 0) {
+                                  delete newMap[group.robotId];
+                                }
+                              }
+                              return newMap;
+                            });
+                          }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          <SortableTask
+                            id={`task-${idx}`}
+                            onDelete={() => {}}
+                            primary={ruTaskName(t.id || t.type)}
+                            secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
+                          />
+                        </motion.div>
+                      );
+                    }
+                    
+                    return (
+                      <motion.div
+                        key={taskKey}
+                        layout
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20, height: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <SortableTask
+                          id={`task-${idx}`}
+                          onDelete={() => handleDelete(group.robotId, idx)}
+                          primary={ruTaskName(t.id || t.type)}
+                          secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
+                        />
+                      </motion.div>
+                    );
+                  }) : (
                     <ListItem key={`empty-${group.robotId}`}><ListItemText primary="Нет задач" /></ListItem>
                   )}
                   </AnimatePresence>

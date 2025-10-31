@@ -48,9 +48,12 @@ const Dashboard: React.FC = () => {
             color="primary" 
             size="large"
             sx={{ 
-              backgroundColor: 'white',
+              backgroundColor: (theme) => theme.palette.background.paper,
               boxShadow: 1,
-              '&:hover': { backgroundColor: '#f5f5f5' }
+              transition: 'background-color 0.3s ease',
+              '&:hover': { 
+                backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : '#f5f5f5'
+              }
             }}
           >
             <Refresh />

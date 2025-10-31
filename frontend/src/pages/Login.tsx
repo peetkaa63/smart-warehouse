@@ -11,6 +11,7 @@ import {
   Box,
   Alert,
   CircularProgress,
+  useTheme,
 } from "@mui/material"
 import { Login as LoginIcon } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
@@ -128,6 +129,7 @@ const Login: React.FC = () => {
 
   const showForm = animationStage === "form" || animationStage === "error"
   const showError = animationStage === "error" && localError
+  const theme = useTheme()
 
   return (
     <Box
@@ -136,9 +138,10 @@ const Login: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: (theme) => theme.palette.background.default,
         position: "relative",
         overflow: "hidden",
+        transition: 'background-color 0.3s ease',
       }}
     >
       {/* Логотип */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Paper, Typography, Box, IconButton, Chip, Popover, FormGroup, FormControlLabel, Switch } from '@mui/material';
+import { Paper, Typography, Box, IconButton, Chip, Popover, FormGroup, FormControlLabel, Switch, useTheme } from '@mui/material';
 import MiniSparkline from './MiniSparkline';
 import { robotsAPI, pauseRobotUniversal, resumeRobotUniversal } from '../services/api';
 import { useDispatch } from 'react-redux';
@@ -31,6 +31,7 @@ declare global {
 }
 
 const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
+  const theme = useTheme();
   const [scale, setScale] = useState(1);
   const [selectedRobot, setSelectedRobot] = useState<Robot | null>(null);
   const [popoverRobot, setPopoverRobot] = useState<Robot | null>(null);
@@ -183,7 +184,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 	}, [recentScans, showCellStates]);
 
   const getCellColorByStatus = (status?: string) => {
-    if (!status) return 'white';
+    const isDark = theme.palette.mode === 'dark';
+    if (!status) return isDark ? theme.palette.background.paper : 'white';
     switch (String(status).toUpperCase()) {
       case 'OK':
       case 'NORMAL':
@@ -196,7 +198,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
       case 'ERROR':
         return '#ffebee'; // красный фон
       default:
-        return 'white';
+        return isDark ? theme.palette.background.paper : 'white';
     }
   };
 
@@ -502,11 +504,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
       {/* Карта склада */}
       <Box 
         sx={{ 
-          border: '1px solid #ddd',
-          backgroundColor: '#f9f9f9',
+          border: (theme) => `1px solid ${theme.palette.divider}`,
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.paper : '#f9f9f9',
           height: 'calc(100% - 220px)',
           overflow: 'auto',
-          position: 'relative'
+          position: 'relative',
+          transition: 'background-color 0.3s ease, border-color 0.3s ease'
         }}
         ref={containerRef}
       >
@@ -538,10 +541,13 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     const isCritical = criticalCells.has(cellId);
                     const cellStatus = cellStatusMap.get(cellId);
                     
-                    // Определяем базовый цвет ячейки
+                    // Определяем базовый цвет ячейки с учетом темы
+                    const isDark = theme.palette.mode === 'dark';
                     let baseBackgroundColor = showCellStates 
                       ? getCellColorByStatus(cellStatus)
-                      : (robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white'));
+                      : (robotsCount > 0 
+                          ? (isCritical ? '#ffebee' : '#e3f2fd') 
+                          : (isCritical ? '#ffebee' : isDark ? theme.palette.background.paper : 'white'));
                     
                     // Если включен режим показа только критических, применяем стили
                     let cellOpacity = 1;
@@ -763,10 +769,13 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                       key={robot.id}
                       sx={{
                         p: 1, mb: 1, borderRadius: 1,
-                        backgroundColor: '#f5f5f5',
+                        backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.paper : '#f5f5f5',
                         border: `1px solid ${getRobotColor(robot.status, robot.battery_level)}`,
                         cursor: 'pointer',
-                        '&:hover': { backgroundColor: '#e0e0e0' }
+                        transition: 'background-color 0.3s ease',
+                        '&:hover': { 
+                          backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : '#e0e0e0'
+                        }
                       }}
                       onClick={() => setPopoverRobot(robot)}
                     >
