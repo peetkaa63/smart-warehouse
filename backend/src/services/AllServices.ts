@@ -4,6 +4,7 @@ import { advancedAnalyticsRepository, AdvancedTrendData, EfficiencyData } from '
 import { uploadRepository, exportRepository, UploadResult, ExportData } from '../repositories/UploadExportRepository';
 import { aiService as baseAIService } from './ai/AIService';
 import advancedAnalyticsServiceInstance from './advancedAnalyticsService';
+import { pool } from '../config/database';
 
 export class AIServiceWrapper {
   // Получение прогнозов AI с использованием Strategy pattern
