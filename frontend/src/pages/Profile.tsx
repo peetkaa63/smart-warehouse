@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '../store'
 import { 
   Box, Paper, Typography, Avatar, Divider, List, ListItem, ListItemText, 
-  Switch, Button, Chip, Slider, FormGroup, FormControlLabel, Grid, Card, 
+  Switch, Button, Chip, Slider, FormGroup, FormControlLabel, Card, 
   CardContent, Stack, IconButton
 } from '@mui/material'
 import { DarkMode, LightMode, ExitToApp, Notifications, Settings, AccountCircle } from '@mui/icons-material'
@@ -96,9 +96,9 @@ const Profile: React.FC = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', backgroundColor: 'background.default' }}>
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
         {/* Профиль пользователя */}
-        <Grid item xs={12} md={4}>
+        <Box sx={{ width: { xs: '100%', md: '30%' }, minWidth: { md: 300 } }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Stack spacing={2} alignItems="center" sx={{ pt: 2 }}>
@@ -134,10 +134,10 @@ const Profile: React.FC = () => {
               </Stack>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
         {/* Настройки */}
-        <Grid item xs={12} md={8}>
+        <Box sx={{ flex: 1, width: { xs: '100%', md: '70%' } }}>
           <Stack spacing={3}>
             {/* Настройки уведомлений */}
             <Card>
@@ -290,8 +290,8 @@ const Profile: React.FC = () => {
               </Typography>
             </Box>
           </Stack>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </Box>
   )
 }
