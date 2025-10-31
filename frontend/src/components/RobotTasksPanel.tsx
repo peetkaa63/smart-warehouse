@@ -34,6 +34,7 @@ const RobotTasksPanel: React.FC = () => {
   const [data, setData] = React.useState<{ robotId: string; tasks: any[]; status?: string }[]>([]);
   const dataRef = React.useRef<{ robotId: string; tasks: any[]; status?: string }[]>([]);
   const [leavingMap, setLeavingMap] = React.useState<{ [robotId: string]: number[] }>({});
+  const assignedDefaultRef = React.useRef<{[robotId: string]: boolean}>({});
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
@@ -55,7 +56,7 @@ const RobotTasksPanel: React.FC = () => {
       window.socket.emit('request_robot_tasks');
       // при получении от сокета обновить data
       window.socket.off('robot_tasks_update'); // снять предыдущую подписку
-      window.socket.on('robot_tasks_update', (tasks: any) => {
+      window.socket.on('robot_tasks_update', async (tasks: any) => {
         const prev = dataRef.current || [];
         const next = tasks || [];
         const toLeave: { [robotId: string]: number[] } = {};
@@ -74,6 +75,18 @@ const RobotTasksPanel: React.FC = () => {
             if (removedIndices.length) toLeave[group.robotId] = removedIndices;
           }
         });
+
+        // авто-добавление дефолтной задачи, если пусто
+        for (const g of next) {
+          if ((!g.tasks || g.tasks.length === 0) && !assignedDefaultRef.current[g.robotId]) {
+            try {
+              await api.post(`/api/robots/${g.robotId}/tasks/assign`, { taskId: 'scan_warehouse', payload: {} });
+              assignedDefaultRef.current[g.robotId] = true;
+            } catch (e) {
+              // пропускаем ошибки, повторим позже
+            }
+          }
+        }
 
         if (Object.keys(toLeave).length) {
           setLeavingMap(toLeave);
@@ -206,7 +219,14 @@ const RobotTasksPanel: React.FC = () => {
                   <MenuItem value="move">Поехать в точку</MenuItem>
                 </Select>
               </FormControl>
-              {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
+              <div style={{
+                transition: 'all .22s ease',
+                transform: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'translateY(0)' : 'translateY(-6px)',
+                opacity: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 1 : 0,
+                height: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 0,
+                overflow: 'hidden'
+              }}>
+                {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', transition: 'all .2s ease' }}>
                   <FormControl size="small" sx={{ minWidth: 80 }}>
                     <InputLabel id={`zone-${group.robotId}`}>Зона</InputLabel>
@@ -217,7 +237,8 @@ const RobotTasksPanel: React.FC = () => {
                   <TextField size="small" type="number" label="Ряд" value={(moveParams[group.robotId]?.row) || 1} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), row: Number(e.target.value) } }))} sx={{ width: 90 }} />
                   <TextField size="small" type="number" label="Полка" value={(moveParams[group.robotId]?.shelf) || 1} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), shelf: Number(e.target.value) } }))} sx={{ width: 100 }} />
                 </Box>
-              )}
+                )}
+              </div>
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
               <Button size="small" variant="outlined" onClick={load}>Обновить</Button>
             </Box>
@@ -229,9 +250,10 @@ const RobotTasksPanel: React.FC = () => {
                     return (
                       <div key={`wrapper-${group.robotId}-${idx}`} style={{
                         transition: 'all .22s ease',
-                        transform: isLeaving ? 'scale(0.96)' : 'scale(1)',
+                        transform: isLeaving ? 'translateX(-16px)' : 'translateX(0)',
                         opacity: isLeaving ? 0 : 1,
                         height: isLeaving ? 0 : 'auto',
+                        marginBottom: isLeaving ? 0 : 4,
                         overflow: 'hidden'
                       }}>
                         <SortableTask

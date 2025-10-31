@@ -286,21 +286,30 @@ export const profileAPI = {
 
 // Универсальные команды для роботов, выбор транспорта по настройке
 export const pauseRobotUniversal = async (robotId: string) => {
-  const mode = localStorage.getItem('dataTransport') || 'socket';
-  if (mode === 'socket' && window.socket) {
-    window.socket.emit('robot_command', { type: 'pause', robotId });
-    return { success: true };
-  } else {
-    return await robotsAPI.pause(robotId);
+  // Отправляем и через сокет (если есть), и через HTTP для надёжности
+  try {
+    if (window.socket) {
+      window.socket.emit('robot_command', { type: 'pause', robotId });
+    }
+  } catch (e) {
+    // игнор: сокет может отсутствовать
   }
+  try {
+    await robotsAPI.pause(robotId);
+  } catch (e) {
+    // если HTTP упал, всё равно не роняем UI — статус прилетит через сокет
+  }
+  return { success: true };
 };
 
 export const resumeRobotUniversal = async (robotId: string) => {
-  const mode = localStorage.getItem('dataTransport') || 'socket';
-  if (mode === 'socket' && window.socket) {
-    window.socket.emit('robot_command', { type: 'resume', robotId });
-    return { success: true };
-  } else {
-    return await robotsAPI.resume(robotId);
-  }
+  try {
+    if (window.socket) {
+      window.socket.emit('robot_command', { type: 'resume', robotId });
+    }
+  } catch (e) {}
+  try {
+    await robotsAPI.resume(robotId);
+  } catch (e) {}
+  return { success: true };
 };

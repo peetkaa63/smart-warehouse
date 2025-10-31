@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Paper, Typography, Box, IconButton, Chip, Popover, FormGroup, FormControlLabel, Switch } from '@mui/material';
 import MiniSparkline from './MiniSparkline';
 import { robotsAPI, pauseRobotUniversal, resumeRobotUniversal } from '../services/api';
@@ -445,14 +446,17 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: robotsCount > 0 
-                            ? (isCritical ? '#ffebee' : '#e3f2fd') 
-                            : (showCellStates ? getCellColorByStatus(cellStatus) : (isCritical ? '#ffebee' : 'white')),
+                          backgroundColor: showCellStates 
+                            ? getCellColorByStatus(cellStatus)
+                            : (robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white')),
+                          transition: 'background-color .25s ease',
                           borderRadius: 1,
                           cursor: 'pointer',
                           position: 'relative',
                           '&:hover': {
-                            backgroundColor: robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (showCellStates ? getCellColorByStatus(cellStatus) : (isCritical ? '#ffcdd2' : '#f5f5f5')),
+                            backgroundColor: showCellStates
+                              ? getCellColorByStatus(cellStatus)
+                              : (robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5')),
                             transform: robotsCount > 0 ? 'scale(1.04)' : 'none',
                             transition: 'all 0.15s ease'
                           }
@@ -561,8 +565,16 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         }}
       >
         <Paper sx={{ p: 2, minWidth: 260, maxWidth: 380 }}>
+          <AnimatePresence mode="wait" initial={false}>
           {!popoverRobot ? (
-            <Box sx={{ animation: cardAnimatingOut ? 'cardOut .22s ease forwards' : 'cardIn .22s ease forwards', transformOrigin: 'top center' }}>
+            <motion.div
+              key="cell-content"
+              initial={{ opacity: 0, scale: .96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: .96 }}
+              transition={{ duration: 0.2 }}
+              style={{ transformOrigin: 'top center' }}
+            >
               <Typography variant="h6" gutterBottom>
                 Содержимое ячейки
               </Typography>
@@ -625,9 +637,16 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   ))}
                 </Box>
               )}
-            </Box>
+            </motion.div>
           ) : (
-            <Box sx={{ opacity: 0, transform: 'translateY(8px) scale(0.98)', animation: cardAnimatingOut ? 'cardOut .22s ease forwards' : 'cardIn .22s ease forwards', transformOrigin: 'top center' }}>
+            <motion.div
+              key="robot-profile"
+              initial={{ opacity: 0, scale: .92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: .92 }}
+              transition={{ duration: 0.22 }}
+              style={{ transformOrigin: 'top center' }}
+            >
               <Typography variant="h6" gutterBottom>
                 🤖 Робот {popoverRobot.id}
               </Typography>
@@ -693,8 +712,9 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   <ArrowBack fontSize="small" />
                 </IconButton>
               </Box>
-            </Box>
+            </motion.div>
           )}
+          </AnimatePresence>
         </Paper>
       </Popover>
 
