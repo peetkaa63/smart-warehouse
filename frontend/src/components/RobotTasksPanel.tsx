@@ -32,6 +32,8 @@ const polling = 5000;
 
 const RobotTasksPanel: React.FC = () => {
   const [data, setData] = React.useState<{ robotId: string; tasks: any[]; status?: string }[]>([]);
+  const dataRef = React.useRef<{ robotId: string; tasks: any[]; status?: string }[]>([]);
+  const [leavingMap, setLeavingMap] = React.useState<{ [robotId: string]: number[] }>({});
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
   const [newTask, setNewTask] = React.useState<{[key: string]: string}>({});
@@ -54,7 +56,37 @@ const RobotTasksPanel: React.FC = () => {
       // при получении от сокета обновить data
       window.socket.off('robot_tasks_update'); // снять предыдущую подписку
       window.socket.on('robot_tasks_update', (tasks: any) => {
-        setData(tasks || []);
+        const prev = dataRef.current || [];
+        const next = tasks || [];
+        const toLeave: { [robotId: string]: number[] } = {};
+        // ищем уменьшившиеся списки задач — анимируем удаление
+        next.forEach((group: any) => {
+          const prevGroup = prev.find(p => p.robotId === group.robotId);
+          if (prevGroup) {
+            const removedIndices: number[] = [];
+            const prevTasks = prevGroup.tasks || [];
+            const currTasks = group.tasks || [];
+            prevTasks.forEach((t: any, idx: number) => {
+              const signature = JSON.stringify({ id: t.id || t.type, payload: t.payload });
+              const stillExists = currTasks.some((ct: any) => JSON.stringify({ id: ct.id || ct.type, payload: ct.payload }) === signature);
+              if (!stillExists) removedIndices.push(idx);
+            });
+            if (removedIndices.length) toLeave[group.robotId] = removedIndices;
+          }
+        });
+
+        if (Object.keys(toLeave).length) {
+          setLeavingMap(toLeave);
+          // даём анимации завершиться, затем устанавливаем новые данные
+          setTimeout(() => {
+            dataRef.current = next;
+            setData(next);
+            setLeavingMap({});
+          }, 250);
+        } else {
+          dataRef.current = next;
+          setData(next);
+        }
       });
     } else {
       // получаем список роботов:
@@ -192,15 +224,26 @@ const RobotTasksPanel: React.FC = () => {
             <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd(group.robotId)}>
               <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
                 <List dense>
-                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => (
-                    <SortableTask
-                      key={`task-${idx}`}
-                      id={`task-${idx}`}
-                      onDelete={() => handleDelete(group.robotId, idx)}
-                      primary={ruTaskName(t.id || t.type)}
-                      secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
-                    />
-                  )) : (
+                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => {
+                    const isLeaving = (leavingMap[group.robotId] || []).includes(idx);
+                    return (
+                      <div key={`wrapper-${group.robotId}-${idx}`} style={{
+                        transition: 'all .22s ease',
+                        transform: isLeaving ? 'scale(0.96)' : 'scale(1)',
+                        opacity: isLeaving ? 0 : 1,
+                        height: isLeaving ? 0 : 'auto',
+                        overflow: 'hidden'
+                      }}>
+                        <SortableTask
+                          key={`task-${idx}`}
+                          id={`task-${idx}`}
+                          onDelete={() => handleDelete(group.robotId, idx)}
+                          primary={ruTaskName(t.id || t.type)}
+                          secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
+                        />
+                      </div>
+                    )
+                  }) : (
                     <ListItem><ListItemText primary="Нет задач" /></ListItem>
                   )}
                 </List>
