@@ -67,13 +67,20 @@ export class RobotService {
 
   async getDashboardStats() {
     try {
-      const activeRobotsResult = await pool.query(`
-        SELECT COUNT(*) as count FROM robots WHERE status = 'active'
-      `);
-      const activeRobots = parseInt(activeRobotsResult.rows[0].count);
+      // Считаем активными только тех, у кого статус 'active' И в очереди есть задачи
+      const robotsResult = await pool.query(`SELECT id, status FROM robots`);
+      const allRobots = robotsResult.rows || [];
+      const activeRobots = allRobots.reduce((acc: number, r: any) => {
+        if (r.status === 'active') {
+          try {
+            const q = taskQueueService.getTasks(r.id);
+            if (q.length > 0) return acc + 1;
+          } catch {}
+        }
+        return acc;
+      }, 0);
 
-      const totalRobotsResult = await pool.query(`SELECT COUNT(*) as count FROM robots`);
-      const totalRobots = parseInt(totalRobotsResult.rows[0].count);
+      const totalRobots = allRobots.length;
 
       const todayScansResult = await pool.query(`
         SELECT COUNT(*) as count 

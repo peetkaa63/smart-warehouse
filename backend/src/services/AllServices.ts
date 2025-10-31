@@ -169,8 +169,19 @@ export class RobotsService {
     try {
       console.log(`🤖 Robots Service: Processing data from robot ${robotData.robot_id}`);
       
-      const batteryLevelInt = Math.round(Number(robotData.battery_level));
-      const status = batteryLevelInt > 20 ? 'active' : 'charging';
+      // Нормализуем уровень батареи в диапазон 0..100
+      const batteryLevelIntRaw = Math.round(Number(robotData.battery_level));
+      const batteryLevelInt = Math.min(100, Math.max(0, batteryLevelIntRaw));
+
+      // Не переопределяем статус, если робот поставлен на паузу внешней командой
+      let status = batteryLevelInt > 20 ? 'active' : 'charging';
+      try {
+        const current = await pool.query('SELECT status FROM robots WHERE id = $1', [robotData.robot_id]);
+        const currentStatus = current.rows?.[0]?.status;
+        if (currentStatus === 'paused' || currentStatus === 'offline') {
+          status = currentStatus;
+        }
+      } catch {}
       
       // Проверяем уровень батареи и отправляем уведомление если нужно
       if (batteryLevelInt <= 20 && batteryLevelInt >= 0) {

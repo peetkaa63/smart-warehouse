@@ -79,15 +79,29 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   useEffect(() => {
     const loadSnapshot = async () => {
       try {
-        // большой лимит, чтобы покрыть недавние состояния по всем ячейкам
-        const resp = await historyAPI.getHistory({ limit: 5000 });
-        const items = resp.data?.items || [];
-        const map = new Map<string, string>();
-        for (const it of items) {
-          const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
-          if (!map.has(key)) map.set(key, it.status);
+        // Пошаговая загрузка всей истории по курсору, но с лимитом по количеству ячеек
+        const targetCells = zones.length * rows * shelves; // 1000
+        const snapshot = new Map<string, string>();
+        let cursor: string | undefined = undefined;
+        let guard = 0;
+        while (snapshot.size < targetCells && guard < 100) {
+          const params: any = { limit: 100, use_cursor: 'true' };
+          if (cursor) params.cursor = cursor;
+          const resp = await historyAPI.getHistory(params);
+          const items = resp.data?.data || resp.data?.items || [];
+          for (const it of items) {
+            const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
+            if (!snapshot.has(key)) snapshot.set(key, it.status);
+          }
+          const pagination = resp.data?.pagination;
+          if (pagination?.hasNext && pagination?.nextCursor) {
+            cursor = pagination.nextCursor;
+          } else {
+            break;
+          }
+          guard += 1;
         }
-        setCellStatusMapState(map);
+        setCellStatusMapState(snapshot);
       } catch (e) {
         // тихо игнорируем, fallback останется recentScans
       }
