@@ -63,9 +63,15 @@ const dashboardSlice = createSlice({
       state.recentScans = [action.payload, ...state.recentScans.slice(0, 19)];
     },
     updateDashboard: (state, action) => {
-      state.robots = action.payload.robots;
-      state.recentScans = action.payload.recentScans;
-      state.statistics = action.payload.statistics;
+      state.robots = action.payload.robots || [];
+      state.recentScans = action.payload.recentScans || [];
+      const incomingStats = action.payload.statistics || state.statistics;
+      const activeRobots = (state.robots || []).filter((r: any) => r && r.status !== 'paused' && r.status !== 'offline').length;
+      state.statistics = {
+        ...incomingStats,
+        activeRobots,
+        totalRobots: (state.robots || []).length
+      };
     },
     clearError: (state) => {
       state.error = null;
@@ -81,7 +87,13 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.robots = action.payload.robots || [];
         state.recentScans = action.payload.recentScans || [];
-        state.statistics = action.payload.statistics || initialState.statistics;
+        const incomingStats = action.payload.statistics || initialState.statistics;
+        const activeRobots = (state.robots || []).filter((r: any) => r && r.status !== 'paused' && r.status !== 'offline').length;
+        state.statistics = {
+          ...incomingStats,
+          activeRobots,
+          totalRobots: (state.robots || []).length
+        };
         state.error = null;
       })
       .addCase(fetchDashboardData.rejected, (state, action) => {

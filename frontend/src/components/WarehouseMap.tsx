@@ -714,10 +714,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     if (popoverRobot.status === 'paused') {
                       await resumeRobotUniversal(popoverRobot.id);
                       setPopoverRobot({ ...popoverRobot, status: 'active' } as any);
+                      try { (window as any).socket?.emit('request_dashboard_update'); } catch {}
                       dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${popoverRobot.id} возобновлен`, duration: 3000 } as any));
                     } else {
                       await pauseRobotUniversal(popoverRobot.id);
                       setPopoverRobot({ ...popoverRobot, status: 'paused' } as any);
+                      try { (window as any).socket?.emit('request_dashboard_update'); } catch {}
                       dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${popoverRobot.id} поставлен на паузу`, duration: 3000 } as any));
                     }
                   }}
