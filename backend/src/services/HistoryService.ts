@@ -53,8 +53,11 @@ export class HistoryService {
       throw new Error('Invalid page parameter');
     }
     
-    if (limit && (isNaN(parseInt(limit)) || parseInt(limit) < 1 || parseInt(limit) > 100)) {
-      throw new Error('Invalid limit parameter (must be 1-100)');
+    // Увеличиваем максимальный limit для загрузки состояний ячеек
+    // В одной зоне: 20 рядов * 10 полок = 200 ячеек
+    // Нужно получить последний статус для каждой ячейки, поэтому может потребоваться больше записей
+    if (limit && (isNaN(parseInt(limit)) || parseInt(limit) < 1 || parseInt(limit) > 1000)) {
+      throw new Error('Invalid limit parameter (must be 1-1000)');
     }
   }
 }

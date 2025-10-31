@@ -99,17 +99,16 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 			  // Получаем последние статусы для каждой ячейки в зоне
 			  const zoneCellsCount = rows * shelves;
 			  const cellMap = new Map<string, string>();
-			  let cursor: string | undefined = undefined;
 			  let hasMore = true;
 			  let guard = 0;
 			  
 			  // Используем пагинацию чтобы получить все ячейки
-			  while (cellMap.size < zoneCellsCount && hasMore && guard < 20) {
-				const params: any = { zone, limit: 200 }; // Запрашиваем по 200 записей за раз
-				if (cursor) {
-				  params.cursor = cursor;
-				  params.use_cursor = 'true';
-				}
+			  // В зоне: rows * shelves = 20 * 10 = 200 ячеек
+			  // Но записей может быть больше (несколько сканов на ячейку)
+			  // Поэтому запрашиваем по 500 записей за раз, чтобы покрыть все ячейки
+			  let pageNum = 1;
+			  while (cellMap.size < zoneCellsCount && hasMore && guard < 10) {
+				const params: any = { zone, limit: 500, page: pageNum.toString() }; // Запрашиваем по 500 записей за раз
 				
 				const resp = await historyAPI.getHistory(params);
 				const items = resp.data?.data || resp.data?.items || [];
@@ -126,8 +125,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 				
 				// Проверяем есть ли еще данные
 				const pagination = resp.data?.pagination;
-				if (pagination?.nextCursor) {
-				  cursor = pagination.nextCursor;
+				if (pagination?.totalPages && pageNum < pagination.totalPages) {
+				  pageNum += 1;
 				  hasMore = true;
 				} else {
 				  hasMore = false;
