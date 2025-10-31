@@ -75,6 +75,10 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     return map;
   }, [cellStatusMapState, recentScans]);
 
+  const zones = ['A', 'B', 'C', 'D', 'E'];
+  const rows = 20;
+  const shelves = 10;
+
   // Заменяем этот useEffect
 	useEffect(() => {
 	  const loadSnapshot = async () => {
@@ -122,13 +126,15 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
 
 	// Добавляем useEffect для обновления при новых сканах
 	useEffect(() => {
-	  if (showCellStates && recentScans) {
-		const newMap = new Map(cellStatusMapState);
-		recentScans.forEach((s: any) => {
-		  const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
-		  newMap.set(key, s.status);
+	  if (showCellStates && recentScans && recentScans.length > 0) {
+		setCellStatusMapState(prev => {
+		  const newMap = new Map(prev);
+		  recentScans.forEach((s: any) => {
+		    const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
+		    newMap.set(key, s.status);
+		  });
+		  return newMap;
 		});
-		setCellStatusMapState(newMap);
 	  }
 	}, [recentScans, showCellStates]);
 
@@ -151,10 +157,6 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   };
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const zones = ['A', 'B', 'C', 'D', 'E'];
-  const rows = 20;
-  const shelves = 10;
 
   // Синхронизация robots с currentRobots
   useEffect(() => {
@@ -747,14 +749,25 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                   size="small" 
                   onClick={async () => {
                     if (!popoverRobot) return;
+                    const newStatus = popoverRobot.status === 'paused' ? 'active' : 'paused';
+                    // Оптимистично обновляем статус сразу
+                    const updatedRobot = { ...popoverRobot, status: newStatus } as Robot;
+                    setPopoverRobot(updatedRobot);
+                    // Обновляем currentRobots сразу
+                    setCurrentRobots(prev => prev.map(robot => 
+                      robot.id === popoverRobot.id ? updatedRobot : robot
+                    ));
+                    // Обновляем selectedRobot если он выбран
+                    if (selectedRobot && selectedRobot.id === popoverRobot.id) {
+                      setSelectedRobot(updatedRobot);
+                    }
+                    
                     if (popoverRobot.status === 'paused') {
                       await resumeRobotUniversal(popoverRobot.id);
-                      setPopoverRobot({ ...popoverRobot, status: 'active' } as any);
                       try { (window as any).socket?.emit('request_dashboard_update'); } catch {}
                       dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${popoverRobot.id} возобновлен`, duration: 3000 } as any));
                     } else {
                       await pauseRobotUniversal(popoverRobot.id);
-                      setPopoverRobot({ ...popoverRobot, status: 'paused' } as any);
                       try { (window as any).socket?.emit('request_dashboard_update'); } catch {}
                       dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${popoverRobot.id} поставлен на паузу`, duration: 3000 } as any));
                     }

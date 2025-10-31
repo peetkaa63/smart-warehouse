@@ -200,10 +200,32 @@ const RobotTasksPanel: React.FC = () => {
               <Typography variant="subtitle2">{group.robotId}</Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {(group.status !== 'paused') && (
-                  <Button size="small" variant="outlined" startIcon={<Pause />} onClick={async () => { await pauseRobotUniversal(group.robotId); try { (window as any).socket?.emit('request_dashboard_update'); } catch {}; await load(); }} title="Пауза">Пауза</Button>
+                  <Button size="small" variant="outlined" startIcon={<Pause />} onClick={async () => { 
+                    // Оптимистично обновляем статус сразу
+                    setData(prev => prev.map(item => 
+                      item.robotId === group.robotId ? { ...item, status: 'paused' } : item
+                    ));
+                    dataRef.current = dataRef.current.map(item => 
+                      item.robotId === group.robotId ? { ...item, status: 'paused' } : item
+                    );
+                    await pauseRobotUniversal(group.robotId); 
+                    try { (window as any).socket?.emit('request_dashboard_update'); } catch {}; 
+                    await load(); 
+                  }} title="Пауза">Пауза</Button>
                 )}
                 {(group.status === 'paused') && (
-                  <Button size="small" variant="outlined" startIcon={<PlayArrow />} onClick={async () => { await resumeRobotUniversal(group.robotId); try { (window as any).socket?.emit('request_dashboard_update'); } catch {}; await load(); }} title="Продолжить">Продолжить</Button>
+                  <Button size="small" variant="outlined" startIcon={<PlayArrow />} onClick={async () => { 
+                    // Оптимистично обновляем статус сразу
+                    setData(prev => prev.map(item => 
+                      item.robotId === group.robotId ? { ...item, status: 'active' } : item
+                    ));
+                    dataRef.current = dataRef.current.map(item => 
+                      item.robotId === group.robotId ? { ...item, status: 'active' } : item
+                    );
+                    await resumeRobotUniversal(group.robotId); 
+                    try { (window as any).socket?.emit('request_dashboard_update'); } catch {}; 
+                    await load(); 
+                  }} title="Продолжить">Продолжить</Button>
                 )}
                 <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutline />} onClick={async () => {
                   const allIdx = (group.tasks || []).map((_: any, i: number) => i);
