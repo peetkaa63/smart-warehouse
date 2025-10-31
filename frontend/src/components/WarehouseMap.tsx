@@ -537,15 +537,38 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     const robotsCount = robotsInCell.length;
                     const isCritical = criticalCells.has(cellId);
                     const cellStatus = cellStatusMap.get(cellId);
-                    const visible = showOnlyCriticalCells ? isCritical : true;
+                    
+                    // Определяем базовый цвет ячейки
+                    let baseBackgroundColor = showCellStates 
+                      ? getCellColorByStatus(cellStatus)
+                      : (robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white'));
+                    
+                    // Если включен режим показа только критических, применяем стили
+                    let cellOpacity = 1;
+                    let cellBackgroundColor = baseBackgroundColor;
+                    
+                    if (showOnlyCriticalCells) {
+                      if (isCritical) {
+                        // Критические ячейки - подсвечиваем красным
+                        cellBackgroundColor = '#ff5252';
+                        cellOpacity = 1;
+                      } else {
+                        // Некритические ячейки - делаем серыми/полупрозрачными
+                        cellBackgroundColor = '#e0e0e0';
+                        cellOpacity = 0.3;
+                      }
+                    }
 
-                    return visible ? (
+                    return (
                       <motion.div
                         key={cellId}
                         initial={{ opacity: 0, scale: 0.96 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                        animate={{ 
+                          opacity: cellOpacity, 
+                          scale: showOnlyCriticalCells && isCritical ? 1.05 : 1 
+                        }}
                         exit={{ opacity: 0, scale: 0.96 }}
-                        transition={{ duration: 0.18 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
                       >
                       <Box
                         
@@ -553,23 +576,31 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                         sx={{
                           width: 36,
                           height: 36,
-                          border: '1px solid #ccc',
+                          border: showOnlyCriticalCells && isCritical 
+                            ? '2px solid #d32f2f' 
+                            : '1px solid #ccc',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: showCellStates 
-                            ? getCellColorByStatus(cellStatus)
-                            : (robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white')),
-                          transition: 'background-color .25s ease',
+                          backgroundColor: cellBackgroundColor,
+                          transition: 'all 0.3s ease',
                           borderRadius: 1,
                           cursor: 'pointer',
                           position: 'relative',
+                          boxShadow: showOnlyCriticalCells && isCritical 
+                            ? '0 0 8px rgba(255, 82, 82, 0.5)' 
+                            : 'none',
                           '&:hover': {
-                            backgroundColor: showCellStates
-                              ? getCellColorByStatus(cellStatus)
-                              : (robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5')),
-                            transform: robotsCount > 0 ? 'scale(1.04)' : 'none',
-                            transition: 'all 0.15s ease'
+                            backgroundColor: showOnlyCriticalCells && isCritical
+                              ? '#ff5252'
+                              : showCellStates
+                                ? getCellColorByStatus(cellStatus)
+                                : (robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5')),
+                            transform: robotsCount > 0 || (showOnlyCriticalCells && isCritical) ? 'scale(1.06)' : 'scale(1.02)',
+                            transition: 'all 0.2s ease',
+                            boxShadow: showOnlyCriticalCells && isCritical
+                              ? '0 0 12px rgba(255, 82, 82, 0.7)'
+                              : '0 2px 4px rgba(0,0,0,0.1)'
                           }
                         }}
                         onClick={(event) => handleCellClick(event, zone, row, shelf)}
@@ -653,8 +684,6 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                         )}
                       </Box>
                       </motion.div>
-                    ) : (
-                      <motion.div key={cellId} />
                     );
                   })}
                   </AnimatePresence>

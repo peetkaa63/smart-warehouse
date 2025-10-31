@@ -9,6 +9,8 @@ export interface NotificationSettingsState {
     lowBattery: number
   }
   dataTransport?: 'socket' | 'http'
+  theme?: 'light' | 'dark'
+  browserNotifications?: boolean
 }
 
 const initialState: NotificationSettingsState = {
