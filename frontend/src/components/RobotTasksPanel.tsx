@@ -77,17 +77,8 @@ const RobotTasksPanel: React.FC = () => {
           }
         });
 
-        // авто-добавление дефолтной задачи, если пусто
-        for (const g of next) {
-          if ((!g.tasks || g.tasks.length === 0) && !assignedDefaultRef.current[g.robotId]) {
-            try {
-              await api.post(`/api/robots/${g.robotId}/tasks/assign`, { taskId: 'scan_warehouse', payload: {} });
-              assignedDefaultRef.current[g.robotId] = true;
-            } catch (e) {
-              // пропускаем ошибки, повторим позже
-            }
-          }
-        }
+        // Убрали автодобавление дефолтной задачи на клиенте.
+        // Инициализацию стартовой задачи выполняет сервер при запуске.
 
         if (Object.keys(toLeave).length) {
           setLeavingMap(toLeave);

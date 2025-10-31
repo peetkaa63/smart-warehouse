@@ -1,6 +1,14 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://rtk.keep-pixel.ru:3000';
+// Автовыбор API URL: env -> текущий хост -> localhost
+const API_URL = process.env.REACT_APP_API_URL
+  || (typeof window !== 'undefined'
+      ? (() => {
+          const { protocol, hostname } = window.location;
+          const port = '3000';
+          return `${protocol}//${hostname}:${port}`;
+        })()
+      : 'http://localhost:3000');
 
 const api = axios.create({
   baseURL: API_URL,

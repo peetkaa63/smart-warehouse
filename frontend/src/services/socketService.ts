@@ -6,7 +6,15 @@ class SocketService {
   connect() {
     if (this.socket) return this.socket;
     
-    this.socket = io(process.env.REACT_APP_WS_URL || 'ws://rtk.keep-pixel.ru:3000');
+    const wsUrl = process.env.REACT_APP_WS_URL || (typeof window !== 'undefined'
+      ? (() => {
+          const { protocol, hostname } = window.location;
+          const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+          return `${wsProtocol}//${hostname}:3000`;
+        })()
+      : 'ws://localhost:3000');
+
+    this.socket = io(wsUrl);
     // Экспортируем ссылку глобально, чтобы существующий код (pause/resume, карта) всегда имел доступ
     (window as any).socket = this.socket;
     

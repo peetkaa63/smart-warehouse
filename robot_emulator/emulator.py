@@ -157,7 +157,21 @@ class RobotEmulator:
         """Основной цикл работы робота"""
         lastTaskId = ''
         tasks = []
+        status_check_counter = 0
         while True:
+            # Резервная проверка статуса через HTTP, если сокет недоступен
+            try:
+                status_check_counter = (status_check_counter + 1) % 3
+                if status_check_counter == 0 and (self.sio is None or not self.sio.connected):
+                    r = requests.get(f"{self.api_url}/api/robots", timeout=5)
+                    if r.status_code == 200:
+                        robots = (r.json() or {}).get('robots', [])
+                        me = next((x for x in robots if x.get('id') == self.robot_id), None)
+                        if me is not None:
+                            self.paused = (me.get('status') == 'paused')
+            except Exception:
+                pass
+
             # Если робот на паузе — не двигаемся и не выполняем задачи, только отправляем телеметрию
             if self.paused:
                 print(f"[{self.robot_id}] Пауза активна — остановка движения и задач")

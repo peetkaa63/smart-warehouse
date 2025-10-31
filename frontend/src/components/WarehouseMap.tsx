@@ -105,6 +105,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         return '#e8f5e9'; // зелёный фон
       case 'WARNING':
       case 'LOW':
+      case 'LOW_STOCK':
         return '#fff8e1'; // жёлтый фон
       case 'CRITICAL':
       case 'ERROR':

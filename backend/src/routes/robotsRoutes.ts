@@ -275,6 +275,12 @@ router.post('/tasks/delete', async (req, res) => {
       tasks.splice(idx, 1);
       taskQueueService['robotTasks'].set(robotId, tasks);
       console.log(`[DELETE TASK] robot=${robotId} удалена задача по индексу ${idx}`);
+      try {
+        // Обновить очереди задач для всех подписчиков
+        robotService.io.emit('robot_tasks_update', await getAllRobotTasks());
+      } catch (e) {
+        console.warn('robot_tasks_update emit failed after delete', e);
+      }
     }
     res.json({ success: true });
   } catch (e: any) {
@@ -288,6 +294,12 @@ router.post('/tasks/reorder', authenticateToken, requireRole(['operator','admin'
     if (!Array.isArray(tasks)) return res.status(400).json({ success: false, error: 'tasks должен быть массивом' });
     taskQueueService['robotTasks'].set(robotId, tasks);
     console.log(`[REORDER TASKS] robot=${robotId} новый порядок задач:`, tasks.map(t => t.id));
+    try {
+      // Обновить очереди задач для всех подписчиков
+      robotService.io.emit('robot_tasks_update', await getAllRobotTasks());
+    } catch (e) {
+      console.warn('robot_tasks_update emit failed after reorder', e);
+    }
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
