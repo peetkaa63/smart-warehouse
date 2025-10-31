@@ -53,16 +53,9 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [showCellStates, setShowCellStates] = useState(false);
   const [cellStatusMapState, setCellStatusMapState] = useState<Map<string, string>>(new Map());
 
-  const criticalCells = React.useMemo(() => {
-    const set = new Set<string>();
-    (recentScans || []).forEach((s: any) => {
-      if (s.status === 'CRITICAL') {
-        const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
-        set.add(key);
-      }
-    });
-    return set;
-  }, [recentScans]);
+  const zones = ['A', 'B', 'C', 'D', 'E'];
+  const rows = 20;
+  const shelves = 10;
 
   // Карта состояний ячеек по последнему скану
   // Текущая карта состояний из снапшота + дополняем последними сканами
@@ -75,41 +68,93 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     return map;
   }, [cellStatusMapState, recentScans]);
 
-  const zones = ['A', 'B', 'C', 'D', 'E'];
-  const rows = 20;
-  const shelves = 10;
+  // Критические ячейки определяем из recentScans И из cellStatusMap
+  const criticalCells = React.useMemo(() => {
+    const set = new Set<string>();
+    // Из недавних сканов
+    (recentScans || []).forEach((s: any) => {
+      if (s.status === 'CRITICAL' || s.status === 'ERROR') {
+        const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
+        set.add(key);
+      }
+    });
+    // Из загруженных статусов ячеек
+    cellStatusMap.forEach((status: string, key: string) => {
+      if (status === 'CRITICAL' || status === 'ERROR') {
+        set.add(key);
+      }
+    });
+    return set;
+  }, [recentScans, cellStatusMap]);
 
-  // Заменяем этот useEffect
+  // Заменяем этот useEffect - загружаем по зонам параллельно
 	useEffect(() => {
 	  const loadSnapshot = async () => {
 		try {
-		  const targetCells = zones.length * rows * shelves;
 		  const snapshot = new Map<string, string>();
-		  let cursor: string | undefined = undefined;
-		  let guard = 0;
 		  
-		  while (snapshot.size < targetCells && guard < 100) {
-			const params: any = { limit: 100, use_cursor: 'true' };
-			if (cursor) params.cursor = cursor;
-			const resp = await historyAPI.getHistory(params);
-			const items = resp.data?.data || resp.data?.items || [];
-			
-			for (const it of items) {
-			  const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
-			  if (!snapshot.has(key)) {
-				snapshot.set(key, it.status);
+		  // Загружаем статусы по зонам параллельно
+		  const zonePromises = zones.map(async (zone) => {
+			try {
+			  // Получаем последние статусы для каждой ячейки в зоне
+			  const zoneCellsCount = rows * shelves;
+			  const cellMap = new Map<string, string>();
+			  let cursor: string | undefined = undefined;
+			  let hasMore = true;
+			  let guard = 0;
+			  
+			  // Используем пагинацию чтобы получить все ячейки
+			  while (cellMap.size < zoneCellsCount && hasMore && guard < 20) {
+				const params: any = { zone, limit: 200 }; // Запрашиваем по 200 записей за раз
+				if (cursor) {
+				  params.cursor = cursor;
+				  params.use_cursor = 'true';
+				}
+				
+				const resp = await historyAPI.getHistory(params);
+				const items = resp.data?.data || resp.data?.items || [];
+				
+				// Группируем по ячейкам и берем самый свежий статус для каждой
+				// items уже отсортированы по scanned_at DESC, поэтому первое вхождение - самое свежее
+				for (const it of items) {
+				  const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
+				  // Берем только первое (самое свежее) вхождение для каждой ячейки
+				  if (!cellMap.has(key) && it.status) {
+					cellMap.set(key, it.status);
+				  }
+				}
+				
+				// Проверяем есть ли еще данные
+				const pagination = resp.data?.pagination;
+				if (pagination?.nextCursor) {
+				  cursor = pagination.nextCursor;
+				  hasMore = true;
+				} else {
+				  hasMore = false;
+				}
+				
+				guard += 1;
 			  }
+			  
+			  console.log(`📊 Zone ${zone}: loaded ${cellMap.size} cell states`);
+			  return cellMap;
+			} catch (e) {
+			  console.error(`Error loading cell states for zone ${zone}:`, e);
+			  return new Map<string, string>();
 			}
-			
-			const pagination = resp.data?.pagination;
-			if (pagination?.hasNext && pagination?.nextCursor) {
-			  cursor = pagination.nextCursor;
-			} else {
-			  break;
-			}
-			guard += 1;
-		  }
+		  });
 		  
+		  // Ждем все зоны параллельно
+		  const zoneResults = await Promise.all(zonePromises);
+		  
+		  // Объединяем результаты
+		  zoneResults.forEach(zoneMap => {
+			zoneMap.forEach((status, key) => {
+			  snapshot.set(key, status);
+			});
+		  });
+		  
+		  console.log(`📊 Loaded cell states for ${snapshot.size} cells`);
 		  setCellStatusMapState(snapshot);
 		} catch (e) {
 		  console.error('Error loading cell states:', e);

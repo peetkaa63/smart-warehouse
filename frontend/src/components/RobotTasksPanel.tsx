@@ -53,13 +53,25 @@ const RobotTasksPanel: React.FC = () => {
   const load = async () => {
     const mode = localStorage.getItem('dataTransport') || 'socket';
     if (mode === 'socket' && window.socket) {
+      // Также получаем статусы роботов отдельно
+      const robotsResp = await api.get('/api/robots');
+      const robotStatusMap = new Map((robotsResp.data?.robots || []).map((rob: any) => [rob.id, rob.status]));
+      
       // запросить актуальные задачи через сокет
       window.socket.emit('request_robot_tasks');
+      
       // при получении от сокета обновить data
       window.socket.off('robot_tasks_update'); // снять предыдущую подписку
       window.socket.on('robot_tasks_update', async (tasks: any) => {
+        // Получаем актуальные статусы роботов каждый раз
+        const robotsResp = await api.get('/api/robots');
+        const currentRobotStatusMap = new Map((robotsResp.data?.robots || []).map((rob: any) => [rob.id, rob.status]));
+        
         const prev = dataRef.current || [];
-        const next = (tasks || []).filter((g: any) => g.robotId !== '__trash__' && g.robotId !== '_trash_');
+        const next = (tasks || []).filter((g: any) => g.robotId !== '__trash__' && g.robotId !== '_trash_').map((g: any) => ({
+          ...g,
+          status: currentRobotStatusMap.get(g.robotId) || g.status || 'active'
+        }));
         const toLeave: { [robotId: string]: number[] } = {};
         // ищем уменьшившиеся списки задач — анимируем удаление
         next.forEach((group: any) => {
@@ -99,9 +111,11 @@ const RobotTasksPanel: React.FC = () => {
       const robotList = robotsResp.data?.robots || [];
       const allData = await Promise.all(robotList.map(async (rob: any) => {
         const tasks = await fetchRobotTasks(rob.id);
-        return { robotId: rob.id, tasks, status: rob.status };
+        // Убеждаемся что статус берется из API роботов
+        return { robotId: rob.id, tasks, status: rob.status || 'active' };
       }));
       setData(allData);
+      dataRef.current = allData;
     }
   }
 
