@@ -8,6 +8,7 @@ import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // Sortable task item component
 type SortableTaskProps = { id: string; primary: string; secondary?: string; onDelete: () => void }
@@ -58,7 +59,7 @@ const RobotTasksPanel: React.FC = () => {
       window.socket.off('robot_tasks_update'); // снять предыдущую подписку
       window.socket.on('robot_tasks_update', async (tasks: any) => {
         const prev = dataRef.current || [];
-        const next = tasks || [];
+        const next = (tasks || []).filter((g: any) => g.robotId !== '__trash__' && g.robotId !== '_trash_');
         const toLeave: { [robotId: string]: number[] } = {};
         // ищем уменьшившиеся списки задач — анимируем удаление
         next.forEach((group: any) => {
@@ -167,8 +168,14 @@ const RobotTasksPanel: React.FC = () => {
   };
 
   const handleDelete = async (robotId: string, idx: number) => {
-    await api.post('/api/robots/tasks/delete', { robotId, idx });
-    await load();
+    setLeavingMap(m => ({ ...m, [robotId]: Array.from(new Set([...(m[robotId] || []), idx])) }));
+    setTimeout(async () => {
+      await api.post('/api/robots/tasks/delete', { robotId, idx });
+      const mode = localStorage.getItem('dataTransport') || 'socket';
+      if (!(mode === 'socket' && window.socket)) {
+        await load();
+      }
+    }, 220);
   }
 
   return (
@@ -196,7 +203,8 @@ const RobotTasksPanel: React.FC = () => {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         {data.map(group => (
-          <Paper key={group.robotId} sx={{ p: 1.5, mb: 2 }} variant="outlined">
+          <motion.div layout key={`group-wrap-${group.robotId}`}>
+          <Paper sx={{ p: 1.5, mb: 2 }} variant="outlined">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2">{group.robotId}</Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
@@ -206,7 +214,11 @@ const RobotTasksPanel: React.FC = () => {
                 {(group.status === 'paused') && (
                   <Button size="small" variant="outlined" startIcon={<PlayArrow />} onClick={async () => { await resumeRobotUniversal(group.robotId); await load(); }} title="Продолжить">Продолжить</Button>
                 )}
-                <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutline />} onClick={() => deleteAllTasks(group.robotId)} title="Очистить задачи">Очистить</Button>
+                <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutline />} onClick={async () => {
+                  const allIdx = (group.tasks || []).map((_: any, i: number) => i);
+                  setLeavingMap(m => ({ ...m, [group.robotId]: allIdx }));
+                  setTimeout(async () => { await deleteAllTasks(group.robotId); }, 220);
+                }} title="Очистить задачи">Очистить</Button>
               </Box>
             </Box>
 
@@ -245,33 +257,33 @@ const RobotTasksPanel: React.FC = () => {
             <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd(group.robotId)}>
               <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
                 <List dense>
-                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => {
-                    const isLeaving = (leavingMap[group.robotId] || []).includes(idx);
-                    return (
-                      <div key={`wrapper-${group.robotId}-${idx}`} style={{
-                        transition: 'all .22s ease',
-                        transform: isLeaving ? 'translateX(-16px)' : 'translateX(0)',
-                        opacity: isLeaving ? 0 : 1,
-                        height: isLeaving ? 0 : 'auto',
-                        marginBottom: isLeaving ? 0 : 4,
-                        overflow: 'hidden'
-                      }}>
-                        <SortableTask
-                          key={`task-${idx}`}
-                          id={`task-${idx}`}
-                          onDelete={() => handleDelete(group.robotId, idx)}
-                          primary={ruTaskName(t.id || t.type)}
-                          secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
-                        />
-                      </div>
-                    )
-                  }) : (
-                    <ListItem><ListItemText primary="Нет задач" /></ListItem>
+                  <AnimatePresence initial={false}>
+                  {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => (
+                    <motion.div
+                      key={`wrapper-${group.robotId}-${idx}`}
+                      layout
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.22 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <SortableTask
+                        id={`task-${idx}`}
+                        onDelete={() => handleDelete(group.robotId, idx)}
+                        primary={ruTaskName(t.id || t.type)}
+                        secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
+                      />
+                    </motion.div>
+                  )) : (
+                    <ListItem key={`empty-${group.robotId}`}><ListItemText primary="Нет задач" /></ListItem>
                   )}
+                  </AnimatePresence>
                 </List>
               </SortableContext>
             </DndContext>
           </Paper>
+          </motion.div>
         ))}
       </Box>
     </Paper>

@@ -296,6 +296,12 @@ export const pauseRobotUniversal = async (robotId: string) => {
   }
   try {
     await robotsAPI.pause(robotId);
+    // Дополнительно очищаем очередь задач робота, чтобы задачи не конфликтовали с паузой
+    try {
+      await api.post('/api/robots/tasks/reassign', { from: robotId, to: '__trash__' });
+    } catch (e) {
+      // если не удалось — не блокируем паузу
+    }
   } catch (e) {
     // если HTTP упал, всё равно не роняем UI — статус прилетит через сокет
   }

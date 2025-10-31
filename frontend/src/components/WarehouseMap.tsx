@@ -51,6 +51,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [showOnlyCriticalCells, setShowOnlyCriticalCells] = useState(false);
   const [showOnlyLowBattery, setShowOnlyLowBattery] = useState(false);
   const [showCellStates, setShowCellStates] = useState(false);
+  const [cellStatusMapState, setCellStatusMapState] = useState<Map<string, string>>(new Map());
 
   const criticalCells = React.useMemo(() => {
     const set = new Set<string>();
@@ -64,16 +65,37 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   }, [recentScans]);
 
   // Карта состояний ячеек по последнему скану
+  // Текущая карта состояний из снапшота + дополняем последними сканами
   const cellStatusMap = React.useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, string>(cellStatusMapState);
     (recentScans || []).forEach((s: any) => {
       const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
-      if (!map.has(key)) {
-        map.set(key, s.status);
-      }
+      map.set(key, s.status);
     });
     return map;
-  }, [recentScans]);
+  }, [cellStatusMapState, recentScans]);
+
+  // Загружаем снапшот всех ячеек при включении свитча
+  useEffect(() => {
+    const loadSnapshot = async () => {
+      try {
+        // большой лимит, чтобы покрыть недавние состояния по всем ячейкам
+        const resp = await historyAPI.getHistory({ limit: 5000 });
+        const items = resp.data?.items || [];
+        const map = new Map<string, string>();
+        for (const it of items) {
+          const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
+          if (!map.has(key)) map.set(key, it.status);
+        }
+        setCellStatusMapState(map);
+      } catch (e) {
+        // тихо игнорируем, fallback останется recentScans
+      }
+    };
+    if (showCellStates) {
+      void loadSnapshot();
+    }
+  }, [showCellStates]);
 
   const getCellColorByStatus = (status?: string) => {
     if (!status) return 'white';
@@ -300,7 +322,8 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     const zoneRobots = currentRobots.filter(robot => robot.current_zone === zone);
     return {
       total: zoneRobots.length,
-      active: zoneRobots.filter(r => r.status === 'active').length,
+      // считаем активными всех, кто не paused и не offline
+      active: zoneRobots.filter(r => r.status !== 'paused' && r.status !== 'offline').length,
       charging: zoneRobots.filter(r => r.status === 'charging').length,
       offline: zoneRobots.filter(r => r.status === 'offline').length,
     };
@@ -423,6 +446,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                 </Box>
                 
                 <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${shelves}, 36px)`, gap: 0.5 }}>
+                  <AnimatePresence initial={false}>
                   {Array.from({ length: rows * shelves }, (_, index) => {
                     const row = Math.floor(index / shelves) + 1;
                     const shelf = (index % shelves) + 1;
@@ -431,13 +455,18 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     const robotsCount = robotsInCell.length;
                     const isCritical = criticalCells.has(cellId);
                     const cellStatus = cellStatusMap.get(cellId);
-                    if (showOnlyCriticalCells && !isCritical) {
-                      return null;
-                    }
+                    const visible = showOnlyCriticalCells ? isCritical : true;
 
-                    return (
-                      <Box
+                    return visible ? (
+                      <motion.div
                         key={cellId}
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                      <Box
+                        
                         id={`cell-${zone}-${row}-${shelf}`}
                         sx={{
                           width: 36,
@@ -541,8 +570,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                           />
                         )}
                       </Box>
+                      </motion.div>
+                    ) : (
+                      <motion.div key={cellId} />
                     );
                   })}
+                  </AnimatePresence>
                 </Box>
               </Box>
             );
