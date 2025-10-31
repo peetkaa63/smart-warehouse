@@ -75,41 +75,62 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     return map;
   }, [cellStatusMapState, recentScans]);
 
-  // Загружаем снапшот всех ячеек при включении свитча
-  useEffect(() => {
-    const loadSnapshot = async () => {
-      try {
-        // Пошаговая загрузка всей истории по курсору, но с лимитом по количеству ячеек
-        const targetCells = zones.length * rows * shelves; // 1000
-        const snapshot = new Map<string, string>();
-        let cursor: string | undefined = undefined;
-        let guard = 0;
-        while (snapshot.size < targetCells && guard < 100) {
-          const params: any = { limit: 100, use_cursor: 'true' };
-          if (cursor) params.cursor = cursor;
-          const resp = await historyAPI.getHistory(params);
-          const items = resp.data?.data || resp.data?.items || [];
-          for (const it of items) {
-            const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
-            if (!snapshot.has(key)) snapshot.set(key, it.status);
-          }
-          const pagination = resp.data?.pagination;
-          if (pagination?.hasNext && pagination?.nextCursor) {
-            cursor = pagination.nextCursor;
-          } else {
-            break;
-          }
-          guard += 1;
-        }
-        setCellStatusMapState(snapshot);
-      } catch (e) {
-        // тихо игнорируем, fallback останется recentScans
-      }
-    };
-    if (showCellStates) {
-      void loadSnapshot();
-    }
-  }, [showCellStates]);
+  // Заменяем этот useEffect
+	useEffect(() => {
+	  const loadSnapshot = async () => {
+		try {
+		  const targetCells = zones.length * rows * shelves;
+		  const snapshot = new Map<string, string>();
+		  let cursor: string | undefined = undefined;
+		  let guard = 0;
+		  
+		  while (snapshot.size < targetCells && guard < 100) {
+			const params: any = { limit: 100, use_cursor: 'true' };
+			if (cursor) params.cursor = cursor;
+			const resp = await historyAPI.getHistory(params);
+			const items = resp.data?.data || resp.data?.items || [];
+			
+			for (const it of items) {
+			  const key = `${it.zone}-${Number(it.rowNumber || it.row)}-${Number(it.shelfNumber || it.shelf)}`;
+			  if (!snapshot.has(key)) {
+				snapshot.set(key, it.status);
+			  }
+			}
+			
+			const pagination = resp.data?.pagination;
+			if (pagination?.hasNext && pagination?.nextCursor) {
+			  cursor = pagination.nextCursor;
+			} else {
+			  break;
+			}
+			guard += 1;
+		  }
+		  
+		  setCellStatusMapState(snapshot);
+		} catch (e) {
+		  console.error('Error loading cell states:', e);
+		}
+	  };
+	  
+	  if (showCellStates) {
+		void loadSnapshot();
+	  } else {
+		// Очищаем карту состояний при выключении
+		setCellStatusMapState(new Map());
+	  }
+	}, [showCellStates]);
+
+	// Добавляем useEffect для обновления при новых сканах
+	useEffect(() => {
+	  if (showCellStates && recentScans) {
+		const newMap = new Map(cellStatusMapState);
+		recentScans.forEach((s: any) => {
+		  const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
+		  newMap.set(key, s.status);
+		});
+		setCellStatusMapState(newMap);
+	  }
+	}, [recentScans, showCellStates]);
 
   const getCellColorByStatus = (status?: string) => {
     if (!status) return 'white';
@@ -437,7 +458,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         sx={{ 
           border: '1px solid #ddd',
           backgroundColor: '#f9f9f9',
-          height: 'calc(100% - 190px)',
+          height: 'calc(100% - 220px)',
           overflow: 'auto',
           position: 'relative'
         }}
