@@ -7,6 +7,8 @@ class SocketService {
     if (this.socket) return this.socket;
     
     this.socket = io(process.env.REACT_APP_WS_URL || 'ws://rtk.keep-pixel.ru:3000');
+    // Экспортируем ссылку глобально, чтобы существующий код (pause/resume, карта) всегда имел доступ
+    (window as any).socket = this.socket;
     
     this.socket.on('connect', () => {
       console.log('🔌 WebSocket connected');

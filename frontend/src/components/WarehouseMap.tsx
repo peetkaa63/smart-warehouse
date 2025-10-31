@@ -49,6 +49,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const lowBatteryThreshold = useSelector((state: RootState) => state.notificationSettings.thresholds.lowBattery);
   const [showOnlyCriticalCells, setShowOnlyCriticalCells] = useState(false);
   const [showOnlyLowBattery, setShowOnlyLowBattery] = useState(false);
+  const [showCellStates, setShowCellStates] = useState(false);
 
   const criticalCells = React.useMemo(() => {
     const set = new Set<string>();
@@ -60,6 +61,35 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     });
     return set;
   }, [recentScans]);
+
+  // Карта состояний ячеек по последнему скану
+  const cellStatusMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (recentScans || []).forEach((s: any) => {
+      const key = `${s.zone}-${Number(s.row_number || s.rowNumber || s.row)}-${Number(s.shelf_number || s.shelfNumber || s.shelf)}`;
+      if (!map.has(key)) {
+        map.set(key, s.status);
+      }
+    });
+    return map;
+  }, [recentScans]);
+
+  const getCellColorByStatus = (status?: string) => {
+    if (!status) return 'white';
+    switch (String(status).toUpperCase()) {
+      case 'OK':
+      case 'NORMAL':
+        return '#e8f5e9'; // зелёный фон
+      case 'WARNING':
+      case 'LOW':
+        return '#fff8e1'; // жёлтый фон
+      case 'CRITICAL':
+      case 'ERROR':
+        return '#ffebee'; // красный фон
+      default:
+        return 'white';
+    }
+  };
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -343,6 +373,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
           <FormGroup row>
             <FormControlLabel control={<Switch checked={showOnlyCriticalCells} onChange={(e) => setShowOnlyCriticalCells(e.target.checked)} />} label="Только критические ячейки" />
             <FormControlLabel control={<Switch checked={showOnlyLowBattery} onChange={(e) => setShowOnlyLowBattery(e.target.checked)} />} label={`Только роботы < ${lowBatteryThreshold}%`} />
+            <FormControlLabel control={<Switch checked={showCellStates} onChange={(e) => setShowCellStates(e.target.checked)} />} label="Показывать состояние ячеек" />
           </FormGroup>
         </Box>
 
@@ -398,6 +429,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     const robotsInCell = getRobotsInCell(zone, row, shelf);
                     const robotsCount = robotsInCell.length;
                     const isCritical = criticalCells.has(cellId);
+                    const cellStatus = cellStatusMap.get(cellId);
                     if (showOnlyCriticalCells && !isCritical) {
                       return null;
                     }
@@ -413,12 +445,14 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: robotsCount > 0 ? (isCritical ? '#ffebee' : '#e3f2fd') : (isCritical ? '#ffebee' : 'white'),
+                          backgroundColor: robotsCount > 0 
+                            ? (isCritical ? '#ffebee' : '#e3f2fd') 
+                            : (showCellStates ? getCellColorByStatus(cellStatus) : (isCritical ? '#ffebee' : 'white')),
                           borderRadius: 1,
                           cursor: 'pointer',
                           position: 'relative',
                           '&:hover': {
-                            backgroundColor: robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (isCritical ? '#ffcdd2' : '#f5f5f5'),
+                            backgroundColor: robotsCount > 0 ? (isCritical ? '#ffcdd2' : '#bbdefb') : (showCellStates ? getCellColorByStatus(cellStatus) : (isCritical ? '#ffcdd2' : '#f5f5f5')),
                             transform: robotsCount > 0 ? 'scale(1.04)' : 'none',
                             transition: 'all 0.15s ease'
                           }
@@ -528,7 +562,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
       >
         <Paper sx={{ p: 2, minWidth: 260, maxWidth: 380 }}>
           {!popoverRobot ? (
-            <Box>
+            <Box sx={{ animation: cardAnimatingOut ? 'cardOut .22s ease forwards' : 'cardIn .22s ease forwards', transformOrigin: 'top center' }}>
               <Typography variant="h6" gutterBottom>
                 Содержимое ячейки
               </Typography>
@@ -593,7 +627,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
               )}
             </Box>
           ) : (
-            <Box sx={{ opacity: 0, transform: 'translateY(8px)', animation: cardAnimatingOut ? 'cardOut .22s ease forwards' : 'cardIn .22s ease forwards' }}>
+            <Box sx={{ opacity: 0, transform: 'translateY(8px) scale(0.98)', animation: cardAnimatingOut ? 'cardOut .22s ease forwards' : 'cardIn .22s ease forwards', transformOrigin: 'top center' }}>
               <Typography variant="h6" gutterBottom>
                 🤖 Робот {popoverRobot.id}
               </Typography>
@@ -679,12 +713,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
             transition: box-shadow 0.3s ease;
           }
           @keyframes cardIn {
-            0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+            0% { opacity: 0; transform: translateY(8px) scale(0.92); }
             100% { opacity: 1; transform: translateY(0) scale(1); }
           }
           @keyframes cardOut {
             0% { opacity: 1; transform: translateY(0) scale(1); }
-            100% { opacity: 0; transform: translateY(8px) scale(0.98); }
+            100% { opacity: 0; transform: translateY(8px) scale(0.94); }
           }
         `}
       </style>
