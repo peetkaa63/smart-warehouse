@@ -50,12 +50,17 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
   };
 
   const formatTime = (timeString: string) => {
+    if (!timeString) return '-';
     try {
       const date = new Date(timeString);
-      return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleTimeString();
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', timeString);
+        return '-';
+      }
+      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch (error) {
       console.error('Error formatting time:', timeString, error);
-      return 'Invalid Date';
+      return '-';
     }
   };
 
@@ -86,24 +91,26 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {scans.map((scan, index) => (
-              <TableRow key={index} hover>
+            {scans.filter(scan => scan && scan.time && scan.robot_id).map((scan, index) => (
+              <TableRow key={`${scan.robot_id}-${scan.time}-${index}`} hover>
                 <TableCell>
-                  {formatTime(scan.time)}
+                  {scan.time ? formatTime(scan.time) : '-'}
                 </TableCell>
-                <TableCell>{scan.robot_id}</TableCell>
-                <TableCell>{scan.zone}</TableCell>
+                <TableCell>{scan.robot_id || '-'}</TableCell>
+                <TableCell>{scan.zone || '-'}</TableCell>
                 <TableCell>
                   <Box>
                     <Typography variant="body2" fontWeight="bold">
-                      {scan.product_name || 'N/A'}
+                      {scan.product_name || scan.product_id || 'N/A'}
                     </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {scan.product_id || 'N/A'}
-                    </Typography>
+                    {scan.product_id && (
+                      <Typography variant="caption" color="textSecondary">
+                        {scan.product_id}
+                      </Typography>
+                    )}
                   </Box>
                 </TableCell>
-                <TableCell align="right">{scan.quantity || 0}</TableCell>
+                <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
                 <TableCell>
                   <Chip 
                     label={getStatusText(scan.status)} 

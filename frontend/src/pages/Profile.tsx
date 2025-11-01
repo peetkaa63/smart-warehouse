@@ -10,6 +10,9 @@ import {
 import { DarkMode, LightMode, ExitToApp, Notifications, Settings, AccountCircle } from '@mui/icons-material'
 import { logout } from '../store/slices/authSlice'
 import AdminLogsWidget from '../components/AdminLogsWidget'
+import ProductLimitsWidget from '../components/admin/ProductLimitsWidget'
+import RobotManagementWidget from '../components/admin/RobotManagementWidget'
+import UserManagementWidget from '../components/admin/UserManagementWidget'
 import { useDispatch as useReduxDispatch } from 'react-redux'
 import { setAll, setShowCritical, setShowLow, setShowSystem, setAutoCollapse, setLowBatteryThreshold } from '../store/slices/notificationSettingsSlice'
 import { profileAPI } from '../services/api'
@@ -248,14 +251,24 @@ const Profile: React.FC = () => {
 
             {/* Админ панель */}
             {user?.role === 'admin' && (
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Администрирование
-                  </Typography>
-                  <AdminLogsWidget />
-                </CardContent>
-              </Card>
+              <>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Администрирование
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                      <AdminLogsWidget />
+                      
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2, mt: 2 }}>
+                        <ProductLimitsWidget />
+                        <RobotManagementWidget />
+                        <UserManagementWidget />
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {/* Кнопка выхода */}

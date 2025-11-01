@@ -41,22 +41,34 @@ export class AIRepository {
     return this.prepareHistoricalData(result.rows);
   }
 
-  // Получение текущих остатков
+  // Получение текущих остатков (последние данные для каждого товара из истории)
   async getCurrentStock(): Promise<any[]> {
     const query = `
-      SELECT 
+      SELECT DISTINCT ON (p.id)
         p.id as product_id,
         p.name as product_name,
-        COALESCE(SUM(ih.quantity), 0) as current_stock
+        COALESCE(latest.quantity, 0) as current_stock,
+        COALESCE(p.min_stock, 10) as min_stock,
+        COALESCE(p.optimal_stock, 50) as optimal_stock
       FROM products p
-      LEFT JOIN inventory_history ih ON p.id = ih.product_id
-      WHERE ih.scanned_at >= NOW() - INTERVAL '7 days'
-      GROUP BY p.id, p.name
-      ORDER BY p.name
+      LEFT JOIN LATERAL (
+        SELECT quantity, scanned_at
+        FROM inventory_history ih
+        WHERE ih.product_id = p.id
+        ORDER BY ih.scanned_at DESC
+        LIMIT 1
+      ) latest ON true
+      ORDER BY p.id
     `;
 
     const result = await pool.query(query);
-    return result.rows;
+    return result.rows.map((row: any) => ({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      current_stock: Number(row.current_stock) || 0,
+      min_stock: Number(row.min_stock) || 0,
+      optimal_stock: Number(row.optimal_stock) || 0
+    }));
   }
 
   // Сохранение прогнозов AI в БД
