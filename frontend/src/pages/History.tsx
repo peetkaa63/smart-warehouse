@@ -78,7 +78,10 @@ const History: React.FC = () => {
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
       if (filters.zones.length) params.zone = filters.zones;
-      if (filters.statuses.length) params.status = filters.statuses;
+      if (filters.statuses.length) {
+        // Бэкенд поддерживает как строку, так и массив статусов
+        params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
+      }
       if (filters.productId) params.product_id = filters.productId;
       if (filters.robotId) params.robot_id = filters.robotId;
 
@@ -153,7 +156,9 @@ const History: React.FC = () => {
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
       if (filters.zones.length) params.zone = filters.zones;
-      if (filters.statuses.length) params.status = filters.statuses;
+      if (filters.statuses.length) {
+        params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
+      }
       if (filters.productId) params.product_id = filters.productId;
       if (filters.robotId) params.robot_id = filters.robotId;
 
@@ -195,7 +200,9 @@ const History: React.FC = () => {
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
       if (filters.zones.length) params.zone = filters.zones;
-      if (filters.statuses.length) params.status = filters.statuses;
+      if (filters.statuses.length) {
+        params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
+      }
 
       dispatch(startExport('pdf'));
       const response = await exportAPI.exportToPDF(params);

@@ -79,9 +79,25 @@ export class HistoryRepository {
       params.push(parseInt(shelf));
       query += ` AND ih.shelf_number = $${params.length}`;
     }
-    if (status && typeof status === 'string' && status.trim() !== '') {
-      params.push(status);
-      query += ` AND ih.status = $${params.length}`;
+    // Фильтр по статусу - поддерживаем как строку, так и массив
+    if (status) {
+      if (Array.isArray(status) && status.length > 0) {
+        // Если это массив статусов - используем IN
+        const validStatuses = status.filter((s: any) => s && typeof s === 'string' && s.trim() !== '');
+        if (validStatuses.length > 0) {
+          const statusPlaceholders = validStatuses
+            .map((s: string) => {
+              params.push(s);
+              return `$${params.length}`;
+            })
+            .join(', ');
+          query += ` AND ih.status IN (${statusPlaceholders})`;
+        }
+      } else if (typeof status === 'string' && status.trim() !== '') {
+        // Если это строка - простое сравнение
+        params.push(status);
+        query += ` AND ih.status = $${params.length}`;
+      }
     }
     if (product_id && typeof product_id === 'string' && product_id.trim() !== '') {
       params.push(product_id);
@@ -116,7 +132,9 @@ export class HistoryRepository {
 
   // Подсчет общего количества записей
   private async getHistoryCount(filters: HistoryFilters): Promise<number> {
-    const { from, to } = filters;
+    const { from, to, zone, status, product_id, robot_id } = filters;
+    const row = (filters as any).row as string | undefined;
+    const shelf = (filters as any).shelf as string | undefined;
 
     let countQuery = `
       SELECT COUNT(*) 
@@ -136,6 +154,45 @@ export class HistoryRepository {
     if (to && typeof to === 'string' && to.trim() !== '') {
       countParams.push(new Date(to));
       countQuery += ` AND ih.scanned_at <= $${countParams.length}`;
+    }
+
+    // Применяем те же фильтры, что и в основном запросе
+    if (zone && typeof zone === 'string' && zone.trim() !== '') {
+      countParams.push(zone);
+      countQuery += ` AND ih.zone = $${countParams.length}`;
+    }
+    if (row && row.trim() !== '') {
+      countParams.push(parseInt(row));
+      countQuery += ` AND ih.row_number = $${countParams.length}`;
+    }
+    if (shelf && shelf.trim() !== '') {
+      countParams.push(parseInt(shelf));
+      countQuery += ` AND ih.shelf_number = $${countParams.length}`;
+    }
+    if (status) {
+      if (Array.isArray(status) && status.length > 0) {
+        const validStatuses = status.filter((s: any) => s && typeof s === 'string' && s.trim() !== '');
+        if (validStatuses.length > 0) {
+          const statusPlaceholders = validStatuses
+            .map((s: string) => {
+              countParams.push(s);
+              return `$${countParams.length}`;
+            })
+            .join(', ');
+          countQuery += ` AND ih.status IN (${statusPlaceholders})`;
+        }
+      } else if (typeof status === 'string' && status.trim() !== '') {
+        countParams.push(status);
+        countQuery += ` AND ih.status = $${countParams.length}`;
+      }
+    }
+    if (product_id && typeof product_id === 'string' && product_id.trim() !== '') {
+      countParams.push(product_id);
+      countQuery += ` AND ih.product_id = $${countParams.length}`;
+    }
+    if (robot_id && typeof robot_id === 'string' && robot_id.trim() !== '') {
+      countParams.push(robot_id);
+      countQuery += ` AND ih.robot_id = $${countParams.length}`;
     }
 
     const countResult = await pool.query(countQuery, countParams);

@@ -447,9 +447,9 @@ const UploadCSVModal: React.FC<UploadCSVModalProps> = ({
                     {uploadResult.success ? '✅ Загрузка завершена успешно!' : '❌ Ошибка при загрузке'}
                   </Typography>
                   <Box component="ul" sx={{ mb: 0, pl: 2 }}>
-                    <li>Обработано записей: <strong>{uploadResult.summary.totalProcessed}</strong></li>
-                    <li>Импортировано записей: <strong>{uploadResult.summary.imported}</strong></li>
-                    <li>Обнаружено ошибок: <strong>{uploadResult.summary.errors}</strong></li>
+                    <li>Обработано записей: <strong>{uploadResult.summary?.totalProcessed ?? 0}</strong></li>
+                    <li>Импортировано записей: <strong>{uploadResult.summary?.imported ?? 0}</strong></li>
+                    <li>Обнаружено ошибок: <strong>{uploadResult.summary?.errors ?? 0}</strong></li>
                   </Box>
                 </Alert>
               </Zoom>
