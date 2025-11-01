@@ -37,7 +37,14 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', maxWidth: '100vw', overflow: 'hidden' }}>
+    <Box sx={{ 
+      p: { xs: 1, sm: 2, md: 3 }, 
+      width: '100%', 
+      maxWidth: '100vw', 
+      overflow: 'hidden',
+      backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5',
+      minHeight: '100vh'
+    }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h4" component="h1" fontWeight="bold" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
           Текущий мониторинг

@@ -39,7 +39,20 @@ const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onD
       }}
     >
       <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
-      <Button size="small" variant="outlined" color="error" onClick={onDelete} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
+      <Button 
+        size="small" 
+        variant="outlined" 
+        color="error" 
+        onClick={(e) => {
+          console.log('[DELETE BUTTON] Button clicked!', { id, primary });
+          e.stopPropagation();
+          onDelete();
+        }} 
+        title="Удалить" 
+        startIcon={<DeleteOutline />}
+      >
+        Удалить
+      </Button>
     </ListItem>
   )
 }
@@ -428,7 +441,10 @@ const RobotTasksPanel: React.FC = () => {
                       >
                         <SortableTask
                           id={`task-${idx}`}
-                          onDelete={() => handleDelete(group.robotId, idx)}
+                          onDelete={() => {
+                            console.log('[DELETE TASK] onDelete callback called', { robotId: group.robotId, idx, task: t });
+                            handleDelete(group.robotId, idx);
+                          }}
                           primary={ruTaskName(t.id || t.type)}
                           secondary={(t.id === 'move' || t.type === 'move') && t.payload ? `Цель: ${t.payload.zone || t.payload.targetZone}-${t.payload.row || t.payload.targetRow}-${t.payload.shelf || t.payload.targetShelf}` : undefined}
                         />

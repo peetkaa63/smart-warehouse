@@ -836,21 +836,43 @@ router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin
 // Удалить задачу из очереди по индексу
 router.post('/tasks/delete', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
+    console.log('[DELETE TASK BACKEND] Request received:', { body: req.body, user: (req as any).user });
     const { robotId, idx } = req.body;
+    
+    if (!robotId) {
+      console.error('[DELETE TASK BACKEND] Missing robotId');
+      return res.status(400).json({ success: false, error: 'robotId is required' });
+    }
+    
+    if (typeof idx !== 'number') {
+      console.error('[DELETE TASK BACKEND] Invalid idx:', idx);
+      return res.status(400).json({ success: false, error: 'idx must be a number' });
+    }
+    
     const tasks = taskQueueService.getTasks(robotId);
+    console.log(`[DELETE TASK BACKEND] Current tasks for ${robotId}:`, tasks, `length=${tasks.length}, idx=${idx}`);
+    
     if (typeof idx === 'number' && idx >= 0 && idx < tasks.length) {
+      const taskToDelete = tasks[idx];
+      console.log(`[DELETE TASK BACKEND] Deleting task at index ${idx}:`, taskToDelete);
       tasks.splice(idx, 1);
       taskQueueService['robotTasks'].set(robotId, tasks);
-      console.log(`[DELETE TASK] robot=${robotId} удалена задача по индексу ${idx}`);
+      console.log(`[DELETE TASK BACKEND] robot=${robotId} удалена задача по индексу ${idx}, remaining tasks:`, tasks);
       try {
         // Обновить очереди задач для всех подписчиков
-        robotService.io.emit('robot_tasks_update', await getAllRobotTasks());
+        const allTasks = await getAllRobotTasks();
+        console.log('[DELETE TASK BACKEND] Emitting robot_tasks_update with tasks:', allTasks);
+        robotService.io.emit('robot_tasks_update', allTasks);
       } catch (e) {
-        console.warn('robot_tasks_update emit failed after delete', e);
+        console.warn('[DELETE TASK BACKEND] robot_tasks_update emit failed after delete', e);
       }
+      res.json({ success: true });
+    } else {
+      console.error(`[DELETE TASK BACKEND] Invalid index: idx=${idx}, tasks.length=${tasks.length}`);
+      res.status(400).json({ success: false, error: `Invalid index: ${idx} (tasks.length=${tasks.length})` });
     }
-    res.json({ success: true });
   } catch (e: any) {
+    console.error('[DELETE TASK BACKEND] Error:', e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
