@@ -40,7 +40,10 @@ class AdvancedAnalyticsService {
       const robotsJson = this.limitDataSize(limitedRobots, 15000);
 
       const prompt = `
-Проанализируй данные склада и предоставь экспертные рекомендации.
+Ты - AI аналитик склада. Проанализируй данные склада и предоставь экспертные рекомендации НА РУССКОМ ЯЗЫКЕ.
+
+ВАЖНО: Все советы, рекомендации, описания, mitigation, potential_benefit, summary должны быть написаны НА РУССКОМ ЯЗЫКЕ.
+Данные (JSON) оставляй в оригинальном виде.
 
 ДАННЫЕ ИНВЕНТАРИЗАЦИИ (последние записи):
 ${inventoryJson}
@@ -60,37 +63,40 @@ ${robotsJson}
 3. Потенциальные риски
 4. Возможности для оптимизации
 
-ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ:
+ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ (все текстовые поля на русском языке):
 {
   "recommendations": [
     {
       "category": "INVENTORY|ROBOTS|PROCESS",
-      "title": "string",
-      "description": "string", 
+      "title": "строка на русском",
+      "description": "строка на русском", 
       "priority": "HIGH|MEDIUM|LOW",
-      "expected_impact": "string"
+      "expected_impact": "строка на русском"
     }
   ],
   "risks": [
     {
       "type": "STOCKOUT|EQUIPMENT|PROCESS", 
-      "description": "string",
+      "description": "строка на русском",
       "severity": "HIGH|MEDIUM|LOW",
-      "mitigation": "string"
+      "mitigation": "строка на русском"
     }
   ],
   "opportunities": [
     {
       "area": "EFFICIENCY|COST|ACCURACY",
-      "description": "string", 
-      "potential_benefit": "string"
+      "description": "строка на русском", 
+      "potential_benefit": "строка на русском"
     }
   ],
-  "summary": "string",
-  "overall_health_score": number
+  "summary": "строка на русском",
+  "overall_health_score": число
 }
 
-Только JSON, без дополнительного текста.
+ВАЖНО: 
+- Все текстовые поля (title, description, expected_impact, mitigation, potential_benefit, summary) должны быть на русском языке
+- Категории (category, type, area, priority, severity) оставляй в английском формате как указано
+- Только JSON, без дополнительного текста.
 `;
 
       const response = await this.ai.models.generateContent({

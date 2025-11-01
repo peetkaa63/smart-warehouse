@@ -133,7 +133,10 @@ export class GeminiAIProvider implements IAIProvider {
     const currentStockJson = this.limitDataSize(request.currentStock || [], 8, 20000);
     
     return `
-Проанализируй данные склада и предоставь детальный анализ.
+Ты - AI аналитик склада. Проанализируй данные склада и предоставь детальный анализ НА РУССКОМ ЯЗЫКЕ.
+
+ВАЖНО: Все советы, описания, title, description должны быть написаны НА РУССКОМ ЯЗЫКЕ.
+Данные (JSON) оставляй в оригинальном виде.
 
 ИСТОРИЧЕСКИЕ ДАННЫЕ (${request.periodDays || 30} дней):
 ${historicalDataJson}
@@ -147,20 +150,21 @@ ${currentStockJson}
 3. Эффективность управления запасами
 4. Потенциальные проблемы
 
-ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ:
+ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ (все текстовые поля на русском языке):
 {
   "insights": [
     {
       "type": "TREND|SEASONALITY|EFFICIENCY|PROBLEM",
-      "title": "string",
-      "description": "string",
+      "title": "строка на русском",
+      "description": "строка на русском",
       "severity": "LOW|MEDIUM|HIGH",
       "affected_products": ["string"]
     }
   ],
-  "confidence": number
+  "confidence": число
 }
 
+ВАЖНО: Все текстовые поля (title, description) должны быть на русском языке.
 Только JSON, без дополнительного текста.
 `;
   }
@@ -171,7 +175,10 @@ ${currentStockJson}
     const currentStockJson = this.limitDataSize(request.currentStock || [], 6, 15000);
     
     return `
-Создай прогнозы на основе данных склада.
+Ты - AI аналитик склада. Создай прогнозы на основе данных склада. Все советы и описания должны быть НА РУССКОМ ЯЗЫКЕ.
+
+ВАЖНО: Все текстовые поля (reasoning, analysis_summary) должны быть на русском языке.
+Данные (JSON) оставляй в оригинальном виде.
 
 ИСТОРИЧЕСКИЕ ДАННЫЕ:
 ${historicalDataJson}
@@ -184,21 +191,24 @@ ${currentStockJson}
 2. Рекомендуемые уровни запасов
 3. Риски дефицита
 
-ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ:
+ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ (все текстовые поля на русском языке):
 {
   "predictions": [
     {
       "product_id": "string",
       "product_name": "string",
-      "predicted_demand": number,
-      "recommended_stock": number,
+      "predicted_demand": число,
+      "recommended_stock": число,
       "risk_level": "LOW|MEDIUM|HIGH",
-      "confidence": number
+      "confidence": число,
+      "reasoning": "строка на русском"
     }
   ],
-  "confidence": number
+  "confidence": число,
+  "analysis_summary": "строка на русском"
 }
 
+ВАЖНО: Все текстовые поля должны быть на русском языке.
 Только JSON, без дополнительного текста.
 `;
   }
@@ -208,7 +218,10 @@ ${currentStockJson}
     const historicalDataJson = this.limitDataSize(request.historicalData || [], 6, 15000);
     
     return `
-Предоставь рекомендации по оптимизации склада.
+Ты - AI аналитик склада. Предоставь рекомендации по оптимизации склада НА РУССКОМ ЯЗЫКЕ.
+
+ВАЖНО: Все советы, рекомендации, описания, title, description, expected_impact должны быть написаны НА РУССКОМ ЯЗЫКЕ.
+Данные (JSON) оставляй в оригинальном виде.
 
 ДАННЫЕ:
 ${historicalDataJson}
@@ -218,20 +231,21 @@ ${historicalDataJson}
 2. Оптимизации процессов
 3. Снижению рисков
 
-ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ:
+ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ (все текстовые поля на русском языке):
 {
   "recommendations": [
     {
       "category": "INVENTORY|PROCESS|RISK",
-      "title": "string",
-      "description": "string",
+      "title": "строка на русском",
+      "description": "строка на русском",
       "priority": "LOW|MEDIUM|HIGH",
-      "expected_impact": "string"
+      "expected_impact": "строка на русском"
     }
   ],
-  "confidence": number
+  "confidence": число
 }
 
+ВАЖНО: Все текстовые поля (title, description, expected_impact) должны быть на русском языке.
 Только JSON, без дополнительного текста.
 `;
   }

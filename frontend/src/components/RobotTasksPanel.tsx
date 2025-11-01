@@ -24,7 +24,10 @@ const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onD
       ? (isDark ? 'rgba(224, 247, 250, 0.2)' : '#e0f7fa')
       : (isDark ? theme.palette.background.paper : '#fafafa'),
     borderRadius: 4,
-    marginBottom: 4
+    marginBottom: 4,
+    // Фиксированная высота при перетаскивании, чтобы размер не менялся
+    minHeight: isDragging ? '48px' : undefined,
+    height: isDragging ? '48px' : undefined
   }
   return (
     <ListItem 
@@ -371,11 +374,11 @@ const RobotTasksPanel: React.FC = () => {
                 </Select>
               </FormControl>
               <div style={{
-                transition: 'all .22s ease',
-                transform: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'translateY(0)' : 'translateY(-6px)',
+                transition: 'opacity .3s ease',
                 opacity: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 1 : 0,
                 height: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 0,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                pointerEvents: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 'none'
               }}>
                 {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', transition: 'all .2s ease' }}>
@@ -455,12 +458,12 @@ const RobotTasksPanel: React.FC = () => {
                     return (
                       <motion.div
                         key={taskKey}
-                        layout
+                        layout="position"
                         initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20, height: 0 }}
                         transition={{ duration: 0.22, ease: 'easeInOut' }}
-                        style={{ overflow: 'hidden' }}
+                        style={{ overflow: 'hidden', height: 'auto' }}
                       >
                         <SortableTask
                           id={`task-${idx}`}
