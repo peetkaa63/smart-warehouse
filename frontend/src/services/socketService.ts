@@ -41,14 +41,11 @@ class SocketService {
     }
   }
 
-  // ДОБАВЬТЕ ЭТОТ МЕТОД
+
   onDashboardUpdate(callback: (data: any) => void) {
     this.socket?.on('dashboard_update', callback);
   }
 
-  onRobotUpdate(callback: (data: any) => void) {
-    this.socket?.on('robot_update', callback);
-  }
 
   onInventoryAlert(callback: (data: any) => void) {
     this.socket?.on('inventory_alert', callback);
