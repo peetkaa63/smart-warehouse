@@ -58,22 +58,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   
   // Проверка прав на управление роботами
   const canManageRobots = user?.role === 'operator' || user?.role === 'admin';
-  const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
-  const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedCellRobots, setSelectedCellRobots] = useState<Robot[]>([]);
-  const [selectedCellPosition, setSelectedCellPosition] = useState<{zone: string, row: number, shelf: number} | null>(null);
-  const [selectedCellInfo, setSelectedCellInfo] = useState<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string} | null>(null);
-  const [selectedCellHistory, setSelectedCellHistory] = useState<Array<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string}>>([]);
-  const [loadingCellInfo, setLoadingCellInfo] = useState(false);
-  const [cellHistoryValues, setCellHistoryValues] = useState<number[]>([]);
-  const dispatch = useDispatch();
-  const mapFocus = useSelector((state: RootState) => state.mapFocus.target);
-  const recentScans = useSelector((state: RootState) => state.dashboard.recentScans as any[]);
-  const lowBatteryThreshold = useSelector((state: RootState) => state.notificationSettings.thresholds.lowBattery);
-  const [showOnlyCriticalCells, setShowOnlyCriticalCells] = useState(false);
-  const [showOnlyLowBattery, setShowOnlyLowBattery] = useState(false);
-  const [showCellStates, setShowCellStates] = useState(false);
-  const [cellStatusMapState, setCellStatusMapState] = useState<Map<string, string>>(new Map());
+ 
 
   const zones = ['A', 'B', 'C', 'D', 'E'];
   const rows = 20;
