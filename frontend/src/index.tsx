@@ -50,6 +50,20 @@ const lightTheme = createTheme({
         '*': {
           transition: 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease',
         },
+        '*::-webkit-scrollbar': {
+          width: '12px',
+          height: '12px',
+        },
+        '*::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+        },
+        '*::-webkit-scrollbar-thumb': {
+          background: '#888',
+          borderRadius: '6px',
+          '&:hover': {
+            background: '#555',
+          },
+        },
       },
     },
     MuiAppBar: {
@@ -100,6 +114,20 @@ const darkTheme = createTheme({
       styleOverrides: {
         '*': {
           transition: 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease',
+        },
+        '*::-webkit-scrollbar': {
+          width: '12px',
+          height: '12px',
+        },
+        '*::-webkit-scrollbar-track': {
+          background: '#2e2e2e',
+        },
+        '*::-webkit-scrollbar-thumb': {
+          background: '#555',
+          borderRadius: '6px',
+          '&:hover': {
+            background: '#777',
+          },
         },
       },
     },

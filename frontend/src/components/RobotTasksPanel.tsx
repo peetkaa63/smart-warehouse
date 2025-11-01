@@ -1,5 +1,5 @@
 import React from 'react'
-import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField } from '@mui/material'
+import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField, useTheme } from '@mui/material'
 import { Pause, PlayArrow, DeleteOutline } from '@mui/icons-material'
 import api, { pauseRobotUniversal, resumeRobotUniversal } from '../services/api'
 import { socketService } from '../services/socketService'
@@ -14,16 +14,30 @@ import { motion, AnimatePresence } from 'framer-motion'
 // Sortable task item component
 type SortableTaskProps = { id: string; primary: string; secondary?: string; onDelete: () => void }
 const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onDelete }) => {
+  const theme = useTheme();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const isDark = theme.palette.mode === 'dark';
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    background: isDragging ? '#e0f7fa' : '#fafafa',
+    background: isDragging 
+      ? (isDark ? 'rgba(224, 247, 250, 0.2)' : '#e0f7fa')
+      : (isDark ? theme.palette.background.paper : '#fafafa'),
     borderRadius: 4,
     marginBottom: 4
   }
   return (
-    <ListItem ref={setNodeRef} style={style} {...attributes} {...listeners} sx={{ '&:hover': { background: '#f0f7ff' } }}>
+    <ListItem 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners} 
+      sx={{ 
+        '&:hover': { 
+          background: isDark ? 'rgba(240, 247, 255, 0.2)' : '#f0f7ff' 
+        } 
+      }}
+    >
       <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
       <Button size="small" variant="outlined" color="error" onClick={onDelete} title="Удалить" startIcon={<DeleteOutline />}>Удалить</Button>
     </ListItem>
@@ -153,8 +167,20 @@ const RobotTasksPanel: React.FC = () => {
     await load();
   };
   const deleteAllTasks = async (robotId: string) => {
-    await api.post('/api/robots/tasks/reassign', { from: robotId, to: '__trash__' });
-    await load();
+    console.log(`[DELETE ALL TASKS] Starting deletion for robot: ${robotId}`);
+    try {
+      const response = await api.post('/api/robots/tasks/reassign', { from: robotId, to: '__trash__' });
+      console.log(`[DELETE ALL TASKS] API response:`, response.data);
+      await load();
+    } catch (error: any) {
+      console.error('[DELETE ALL TASKS] Error:', error);
+      console.error('[DELETE ALL TASKS] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw error;
+    }
   };
   const setTask = (robotId: string, task: string) => {
     setNewTask(t => ({ ...t, [robotId]: task }));
@@ -174,9 +200,17 @@ const RobotTasksPanel: React.FC = () => {
   };
 
   const handleDelete = async (robotId: string, idx: number) => {
+    console.log(`[DELETE TASK] Starting deletion: robotId=${robotId}, idx=${idx}`);
+    
     // Получаем задачу для удаления
     const group = data.find(d => d.robotId === robotId);
-    if (!group || !group.tasks || idx < 0 || idx >= group.tasks.length) return;
+    if (!group || !group.tasks || idx < 0 || idx >= group.tasks.length) {
+      console.warn(`[DELETE TASK] Invalid parameters: group=${!!group}, tasksLength=${group?.tasks?.length}, idx=${idx}`);
+      return;
+    }
+    
+    const taskToDelete = group.tasks[idx];
+    console.log(`[DELETE TASK] Task to delete:`, taskToDelete);
     
     // Помечаем задачу для анимации удаления (задача остается в массиве до завершения анимации!)
     setLeavingMap(m => ({ ...m, [robotId]: Array.from(new Set([...(m[robotId] || []), idx])) }));
@@ -184,18 +218,31 @@ const RobotTasksPanel: React.FC = () => {
     // Вызываем API для удаления на сервере сразу (анимация происходит независимо)
     setTimeout(async () => {
       try {
-        await api.post('/api/robots/tasks/delete', { robotId, idx });
+        console.log(`[DELETE TASK] Calling API: POST /api/robots/tasks/delete`, { robotId, idx });
+        const response = await api.post('/api/robots/tasks/delete', { robotId, idx });
+        console.log(`[DELETE TASK] API response:`, response.data);
         
         // В socket режиме обновление придет через socket
         const mode = localStorage.getItem('dataTransport') || 'socket';
         if (mode === 'socket' && socketService.isConnected()) {
+          console.log(`[DELETE TASK] Requesting robot tasks update via socket`);
           socketService.requestRobotTasks();
         } else {
           // В HTTP режиме загружаем обновленные данные после небольшой задержки для завершения анимации
-          setTimeout(() => load(), 300);
+          console.log(`[DELETE TASK] Reloading data after delay`);
+          setTimeout(() => {
+            console.log(`[DELETE TASK] Executing load() for HTTP mode`);
+            load();
+          }, 300);
         }
-      } catch (error) {
-        console.error('Error deleting task:', error);
+      } catch (error: any) {
+        console.error('[DELETE TASK] Error deleting task:', error);
+        console.error('[DELETE TASK] Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          config: { url: error.config?.url, method: error.config?.method }
+        });
         // В случае ошибки восстанавливаем задачу
         setLeavingMap(m => {
           const newMap = { ...m };

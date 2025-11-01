@@ -195,16 +195,35 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
     switch (String(status).toUpperCase()) {
       case 'OK':
       case 'NORMAL':
-        return '#e8f5e9'; // зелёный фон
+        return isDark ? '#1b5e20' : '#e8f5e9'; // зелёный фон (темнее для темной темы)
       case 'WARNING':
       case 'LOW':
       case 'LOW_STOCK':
-        return '#fff8e1'; // жёлтый фон
+        return isDark ? '#f57f17' : '#fff8e1'; // жёлтый фон (темнее для темной темы)
       case 'CRITICAL':
       case 'ERROR':
-        return '#ffebee'; // красный фон
+        return isDark ? '#b71c1c' : '#ffebee'; // красный фон (темнее для темной темы)
       default:
         return isDark ? theme.palette.background.paper : 'white';
+    }
+  };
+
+  const getCellTextColorByStatus = (status?: string) => {
+    const isDark = theme.palette.mode === 'dark';
+    if (!status) return isDark ? theme.palette.text.primary : theme.palette.text.primary;
+    switch (String(status).toUpperCase()) {
+      case 'OK':
+      case 'NORMAL':
+        return isDark ? '#ffffff' : '#2e7d32'; // белый текст для темного фона, зеленый для светлого
+      case 'WARNING':
+      case 'LOW':
+      case 'LOW_STOCK':
+        return isDark ? '#ffffff' : '#f57c00'; // белый текст для темного фона, оранжевый для светлого
+      case 'CRITICAL':
+      case 'ERROR':
+        return isDark ? '#ffffff' : '#c62828'; // белый текст для темного фона, красный для светлого
+      default:
+        return theme.palette.text.primary;
     }
   };
 
@@ -559,12 +578,12 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                     
                     if (showOnlyCriticalCells) {
                       if (isCritical) {
-                        // Критические ячейки - подсвечиваем красным
-                        cellBackgroundColor = '#ff5252';
+                        // Критические ячейки - подсвечиваем красным (темнее для темной темы)
+                        cellBackgroundColor = isDark ? '#d32f2f' : '#ff5252';
                         cellOpacity = 1;
                       } else {
-                        // Некритические ячейки - делаем серыми/полупрозрачными
-                        cellBackgroundColor = '#e0e0e0';
+                        // Некритические ячейки - делаем серыми/полупрозрачными (темнее для темной темы)
+                        cellBackgroundColor = isDark ? '#424242' : '#e0e0e0';
                         cellOpacity = 0.3;
                       }
                     }
@@ -672,7 +691,14 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                             )}
                           </>
                         ) : (
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: showCellStates 
+                                ? getCellTextColorByStatus(cellStatus)
+                                : 'text.secondary'
+                            }}
+                          >
                             {shelf}
                           </Typography>
                         )}
