@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
 import { LoginResponse } from '../types';
+import { AppError } from '../errors/AppError';
+import { ErrorCode, ErrorSeverity } from '../types/errors';
 
 /**
  * @swagger
@@ -91,7 +93,22 @@ export const login = async (req: Request, res: Response) => {
     res.json(response);
   } catch (error: any) {
     console.error('❌ AuthController login error:', error);
-    // Используем стандартный error middleware вместо ручной обработки
+    // Если это AppError, пробрасываем его дальше для обработки error middleware
+    if (error instanceof AppError) {
+      throw error;
+    }
+    // Если это обычная ошибка связанная с credentials, оборачиваем в AppError с правильным статусом
+    if (error.message && (error.message.includes('Invalid') || error.message.includes('credentials') || error.message.includes('Login failed'))) {
+      throw new AppError(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Invalid credentials',
+        401,
+        ErrorSeverity.MEDIUM,
+        undefined,
+        (req as any).requestId
+      );
+    }
+    // Используем стандартный error middleware для остальных ошибок
     throw error;
   }
 };

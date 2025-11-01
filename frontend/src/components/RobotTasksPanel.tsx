@@ -92,8 +92,11 @@ const RobotTasksPanel: React.FC = () => {
   const [moveParams, setMoveParams] = React.useState<{[key: string]: { zone: string; row: number; shelf: number }}>({});
   const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [loadingRobots, setLoadingRobots] = React.useState<{[key: string]: boolean}>({});
   const [initialLoad, setInitialLoad] = React.useState(true);
+  const [manualRefresh, setManualRefresh] = React.useState(false);
   const timerRef = React.useRef<any>(null);
+  const manualRefreshRef = React.useRef<{robotId?: string; active: boolean}>({ active: false });
 
   // функция для получения задач робота с peek
   const fetchRobotTasks = async (robotId: string) => {
@@ -101,8 +104,18 @@ const RobotTasksPanel: React.FC = () => {
     return resp.data.tasks || [];
   };
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (robotId?: string, manual: boolean = false) => {
+    if (manual) {
+      setManualRefresh(true);
+      manualRefreshRef.current = { robotId, active: true };
+      if (robotId) {
+        setLoadingRobots(r => ({ ...r, [robotId]: true }));
+      } else {
+        setLoading(true);
+      }
+    } else {
+      manualRefreshRef.current = { active: false };
+    }
     const mode = localStorage.getItem('dataTransport') || 'socket';
     if (mode === 'socket' && socketService.isConnected()) {
       // Также получаем статусы роботов отдельно
@@ -151,13 +164,31 @@ const RobotTasksPanel: React.FC = () => {
             dataRef.current = next;
             setData(next);
             setLeavingMap({});
-            setLoading(false);
+            if (manualRefreshRef.current.active) {
+              const refreshRobotId = manualRefreshRef.current.robotId;
+              if (refreshRobotId && loadingRobots[refreshRobotId]) {
+                setLoadingRobots(r => ({ ...r, [refreshRobotId]: false }));
+              } else {
+                setLoading(false);
+              }
+              manualRefreshRef.current = { active: false };
+              setManualRefresh(false);
+            }
             setInitialLoad(false);
           }, 250);
         } else {
           dataRef.current = next;
           setData(next);
-          setLoading(false);
+          if (manualRefreshRef.current.active) {
+            const refreshRobotId = manualRefreshRef.current.robotId;
+            if (refreshRobotId && loadingRobots[refreshRobotId]) {
+              setLoadingRobots(r => ({ ...r, [refreshRobotId]: false }));
+            } else {
+              setLoading(false);
+            }
+            manualRefreshRef.current = { active: false };
+            setManualRefresh(false);
+          }
           setInitialLoad(false);
         }
       });
@@ -172,14 +203,23 @@ const RobotTasksPanel: React.FC = () => {
       }));
       setData(allData);
       dataRef.current = allData;
-      setLoading(false);
+      if (manualRefreshRef.current.active) {
+        const refreshRobotId = manualRefreshRef.current.robotId;
+        if (refreshRobotId && loadingRobots[refreshRobotId]) {
+          setLoadingRobots(r => ({ ...r, [refreshRobotId]: false }));
+        } else {
+          setLoading(false);
+        }
+        manualRefreshRef.current = { active: false };
+        setManualRefresh(false);
+      }
       setInitialLoad(false);
     }
   }
 
   useEffect(() => {
     const poll = async () => {
-      await load();
+      await load(undefined, false); // автоматическое обновление без анимации
       timerRef.current = setTimeout(poll, polling);
     };
     poll();
@@ -332,7 +372,7 @@ const RobotTasksPanel: React.FC = () => {
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
             >
-              <Button size="small" onClick={load} startIcon={<Refresh />}>Обновить</Button>
+              <Button size="small" onClick={() => load(undefined, true)} startIcon={<Refresh />}>Обновить</Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -355,13 +395,13 @@ const RobotTasksPanel: React.FC = () => {
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-        {data.map(group => (
+        {data.map((group, groupIdx) => (
           <motion.div 
             layout 
             key={`group-wrap-${group.robotId}`}
-            initial={initialLoad ? { opacity: 0, scale: 0.9 } : false}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
+            initial={initialLoad ? { opacity: 0, scale: 0.9, height: 0 } : false}
+            animate={initialLoad ? { opacity: 1, scale: 1, height: 'auto' } : { height: 'auto' }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: groupIdx * 0.05 }}
           >
           <Paper sx={{ p: 1.5, mb: 2 }} variant="outlined">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -453,9 +493,9 @@ const RobotTasksPanel: React.FC = () => {
               </div>
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
               <AnimatePresence mode="wait">
-                {loading ? (
+                {loadingRobots[group.robotId] ? (
                   <motion.div
-                    key="loading-small"
+                    key={`loading-small-${group.robotId}`}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
@@ -468,13 +508,13 @@ const RobotTasksPanel: React.FC = () => {
                   </motion.div>
                 ) : (
                   <motion.div
-                    key="refresh-small"
+                    key={`refresh-small-${group.robotId}`}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Button size="small" variant="outlined" onClick={load} startIcon={<Refresh />}>Обновить</Button>
+                    <Button size="small" variant="outlined" onClick={() => load(group.robotId, true)} startIcon={<Refresh />}>Обновить</Button>
                   </motion.div>
                 )}
               </AnimatePresence>

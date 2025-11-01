@@ -134,8 +134,16 @@ const Main: React.FC = () => {
   // Анимация входа
   useEffect(() => {
     const fromLogin = location.state?.fromLogin
+    const fromLogout = location.state?.fromLogout
     
-    if (fromLogin) {
+    if (fromLogout) {
+      // При выходе показываем анимацию фона без лого
+      const timer = setTimeout(() => {
+        setShowInitialAnimation(false)
+        setShowContent(false)
+      }, 400)
+      return () => clearTimeout(timer)
+    } else if (fromLogin) {
       // Быстрая анимация при переходе из логина
       const timer = setTimeout(() => {
         setShowInitialAnimation(false)
@@ -184,6 +192,9 @@ const Main: React.FC = () => {
     
     // Отключаем уведомления при выходе
     notificationSocketService.disconnect();
+    
+    // Показываем анимацию фона (без лого)
+    setShowInitialAnimation(true);
     
     // Анимация выхода: AppBar уходит вверх
     setTimeout(() => {
@@ -263,12 +274,13 @@ const Main: React.FC = () => {
       overflow: "hidden",
       transition: 'background-color 0.3s ease'
     }}>
-      {/* Начальная анимация логотипа */}
+      {/* Начальная анимация логотипа или фона при выходе */}
       <AnimatePresence>
         {showInitialAnimation && (
 		  <motion.div
 			key="initial-animation"
-			initial={{ opacity: 1 }}
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
 			transition={{ duration: 0.4 }}
 			style={{
@@ -278,31 +290,33 @@ const Main: React.FC = () => {
 			  width: "100vw",
 			  height: "100vh",
 			  zIndex: 9999,
-			  backgroundColor: theme.palette.background.default,
+			  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5',
 			  display: "flex",
 			  alignItems: "center",
 			  justifyContent: "center",
 			}}
 		  >
-			<motion.img
-			  src={theme.palette.mode === 'dark' ? "/logo_white.png" : "/logo.png"}
-			  alt="Ростелеком"
-			  initial={{ scale: 0, opacity: 0 }}
-			  animate={{ 
-				scale: [0, 1.2, 1], 
-				opacity: 1 
-			  }}
-			  exit={{ scale: 0, opacity: 0 }}
-			  transition={{
-				duration: 0.8,
-				scale: {
-				  type: "spring",
-				  damping: 10,
-				  stiffness: 100,
-				}
-			  }}
-			  style={{ width: 200 }}
-			/>
+			{!isLoggingOut && (
+			  <motion.img
+				src={theme.palette.mode === 'dark' ? "/logo_white.png" : "/logo.png"}
+				alt="Ростелеком"
+				initial={{ scale: 0, opacity: 0 }}
+				animate={{ 
+				  scale: [0, 1.2, 1], 
+				  opacity: 1 
+				}}
+				exit={{ scale: 0, opacity: 0 }}
+				transition={{
+				  duration: 0.8,
+				  scale: {
+					type: "spring",
+					damping: 10,
+					stiffness: 100,
+				  }
+				}}
+				style={{ width: 200 }}
+			  />
+			)}
 		  </motion.div>
 		)}
       </AnimatePresence>
