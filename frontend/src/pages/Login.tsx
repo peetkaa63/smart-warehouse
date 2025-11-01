@@ -86,9 +86,6 @@ const Login: React.FC = () => {
     e.preventDefault()
     e.stopPropagation()
     
-    // Предотвращаем перезагрузку страницы
-    if (e.defaultPrevented) return
-    
     setIsSubmitting(true)
     setLocalError(null)
 

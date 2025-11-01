@@ -137,7 +137,13 @@ const Main: React.FC = () => {
     const fromLogout = location.state?.fromLogout
     const fromProfileLogout = location.state?.fromProfileLogout
     
-    if (fromLogout || fromProfileLogout) {
+    if (fromProfileLogout) {
+      // Если выход из профиля - вызываем handleLogout для правильной анимации
+      handleLogout()
+      return
+    }
+    
+    if (fromLogout) {
       // При выходе показываем анимацию фона без лого
       setShowContent(false)
       setIsLoggingOut(true)
@@ -149,10 +155,6 @@ const Main: React.FC = () => {
       const timer = setTimeout(() => {
         setShowInitialAnimation(false)
         setShowContent(false)
-        // Переходим на login только после окончания всех анимаций
-        if (fromProfileLogout) {
-          navigate('/login', { state: { fromLogout: true }, replace: true })
-        }
       }, 400 + 800) // 400мс анимация + 800мс ожидание
       
       return () => clearTimeout(timer)
@@ -172,7 +174,7 @@ const Main: React.FC = () => {
         clearTimeout(timer2)
       }
     }
-  }, [location.state, navigate])
+  }, [location.state, navigate, handleLogout])
 
   // Подключение к уведомлениям через Socket.io (по настройке dataTransport)
   useEffect(() => {
@@ -198,7 +200,7 @@ const Main: React.FC = () => {
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
   const handleClose = () => setAnchorEl(null)
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(() => {
     if (isLoggingOut) return
     setIsLoggingOut(true)
     setShowContent(false)
@@ -206,17 +208,17 @@ const Main: React.FC = () => {
     // Отключаем уведомления при выходе
     notificationSocketService.disconnect();
     
-    // Показываем анимацию фона (без лого)
-    setShowInitialAnimation(true);
+    // Показываем фон с анимацией opacity (без лого)
+    setShowInitialAnimation(true)
     
-    // Анимация выхода: AppBar уходит вверх
+    // Анимация выхода: ждем окончания анимации появления фона (400мс) + 800мс ожидания
     setTimeout(() => {
       // Переходим на логин с флагом выхода
       navigate("/login", { state: { fromLogout: true } })
       // Выполняем логаут после перехода
       setTimeout(() => dispatch(logout()), 100)
-    }, 600)
-  }
+    }, 400 + 800) // 400мс анимация + 800мс ожидание
+  }, [isLoggingOut, navigate, dispatch])
 
   const handleTabChange = (tab: TabType) => {
     if (tab === activeTab || isAnimating) return
