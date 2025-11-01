@@ -30,29 +30,47 @@ const SortableTask: React.FC<SortableTaskProps> = ({ id, primary, secondary, onD
     <ListItem 
       ref={setNodeRef} 
       style={style} 
-      {...attributes} 
-      {...listeners} 
+      {...attributes}
       sx={{ 
         '&:hover': { 
           background: isDark ? 'rgba(240, 247, 255, 0.2)' : '#f0f7ff' 
         } 
       }}
     >
-      <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
-      <Button 
-        size="small" 
-        variant="outlined" 
-        color="error" 
-        onClick={(e) => {
-          console.log('[DELETE BUTTON] Button clicked!', { id, primary });
-          e.stopPropagation();
-          onDelete();
-        }} 
-        title="Удалить" 
-        startIcon={<DeleteOutline />}
-      >
-        Удалить
-      </Button>
+      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+        <Box 
+          {...listeners} 
+          sx={{ 
+            flex: 1, 
+            cursor: 'grab',
+            '&:active': { cursor: 'grabbing' }
+          }}
+        >
+          <ListItemText primary={<span style={{ fontWeight: 500 }}>{primary}</span>} secondary={secondary} />
+        </Box>
+        <Button 
+          size="small" 
+          variant="outlined" 
+          color="error" 
+          onClick={(e) => {
+            console.log('🚨🚨🚨 DELETE_BUTTON_CLICKED 🚨🚨🚨', { id, primary });
+            console.log('🚨 DELETE_BUTTON_CLICKED - Event:', e);
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🚨 DELETE_BUTTON_CLICKED - Calling onDelete callback');
+            onDelete();
+            console.log('🚨 DELETE_BUTTON_CLICKED - onDelete called');
+          }}
+          onMouseDown={(e) => {
+            console.log('🚨 DELETE_BUTTON_MOUSEDOWN 🚨');
+            e.stopPropagation();
+          }}
+          title="Удалить" 
+          startIcon={<DeleteOutline />}
+        >
+          Удалить
+        </Button>
+      </Box>
     </ListItem>
   )
 }
@@ -213,17 +231,22 @@ const RobotTasksPanel: React.FC = () => {
   };
 
   const handleDelete = async (robotId: string, idx: number) => {
-    console.log(`[DELETE TASK] Starting deletion: robotId=${robotId}, idx=${idx}`);
+    console.log('🚨🚨🚨 DELETE_TASK_HANDLER_START 🚨🚨🚨', { robotId, idx });
+    console.log('🚨 DELETE_TASK_HANDLER_START - robotId:', robotId, 'idx:', idx);
     
     // Получаем задачу для удаления
     const group = data.find(d => d.robotId === robotId);
     if (!group || !group.tasks || idx < 0 || idx >= group.tasks.length) {
-      console.warn(`[DELETE TASK] Invalid parameters: group=${!!group}, tasksLength=${group?.tasks?.length}, idx=${idx}`);
+      console.warn('🚨 DELETE_TASK_HANDLER - Invalid parameters:', { 
+        group: !!group, 
+        tasksLength: group?.tasks?.length, 
+        idx 
+      });
       return;
     }
     
     const taskToDelete = group.tasks[idx];
-    console.log(`[DELETE TASK] Task to delete:`, taskToDelete);
+    console.log('🚨 DELETE_TASK_HANDLER - Task to delete:', taskToDelete);
     
     // Помечаем задачу для анимации удаления (задача остается в массиве до завершения анимации!)
     setLeavingMap(m => ({ ...m, [robotId]: Array.from(new Set([...(m[robotId] || []), idx])) }));
@@ -231,26 +254,26 @@ const RobotTasksPanel: React.FC = () => {
     // Вызываем API для удаления на сервере сразу (анимация происходит независимо)
     setTimeout(async () => {
       try {
-        console.log(`[DELETE TASK] Calling API: POST /api/robots/tasks/delete`, { robotId, idx });
+        console.log('🚨 DELETE_TASK_HANDLER - Calling API: POST /api/robots/tasks/delete', { robotId, idx });
         const response = await api.post('/api/robots/tasks/delete', { robotId, idx });
-        console.log(`[DELETE TASK] API response:`, response.data);
+        console.log('🚨 DELETE_TASK_HANDLER - API response:', response.data);
         
         // В socket режиме обновление придет через socket
         const mode = localStorage.getItem('dataTransport') || 'socket';
         if (mode === 'socket' && socketService.isConnected()) {
-          console.log(`[DELETE TASK] Requesting robot tasks update via socket`);
+          console.log('🚨 DELETE_TASK_HANDLER - Requesting robot tasks update via socket');
           socketService.requestRobotTasks();
         } else {
           // В HTTP режиме загружаем обновленные данные после небольшой задержки для завершения анимации
-          console.log(`[DELETE TASK] Reloading data after delay`);
+          console.log('🚨 DELETE_TASK_HANDLER - Reloading data after delay');
           setTimeout(() => {
-            console.log(`[DELETE TASK] Executing load() for HTTP mode`);
+            console.log('🚨 DELETE_TASK_HANDLER - Executing load() for HTTP mode');
             load();
           }, 300);
         }
       } catch (error: any) {
-        console.error('[DELETE TASK] Error deleting task:', error);
-        console.error('[DELETE TASK] Error details:', {
+        console.error('🚨 DELETE_TASK_HANDLER - ERROR deleting task:', error);
+        console.error('🚨 DELETE_TASK_HANDLER - Error details:', {
           message: error.message,
           response: error.response?.data,
           status: error.response?.status,
@@ -442,7 +465,7 @@ const RobotTasksPanel: React.FC = () => {
                         <SortableTask
                           id={`task-${idx}`}
                           onDelete={() => {
-                            console.log('[DELETE TASK] onDelete callback called', { robotId: group.robotId, idx, task: t });
+                            console.log('🚨🚨🚨 DELETE_CALLBACK_TRIGGERED 🚨🚨🚨', { robotId: group.robotId, idx, task: t });
                             handleDelete(group.robotId, idx);
                           }}
                           primary={ruTaskName(t.id || t.type)}

@@ -836,7 +836,7 @@ router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin
 // Удалить задачу из очереди по индексу
 router.post('/tasks/delete', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
-    console.log('[DELETE TASK BACKEND] Request received:', { body: req.body, user: (req as any).user });
+    console.log('🚨🚨🚨 DELETE_TASK_BACKEND_REQUEST 🚨🚨🚨', { body: req.body, user: (req as any).user });
     const { robotId, idx } = req.body;
     
     if (!robotId) {
@@ -857,7 +857,7 @@ router.post('/tasks/delete', authenticateToken, requireRole(['operator', 'admin'
       console.log(`[DELETE TASK BACKEND] Deleting task at index ${idx}:`, taskToDelete);
       tasks.splice(idx, 1);
       taskQueueService['robotTasks'].set(robotId, tasks);
-      console.log(`[DELETE TASK BACKEND] robot=${robotId} удалена задача по индексу ${idx}, remaining tasks:`, tasks);
+      console.log('🚨🚨🚨 DELETE_TASK_BACKEND_SUCCESS 🚨🚨🚨', `robot=${robotId} удалена задача по индексу ${idx}, remaining tasks:`, tasks);
       try {
         // Обновить очереди задач для всех подписчиков
         const allTasks = await getAllRobotTasks();
@@ -868,7 +868,7 @@ router.post('/tasks/delete', authenticateToken, requireRole(['operator', 'admin'
       }
       res.json({ success: true });
     } else {
-      console.error(`[DELETE TASK BACKEND] Invalid index: idx=${idx}, tasks.length=${tasks.length}`);
+      console.error('🚨🚨🚨 DELETE_TASK_BACKEND_ERROR 🚨🚨🚨', `Invalid index: idx=${idx}, tasks.length=${tasks.length}`);
       res.status(400).json({ success: false, error: `Invalid index: ${idx} (tasks.length=${tasks.length})` });
     }
   } catch (e: any) {
