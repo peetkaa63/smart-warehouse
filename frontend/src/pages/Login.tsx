@@ -112,10 +112,14 @@ const Login: React.FC = () => {
           navigate('/dashboard')
         }, 1200)
       }
-    } catch (error) {
+    } catch (error: any) {
       // При ошибке возвращаемся к форме без обратной анимации
       setAnimationStage("error")
       setIsSubmitting(false)
+      
+      // Показываем ошибку из Redux или из перехваченной ошибки
+      const errorMessage = error?.message || error?.payload || 'Неверный логин или пароль'
+      setLocalError(errorMessage)
     }
   }
 

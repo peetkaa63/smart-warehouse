@@ -2,21 +2,15 @@ import { pool } from '../config/database';
 
 export interface ReplenishmentSuggestion {
   product_id: string;
-  productId?: string;
-  product_name?: string;
-  productName?: string;
+  product_name: string;
   zone: string;
   qty: number;
-  quantity?: number;
   status: string;
   row_number?: number;
-  rowNumber?: number;
   shelf_number?: number;
-  shelfNumber?: number;
   scanned_at?: string;
-  scannedAt?: string;
   last_scan?: string;
-  lastScan?: string;
+  avg_quantity?: number | null;
 }
 
 export class InventoryRepository {
@@ -25,7 +19,7 @@ export class InventoryRepository {
     const result = await pool.query(`
       SELECT 
         ih.product_id,
-        ih.product_name,
+        p.name as product_name,
         ih.zone,
         ih.row_number,
         ih.shelf_number,
@@ -34,6 +28,7 @@ export class InventoryRepository {
         ih.scanned_at,
         MAX(ih.scanned_at) OVER (PARTITION BY ih.product_id, ih.zone) as last_scan
       FROM inventory_history ih
+      LEFT JOIN products p ON ih.product_id = p.id
       INNER JOIN (
         SELECT product_id, zone, MAX(scanned_at) as max_scanned_at
         FROM inventory_history
@@ -55,23 +50,16 @@ export class InventoryRepository {
         ih.scanned_at DESC
       LIMIT $1
     `, [limit]);
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       product_id: row.product_id,
-      productId: row.product_id,
-      product_name: row.product_name,
-      productName: row.product_name,
+      product_name: row.product_name || `Product ${row.product_id}`,
       zone: row.zone,
       qty: Number(row.qty) || 0,
-      quantity: Number(row.qty) || 0,
       status: row.status,
       row_number: row.row_number,
-      rowNumber: row.row_number,
       shelf_number: row.shelf_number,
-      shelfNumber: row.shelf_number,
-      scanned_at: row.scanned_at,
-      scannedAt: row.scanned_at,
-      last_scan: row.last_scan,
-      lastScan: row.last_scan
+      scanned_at: row.scanned_at ? new Date(row.scanned_at).toISOString() : undefined,
+      last_scan: row.last_scan ? new Date(row.last_scan).toISOString() : undefined
     }));
   }
 
@@ -80,7 +68,7 @@ export class InventoryRepository {
     const result = await pool.query(`
       SELECT 
         ih.product_id,
-        ih.product_name,
+        p.name as product_name,
         ih.zone,
         ih.row_number,
         ih.shelf_number,
@@ -90,6 +78,7 @@ export class InventoryRepository {
         MAX(ih.scanned_at) OVER (PARTITION BY ih.product_id, ih.zone) as last_scan,
         AVG(prev_avg.avg_qty) as avg_quantity
       FROM inventory_history ih
+      LEFT JOIN products p ON ih.product_id = p.id
       INNER JOIN (
         SELECT product_id, zone, MAX(scanned_at) as max_scanned_at
         FROM inventory_history
@@ -110,23 +99,16 @@ export class InventoryRepository {
       ORDER BY ih.quantity DESC, ih.scanned_at DESC
       LIMIT $1
     `, [limit]);
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       product_id: row.product_id,
-      productId: row.product_id,
-      product_name: row.product_name,
-      productName: row.product_name,
+      product_name: row.product_name || `Product ${row.product_id}`,
       zone: row.zone,
       qty: Number(row.qty) || 0,
-      quantity: Number(row.qty) || 0,
       status: row.status,
       row_number: row.row_number,
-      rowNumber: row.row_number,
       shelf_number: row.shelf_number,
-      shelfNumber: row.shelf_number,
-      scanned_at: row.scanned_at,
-      scannedAt: row.scanned_at,
-      last_scan: row.last_scan,
-      lastScan: row.last_scan,
+      scanned_at: row.scanned_at ? new Date(row.scanned_at).toISOString() : undefined,
+      last_scan: row.last_scan ? new Date(row.last_scan).toISOString() : undefined,
       avg_quantity: row.avg_quantity ? Number(row.avg_quantity) : null
     }));
   }

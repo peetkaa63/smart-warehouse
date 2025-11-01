@@ -106,12 +106,12 @@ const ReplenishmentPanel: React.FC = () => {
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {i.product_name || i.productName || `Товар ${i.product_id || i.productId || 'N/A'}`}
+                              {i.product_name || `Товар ${i.product_id || 'N/A'}`}
                             </Typography>
                             <Chip label={`Зона ${i.zone}`} size="small" variant="outlined" />
-                            {i.rowNumber || i.row_number ? (
+                            {i.row_number ? (
                               <Chip 
-                                label={`${i.zone}-${i.rowNumber || i.row_number}-${i.shelfNumber || i.shelf_number}`} 
+                                label={`${i.zone}-${i.row_number}-${i.shelf_number || ''}`} 
                                 size="small" 
                                 variant="outlined"
                                 color="secondary"
@@ -122,7 +122,7 @@ const ReplenishmentPanel: React.FC = () => {
                         secondary={
                           <Box sx={{ mt: 0.5 }}>
                             <Typography variant="caption" color="text.secondary">
-                              Текущее количество: <strong style={{ color: theme.palette.error.main }}>{i.qty || i.quantity || 0}</strong>
+                              Текущее количество: <strong style={{ color: theme.palette.error.main }}>{i.qty || 0}</strong>
                             </Typography>
                             {i.status && (
                               <Chip 
@@ -132,9 +132,9 @@ const ReplenishmentPanel: React.FC = () => {
                                 sx={{ ml: 1, mt: 0.5 }}
                               />
                             )}
-                            {i.scannedAt || i.scanned_at ? (
+                            {i.scanned_at ? (
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                Последнее сканирование: {new Date(i.scannedAt || i.scanned_at).toLocaleString('ru-RU')}
+                                Последнее сканирование: {new Date(i.scanned_at).toLocaleString('ru-RU')}
                               </Typography>
                             ) : null}
                           </Box>
@@ -197,12 +197,12 @@ const ReplenishmentPanel: React.FC = () => {
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {i.product_name || i.productName || `Товар ${i.product_id || i.productId || 'N/A'}`}
+                              {i.product_name || `Товар ${i.product_id || 'N/A'}`}
                             </Typography>
                             <Chip label={`Зона ${i.zone}`} size="small" variant="outlined" />
-                            {i.rowNumber || i.row_number ? (
+                            {i.row_number ? (
                               <Chip 
-                                label={`${i.zone}-${i.rowNumber || i.row_number}-${i.shelfNumber || i.shelf_number}`} 
+                                label={`${i.zone}-${i.row_number}-${i.shelf_number || ''}`} 
                                 size="small" 
                                 variant="outlined"
                                 color="secondary"
@@ -213,14 +213,14 @@ const ReplenishmentPanel: React.FC = () => {
                         secondary={
                           <Box sx={{ mt: 0.5 }}>
                             <Typography variant="caption" color="text.secondary">
-                              Текущее количество: <strong style={{ color: theme.palette.success.main }}>{i.qty || i.quantity || 0}</strong>
+                              Текущее количество: <strong style={{ color: theme.palette.success.main }}>{i.qty || 0}</strong>
                             </Typography>
                             {i.avg_quantity && (
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                 Среднее за 30 дней: {Math.round(i.avg_quantity)}
                               </Typography>
                             )}
-                            {(i.qty || i.quantity || 0) > 100 && (
+                            {(i.qty || 0) > 100 && (
                               <Chip 
                                 label="Высокий запас" 
                                 size="small" 
@@ -228,9 +228,9 @@ const ReplenishmentPanel: React.FC = () => {
                                 sx={{ ml: 1, mt: 0.5 }}
                               />
                             )}
-                            {i.scannedAt || i.scanned_at ? (
+                            {i.scanned_at ? (
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                Последнее сканирование: {new Date(i.scannedAt || i.scanned_at).toLocaleString('ru-RU')}
+                                Последнее сканирование: {new Date(i.scanned_at).toLocaleString('ru-RU')}
                               </Typography>
                             ) : null}
                           </Box>

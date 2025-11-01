@@ -135,13 +135,18 @@ const Main: React.FC = () => {
   useEffect(() => {
     const fromLogin = location.state?.fromLogin
     const fromLogout = location.state?.fromLogout
+    const fromProfileLogout = location.state?.fromProfileLogout
     
-    if (fromLogout) {
+    if (fromLogout || fromProfileLogout) {
       // При выходе показываем анимацию фона без лого
+      setShowContent(false)
+      setShowInitialAnimation(true)
+      setIsLoggingOut(true)
+      
       const timer = setTimeout(() => {
         setShowInitialAnimation(false)
         setShowContent(false)
-      }, 400)
+      }, 1000)
       return () => clearTimeout(timer)
     } else if (fromLogin) {
       // Быстрая анимация при переходе из логина

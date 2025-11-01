@@ -1,5 +1,6 @@
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import { RootState } from '../store'
 import { 
   Box, Paper, Typography, Avatar, Divider, List, ListItem, ListItemText, 
@@ -14,11 +15,13 @@ import { setAll, setShowCritical, setShowLow, setShowSystem, setAutoCollapse, se
 import { profileAPI } from '../services/api'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import { motion, AnimatePresence } from 'framer-motion'
+import notificationSocketService from '../services/notificationSocketService'
 
 // Добавляем тему в Redux store или используем локальное состояние
 const Profile: React.FC = () => {
   const dispatch = useDispatch()
   const rdispatch = useReduxDispatch()
+  const navigate = useNavigate()
   const { user } = useSelector((state: RootState) => state.auth)
   const notificationSettings = useSelector((state: RootState) => state.notificationSettings)
   
@@ -263,7 +266,19 @@ const Profile: React.FC = () => {
                   color="error" 
                   fullWidth
                   startIcon={<ExitToApp />}
-                  onClick={() => dispatch(logout())}
+                  onClick={() => {
+                    // Отключаем уведомления при выходе
+                    notificationSocketService.disconnect();
+                    
+                    // Переходим на dashboard для запуска анимации выхода
+                    navigate('/dashboard', { state: { fromProfileLogout: true } });
+                    
+                    // Даем время на запуск анимации, затем выполняем логаут
+                    setTimeout(() => {
+                      dispatch(logout());
+                      navigate('/login', { state: { fromLogout: true } });
+                    }, 1000);
+                  }}
                   sx={{ py: 1.5 }}
                 >
                   Выйти из аккаунта

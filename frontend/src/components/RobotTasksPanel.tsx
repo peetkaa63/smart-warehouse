@@ -398,10 +398,20 @@ const RobotTasksPanel: React.FC = () => {
         {data.map((group, groupIdx) => (
           <motion.div 
             layout 
+            layoutId={`robot-group-${group.robotId}`}
             key={`group-wrap-${group.robotId}`}
-            initial={initialLoad ? { opacity: 0, scale: 0.9, height: 0 } : false}
-            animate={initialLoad ? { opacity: 1, scale: 1, height: 'auto' } : { height: 'auto' }}
-            transition={{ duration: 0.4, ease: 'easeOut', delay: groupIdx * 0.05 }}
+            initial={initialLoad ? { opacity: 0, scale: 0.9 } : false}
+            animate={{ 
+              opacity: 1, 
+              scale: 1,
+            }}
+            transition={{ 
+              duration: initialLoad ? 0.4 : 0.3, 
+              ease: 'easeOut', 
+              delay: initialLoad ? groupIdx * 0.05 : 0,
+              layout: { duration: 0.3, ease: 'easeInOut' }
+            }}
+            style={{ overflow: 'hidden' }}
           >
           <Paper sx={{ p: 1.5, mb: 2 }} variant="outlined">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -521,6 +531,10 @@ const RobotTasksPanel: React.FC = () => {
             </Box>
             <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd(group.robotId)}>
               <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
+                <motion.div
+                  layout
+                  style={{ overflow: 'hidden' }}
+                >
                 <List dense sx={{ overflow: 'visible' }}>
                   <AnimatePresence initial={false}>
                   {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => {
@@ -608,6 +622,7 @@ const RobotTasksPanel: React.FC = () => {
                   )}
                   </AnimatePresence>
                 </List>
+                </motion.div>
               </SortableContext>
             </DndContext>
           </Paper>
