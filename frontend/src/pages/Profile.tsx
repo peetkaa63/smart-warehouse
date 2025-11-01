@@ -4,7 +4,7 @@ import { RootState } from '../store'
 import { 
   Box, Paper, Typography, Avatar, Divider, List, ListItem, ListItemText, 
   Switch, Button, Chip, Slider, FormGroup, FormControlLabel, Card, 
-  CardContent, Stack, IconButton
+  CardContent, Stack, IconButton, useTheme
 } from '@mui/material'
 import { DarkMode, LightMode, ExitToApp, Notifications, Settings, AccountCircle } from '@mui/icons-material'
 import { logout } from '../store/slices/authSlice'
@@ -94,8 +94,10 @@ const Profile: React.FC = () => {
     // Не перезагружаем страницу, ThemeProvider обновится через событие
   }
 
+  const theme = useTheme();
+  
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', backgroundColor: 'background.default' }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5' }}>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
         {/* Профиль пользователя */}
         <Box sx={{ width: { xs: '100%', md: '30%' }, minWidth: { md: 300 } }}>

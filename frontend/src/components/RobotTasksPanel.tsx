@@ -1,6 +1,6 @@
 import React from 'react'
-import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField, useTheme } from '@mui/material'
-import { Pause, PlayArrow, DeleteOutline } from '@mui/icons-material'
+import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField, useTheme, CircularProgress, IconButton } from '@mui/material'
+import { Pause, PlayArrow, DeleteOutline, Refresh } from '@mui/icons-material'
 import api, { pauseRobotUniversal, resumeRobotUniversal } from '../services/api'
 import { socketService } from '../services/socketService'
 import { useEffect, useRef } from 'react';
@@ -91,6 +91,8 @@ const RobotTasksPanel: React.FC = () => {
   const [newTaskPayload, setNewTaskPayload] = React.useState<{[key: string]: string}>({});
   const [moveParams, setMoveParams] = React.useState<{[key: string]: { zone: string; row: number; shelf: number }}>({});
   const [dragIdx, setDragIdx] = React.useState<{robotId: string, idx: number}|null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [initialLoad, setInitialLoad] = React.useState(true);
   const timerRef = React.useRef<any>(null);
 
   // функция для получения задач робота с peek
@@ -100,6 +102,7 @@ const RobotTasksPanel: React.FC = () => {
   };
 
   const load = async () => {
+    setLoading(true);
     const mode = localStorage.getItem('dataTransport') || 'socket';
     if (mode === 'socket' && socketService.isConnected()) {
       // Также получаем статусы роботов отдельно
@@ -148,10 +151,14 @@ const RobotTasksPanel: React.FC = () => {
             dataRef.current = next;
             setData(next);
             setLeavingMap({});
+            setLoading(false);
+            setInitialLoad(false);
           }, 250);
         } else {
           dataRef.current = next;
           setData(next);
+          setLoading(false);
+          setInitialLoad(false);
         }
       });
     } else {
@@ -165,6 +172,8 @@ const RobotTasksPanel: React.FC = () => {
       }));
       setData(allData);
       dataRef.current = allData;
+      setLoading(false);
+      setInitialLoad(false);
     }
   }
 
@@ -302,7 +311,31 @@ const RobotTasksPanel: React.FC = () => {
     <Paper sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6">Задачи роботов</Typography>
-        <Button size="small" onClick={load}>Обновить</Button>
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <IconButton size="small" disabled>
+                <CircularProgress size={20} />
+              </IconButton>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="refresh"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button size="small" onClick={load} startIcon={<Refresh />}>Обновить</Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
@@ -323,7 +356,13 @@ const RobotTasksPanel: React.FC = () => {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         {data.map(group => (
-          <motion.div layout key={`group-wrap-${group.robotId}`}>
+          <motion.div 
+            layout 
+            key={`group-wrap-${group.robotId}`}
+            initial={initialLoad ? { opacity: 0, scale: 0.9 } : false}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          >
           <Paper sx={{ p: 1.5, mb: 2 }} variant="outlined">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2">{group.robotId}</Typography>
@@ -382,23 +421,68 @@ const RobotTasksPanel: React.FC = () => {
               }}>
                 {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', transition: 'all .2s ease' }}>
-                  <FormControl size="small" sx={{ minWidth: 80 }}>
-                    <InputLabel id={`zone-${group.robotId}`}>Зона</InputLabel>
+                  <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputLabel-root': { overflow: 'visible', whiteSpace: 'nowrap' } }}>
+                    <InputLabel id={`zone-${group.robotId}`} sx={{ overflow: 'visible' }}>Зона</InputLabel>
                     <Select labelId={`zone-${group.robotId}`} label="Зона" value={(moveParams[group.robotId]?.zone) || 'A'} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), zone: String(e.target.value) } }))}>
                       {['A','B','C','D','E'].map(z => <MenuItem key={z} value={z}>{z}</MenuItem>)}
                     </Select>
                   </FormControl>
-                  <TextField size="small" type="number" label="Ряд" value={(moveParams[group.robotId]?.row) || 1} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), row: Number(e.target.value) } }))} sx={{ width: 90 }} />
-                  <TextField size="small" type="number" label="Полка" value={(moveParams[group.robotId]?.shelf) || 1} onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), shelf: Number(e.target.value) } }))} sx={{ width: 100 }} />
+                  <TextField 
+                    size="small" 
+                    type="number" 
+                    label="Ряд" 
+                    value={(moveParams[group.robotId]?.row) || 1} 
+                    onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), row: Number(e.target.value) } }))} 
+                    sx={{ 
+                      width: 90,
+                      '& .MuiInputLabel-root': { overflow: 'visible', whiteSpace: 'nowrap' }
+                    }} 
+                  />
+                  <TextField 
+                    size="small" 
+                    type="number" 
+                    label="Полка" 
+                    value={(moveParams[group.robotId]?.shelf) || 1} 
+                    onChange={e => setMoveParams(p => ({ ...p, [group.robotId]: { ...(p[group.robotId] || { zone: 'A', row: 1, shelf: 1 }), shelf: Number(e.target.value) } }))} 
+                    sx={{ 
+                      width: 100,
+                      '& .MuiInputLabel-root': { overflow: 'visible', whiteSpace: 'nowrap' }
+                    }} 
+                  />
                 </Box>
                 )}
               </div>
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
-              <Button size="small" variant="outlined" onClick={load}>Обновить</Button>
+              <AnimatePresence mode="wait">
+                {loading ? (
+                  <motion.div
+                    key="loading-small"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    <IconButton size="small" disabled>
+                      <CircularProgress size={16} />
+                    </IconButton>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="refresh-small"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Button size="small" variant="outlined" onClick={load} startIcon={<Refresh />}>Обновить</Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </Box>
             <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd(group.robotId)}>
               <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
-                <List dense>
+                <List dense sx={{ overflow: 'visible' }}>
                   <AnimatePresence initial={false}>
                   {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => {
                     const isLeaving = leavingMap[group.robotId]?.includes(idx);
@@ -459,11 +543,15 @@ const RobotTasksPanel: React.FC = () => {
                       <motion.div
                         key={taskKey}
                         layout="position"
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20, height: 0 }}
-                        transition={{ duration: 0.22, ease: 'easeInOut' }}
-                        style={{ overflow: 'hidden', height: 'auto' }}
+                        initial={{ opacity: 0, x: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                        transition={{ 
+                          layout: { duration: 0.3, ease: 'easeInOut' },
+                          opacity: { duration: 0.22 },
+                          scale: { duration: 0.22 }
+                        }}
+                        style={{ overflow: 'visible', height: 'auto', position: 'relative', zIndex: 1 }}
                       >
                         <SortableTask
                           id={`task-${idx}`}

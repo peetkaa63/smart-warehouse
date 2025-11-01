@@ -138,7 +138,7 @@ const Login: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: (theme) => theme.palette.background.default,
+        backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5',
         position: "relative",
         overflow: "hidden",
         transition: 'background-color 0.3s ease',

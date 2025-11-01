@@ -3,7 +3,8 @@ import {
   Box,
   Typography,
   Alert,
-  CircularProgress
+  CircularProgress,
+  useTheme
 } from '@mui/material';
 import { historyAPI } from '../services/api';
 import { exportAPI } from '../services/api';
@@ -41,6 +42,7 @@ interface HistoryStatsData {
 }
 
 const History: React.FC = () => {
+  const theme = useTheme();
   const [data, setData] = useState<HistoryItem[]>([]);
   const [stats, setStats] = useState<HistoryStatsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -236,7 +238,7 @@ const History: React.FC = () => {
   );
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, minHeight: '100vh', backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" fontWeight="bold">
           Исторические данные

@@ -258,7 +258,7 @@ const Main: React.FC = () => {
     <Box sx={{ 
       flexGrow: 1, 
       minHeight: "100vh", 
-      backgroundColor: (theme) => theme.palette.background.default, 
+      backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5',
       position: "relative",
       overflow: "hidden",
       transition: 'background-color 0.3s ease'
