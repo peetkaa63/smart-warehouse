@@ -270,14 +270,11 @@ const Profile: React.FC = () => {
                     // Отключаем уведомления при выходе
                     notificationSocketService.disconnect();
                     
+                    // Выполняем логаут сразу (очищаем токен)
+                    dispatch(logout());
+                    
                     // Переходим на dashboard для запуска анимации выхода
                     navigate('/dashboard', { state: { fromProfileLogout: true } });
-                    
-                    // Даем время на запуск анимации, затем выполняем логаут
-                    setTimeout(() => {
-                      dispatch(logout());
-                      navigate('/login', { state: { fromLogout: true } });
-                    }, 1000);
                   }}
                   sx={{ py: 1.5 }}
                 >

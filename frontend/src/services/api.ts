@@ -49,10 +49,20 @@ api.interceptors.response.use(
     }
     
     if (status === 401) {
-      console.log('🔐 Token expired, logging out...');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // НЕ делаем редирект если это сам запрос на логин - ошибка должна обрабатываться в компоненте
+      const isLoginRequest = error.config?.url?.includes('/api/auth/login');
+      
+      if (!isLoginRequest) {
+        console.log('🔐 Token expired, logging out...');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Используем navigate через событие, чтобы избежать перезагрузки
+        // Или просто возвращаем ошибку, а редирект сделает ProtectedRoute
+        const event = new CustomEvent('auth-logout');
+        window.dispatchEvent(event);
+      } else {
+        console.log('🔐 Login failed - returning error without redirect');
+      }
     }
     
     if (status === 403) {

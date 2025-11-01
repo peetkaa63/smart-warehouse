@@ -533,10 +533,34 @@ const RobotTasksPanel: React.FC = () => {
               <SortableContext items={(group.tasks || []).map((_: any, i: number) => `task-${i}`)} strategy={verticalListSortingStrategy}>
                 <motion.div
                   layout
-                  style={{ overflow: 'hidden' }}
+                  layoutId={`task-list-wrapper-${group.robotId}`}
+                  style={{ 
+                    overflow: 'hidden',
+                  }}
+                  transition={{
+                    layout: {
+                      duration: 0.3,
+                      ease: [0.4, 0, 0.2, 1]
+                    }
+                  }}
                 >
-                <List dense sx={{ overflow: 'visible' }}>
-                  <AnimatePresence initial={false}>
+                <List 
+                  dense 
+                  sx={{ 
+                    overflow: 'visible',
+                  }}
+                >
+                  <motion.div
+                    layout
+                    layoutId={`task-list-${group.robotId}`}
+                    transition={{
+                      layout: {
+                        duration: 0.3,
+                        ease: [0.4, 0, 0.2, 1]
+                      }
+                    }}
+                  >
+                  <AnimatePresence initial={false} mode="popLayout">
                   {group.tasks && group.tasks.length ? group.tasks.map((t, idx) => {
                     const isLeaving = leavingMap[group.robotId]?.includes(idx);
                     // Используем уникальный ключ на основе данных задачи БЕЗ индекса для стабильности
@@ -621,6 +645,7 @@ const RobotTasksPanel: React.FC = () => {
                     <ListItem key={`empty-${group.robotId}`}><ListItemText primary="Нет задач" /></ListItem>
                   )}
                   </AnimatePresence>
+                  </motion.div>
                 </List>
                 </motion.div>
               </SortableContext>

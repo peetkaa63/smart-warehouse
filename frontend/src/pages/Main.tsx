@@ -140,13 +140,21 @@ const Main: React.FC = () => {
     if (fromLogout || fromProfileLogout) {
       // При выходе показываем анимацию фона без лого
       setShowContent(false)
-      setShowInitialAnimation(true)
       setIsLoggingOut(true)
       
+      // Сначала показываем фон с анимацией opacity
+      setShowInitialAnimation(true)
+      
+      // Ждем окончания анимации появления фона (400мс) + 800мс дополнительно
       const timer = setTimeout(() => {
         setShowInitialAnimation(false)
         setShowContent(false)
-      }, 1000)
+        // Переходим на login только после окончания всех анимаций
+        if (fromProfileLogout) {
+          navigate('/login', { state: { fromLogout: true }, replace: true })
+        }
+      }, 400 + 800) // 400мс анимация + 800мс ожидание
+      
       return () => clearTimeout(timer)
     } else if (fromLogin) {
       // Быстрая анимация при переходе из логина
@@ -164,7 +172,7 @@ const Main: React.FC = () => {
         clearTimeout(timer2)
       }
     }
-  }, [location.state])
+  }, [location.state, navigate])
 
   // Подключение к уведомлениям через Socket.io (по настройке dataTransport)
   useEffect(() => {

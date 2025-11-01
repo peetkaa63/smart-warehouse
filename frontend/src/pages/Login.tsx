@@ -12,8 +12,10 @@ import {
   Alert,
   CircularProgress,
   useTheme,
+  InputAdornment,
+  IconButton,
 } from "@mui/material"
-import { Login as LoginIcon } from "@mui/icons-material"
+import { Login as LoginIcon, Visibility, VisibilityOff } from "@mui/icons-material"
 import { motion, AnimatePresence } from "framer-motion"
 import { login, clearError } from '../store/slices/authSlice'
 import { RootState, AppDispatch } from '../store'
@@ -32,6 +34,7 @@ const Login: React.FC = () => {
   const [animationStage, setAnimationStage] = useState<"initial" | "logoMove" | "form" | "success" | "error">("initial")
   const [localError, setLocalError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Обычный вход - последовательная анимация
   useEffect(() => {
@@ -51,15 +54,17 @@ const Login: React.FC = () => {
 
   // Обработка ошибок из Redux - только когда не сабмитим
   useEffect(() => {
-    if (error && !isSubmitting) {
+    // Игнорируем ошибки из Redux если уже обрабатываем локально
+    if (error && !isSubmitting && !localError) {
       setLocalError(error)
       setAnimationStage("error")
+      setIsSubmitting(false)
       // Очищаем ошибку в Redux после обработки
       setTimeout(() => {
         dispatch(clearError())
       }, 100)
     }
-  }, [error, isSubmitting, dispatch])
+  }, [error, isSubmitting, dispatch, localError])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, checked, type } = e.target
@@ -79,7 +84,13 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
+    
+    // Предотвращаем перезагрузку страницы
+    if (e.defaultPrevented) return
+    
     setIsSubmitting(true)
+    setLocalError(null)
 
     // Базовая валидация на фронтенде
     if (!formData.email || !formData.password) {
@@ -109,17 +120,23 @@ const Login: React.FC = () => {
       if (result) {
         // Даем время для завершения анимаций перед переходом
         setTimeout(() => {
-          navigate('/dashboard')
+          navigate('/dashboard', { state: { fromLogin: true } })
         }, 1200)
       }
     } catch (error: any) {
       // При ошибке возвращаемся к форме без обратной анимации
+      // НЕ перезагружаем страницу!
+      console.log('🔐 Login error caught, setting local error:', error)
       setAnimationStage("error")
       setIsSubmitting(false)
       
-      // Показываем ошибку из Redux или из перехваченной ошибки
-      const errorMessage = error?.message || error?.payload || 'Неверный логин или пароль'
+      // Показываем ошибку из перехваченной ошибки или из Redux
+      // Приоритет: error.payload (из Redux rejectWithValue) > error.message
+      const errorMessage = error?.payload || error?.message || 'Неверный логин или пароль'
       setLocalError(errorMessage)
+      
+      // Очищаем ошибку в Redux сразу, чтобы избежать дублирования
+      dispatch(clearError())
     }
   }
 
@@ -268,13 +285,27 @@ const Login: React.FC = () => {
                   fullWidth
                   name="password"
                   label="Пароль"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   id="password"
                   autoComplete="current-password"
                   value={formData.password}
                   onChange={handleChange}
                   error={!!localError}
                   helperText="Пароль должен содержать минимум 8 символов"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={() => setShowPassword(!showPassword)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
 
                 <FormControlLabel

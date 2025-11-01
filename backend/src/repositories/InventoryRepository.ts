@@ -17,7 +17,7 @@ export class InventoryRepository {
   // Получение предложений по пополнению (низкий запас)
   async getLowStockSuggestions(limit: number = 10): Promise<ReplenishmentSuggestion[]> {
     const result = await pool.query(`
-      SELECT 
+      SELECT DISTINCT ON (ih.product_id, ih.zone)
         ih.product_id,
         p.name as product_name,
         ih.zone,
@@ -26,20 +26,21 @@ export class InventoryRepository {
         ih.quantity as qty,
         ih.status,
         ih.scanned_at,
-        MAX(ih.scanned_at) OVER (PARTITION BY ih.product_id, ih.zone) as last_scan
+        (
+          SELECT MAX(scanned_at) 
+          FROM inventory_history ih2 
+          WHERE ih2.product_id = ih.product_id 
+            AND ih2.zone = ih.zone
+            AND ih2.status IN ('LOW_STOCK','CRITICAL','WARNING')
+            AND ih2.scanned_at > NOW() - INTERVAL '7 days'
+        ) as last_scan
       FROM inventory_history ih
       LEFT JOIN products p ON ih.product_id = p.id
-      INNER JOIN (
-        SELECT product_id, zone, MAX(scanned_at) as max_scanned_at
-        FROM inventory_history
-        WHERE status IN ('LOW_STOCK','CRITICAL','WARNING') 
-          AND scanned_at > NOW() - INTERVAL '7 days'
-        GROUP BY product_id, zone
-      ) latest ON ih.product_id = latest.product_id 
-        AND ih.zone = latest.zone 
-        AND ih.scanned_at = latest.max_scanned_at
       WHERE ih.status IN ('LOW_STOCK','CRITICAL','WARNING')
+        AND ih.scanned_at > NOW() - INTERVAL '7 days'
       ORDER BY 
+        ih.product_id,
+        ih.zone,
         CASE ih.status 
           WHEN 'CRITICAL' THEN 1 
           WHEN 'LOW_STOCK' THEN 2 
@@ -66,7 +67,7 @@ export class InventoryRepository {
   // Получение предложений по избыточным запасам (surplus)
   async getSurplusSuggestions(limit: number = 10): Promise<ReplenishmentSuggestion[]> {
     const result = await pool.query(`
-      SELECT 
+      SELECT DISTINCT ON (ih.product_id, ih.zone)
         ih.product_id,
         p.name as product_name,
         ih.zone,
@@ -75,28 +76,31 @@ export class InventoryRepository {
         ih.quantity as qty,
         ih.status,
         ih.scanned_at,
-        MAX(ih.scanned_at) OVER (PARTITION BY ih.product_id, ih.zone) as last_scan,
-        AVG(prev_avg.avg_qty) as avg_quantity
+        (
+          SELECT MAX(scanned_at) 
+          FROM inventory_history ih2 
+          WHERE ih2.product_id = ih.product_id 
+            AND ih2.zone = ih.zone
+            AND ih2.status = 'OK'
+            AND ih2.scanned_at > NOW() - INTERVAL '7 days'
+        ) as last_scan,
+        (
+          SELECT AVG(quantity) 
+          FROM inventory_history ih3 
+          WHERE ih3.product_id = ih.product_id 
+            AND ih3.zone = ih.zone
+            AND ih3.scanned_at > NOW() - INTERVAL '30 days'
+        ) as avg_quantity
       FROM inventory_history ih
       LEFT JOIN products p ON ih.product_id = p.id
-      INNER JOIN (
-        SELECT product_id, zone, MAX(scanned_at) as max_scanned_at
-        FROM inventory_history
-        WHERE status = 'OK' 
-          AND scanned_at > NOW() - INTERVAL '7 days'
-          AND quantity > 50
-        GROUP BY product_id, zone
-      ) latest ON ih.product_id = latest.product_id 
-        AND ih.zone = latest.zone 
-        AND ih.scanned_at = latest.max_scanned_at
-      LEFT JOIN (
-        SELECT product_id, zone, AVG(quantity) as avg_qty
-        FROM inventory_history
-        WHERE scanned_at > NOW() - INTERVAL '30 days'
-        GROUP BY product_id, zone
-      ) prev_avg ON ih.product_id = prev_avg.product_id AND ih.zone = prev_avg.zone
-      WHERE ih.status = 'OK' AND ih.quantity > 50
-      ORDER BY ih.quantity DESC, ih.scanned_at DESC
+      WHERE ih.status = 'OK' 
+        AND ih.quantity > 50
+        AND ih.scanned_at > NOW() - INTERVAL '7 days'
+      ORDER BY 
+        ih.product_id,
+        ih.zone,
+        ih.quantity DESC,
+        ih.scanned_at DESC
       LIMIT $1
     `, [limit]);
     return result.rows.map((row: any) => ({
