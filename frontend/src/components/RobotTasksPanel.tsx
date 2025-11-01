@@ -416,7 +416,6 @@ const RobotTasksPanel: React.FC = () => {
                 transition: 'opacity .3s ease',
                 opacity: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 1 : 0,
                 height: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 0,
-                overflow: 'hidden',
                 pointerEvents: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 'none'
               }}>
                 {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
