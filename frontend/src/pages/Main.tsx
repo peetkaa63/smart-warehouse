@@ -123,6 +123,26 @@ const Main: React.FC = () => {
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [alert, setAlert] = useState<{ type: "success" | "error" | "warning" | "info"; message: string } | null>(null)
 
+  const handleLogout = React.useCallback(() => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    setShowContent(false)
+    
+    // Отключаем уведомления при выходе
+    notificationSocketService.disconnect();
+    
+    // Показываем фон с анимацией opacity (без лого)
+    setShowInitialAnimation(true)
+    
+    // Анимация выхода: ждем окончания анимации появления фона (400мс) + 800мс ожидания
+    setTimeout(() => {
+      // Переходим на логин с флагом выхода
+      navigate("/login", { state: { fromLogout: true } })
+      // Выполняем логаут после перехода
+      setTimeout(() => dispatch(logout()), 100)
+    }, 400 + 800) // 400мс анимация + 800мс ожидание
+  }, [isLoggingOut, navigate, dispatch])
+
   // Синхронизация активной вкладки с URL при изменении location
   useEffect(() => {
     const newActiveTab = getActiveTabFromPath(location.pathname)
@@ -199,26 +219,6 @@ const Main: React.FC = () => {
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
   const handleClose = () => setAnchorEl(null)
-
-  const handleLogout = React.useCallback(() => {
-    if (isLoggingOut) return
-    setIsLoggingOut(true)
-    setShowContent(false)
-    
-    // Отключаем уведомления при выходе
-    notificationSocketService.disconnect();
-    
-    // Показываем фон с анимацией opacity (без лого)
-    setShowInitialAnimation(true)
-    
-    // Анимация выхода: ждем окончания анимации появления фона (400мс) + 800мс ожидания
-    setTimeout(() => {
-      // Переходим на логин с флагом выхода
-      navigate("/login", { state: { fromLogout: true } })
-      // Выполняем логаут после перехода
-      setTimeout(() => dispatch(logout()), 100)
-    }, 400 + 800) // 400мс анимация + 800мс ожидание
-  }, [isLoggingOut, navigate, dispatch])
 
   const handleTabChange = (tab: TabType) => {
     if (tab === activeTab || isAnimating) return
