@@ -18,11 +18,39 @@ jest.mock('../src/sockets/websocket', () => ({
   }
 }));
 
-// Мокаем middleware аутентификации
+// Вспомогательная функция для создания JWT токена
+const createToken = (role: string) => {
+  return jwt.sign(
+    { id: 1, email: 'test@example.com', role },
+    process.env.JWT_SECRET || 'test-secret'
+  );
+};
+
+// Мокаем middleware аутентификации с проверкой ролей
 jest.mock('../src/middleware/authMiddleware', () => ({
   authenticateToken: (req: any, res: any, next: any) => {
-    req.user = { id: 1, email: 'test@example.com' };
-    next();
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'test-secret') as any;
+      req.user = decoded;
+      next();
+    } catch (error) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+  },
+  requireRole: (roles: string[]) => {
+    return (req: any, res: any, next: any) => {
+      if (!req.user || !roles.includes(req.user.role)) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+      next();
+    };
   }
 }));
 
@@ -102,26 +130,62 @@ describe('Dashboard Routes', () => {
   });
 
   describe('POST /api/dashboard/refresh', () => {
-    it('should refresh dashboard successfully', async () => {
+    it('should refresh dashboard successfully for operator', async () => {
       const { robotService } = require('../src/sockets/websocket');
 
       robotService.broadcastDashboardUpdate.mockResolvedValue(undefined);
+      const token = createToken('operator');
 
       const response = await request(app)
-        .post('/api/dashboard/refresh');
+        .post('/api/dashboard/refresh')
+        .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ message: 'Dashboard refresh initiated' });
       expect(robotService.broadcastDashboardUpdate).toHaveBeenCalled();
     });
 
+    it('should refresh dashboard successfully for admin', async () => {
+      const { robotService } = require('../src/sockets/websocket');
+
+      robotService.broadcastDashboardUpdate.mockResolvedValue(undefined);
+      const token = createToken('admin');
+
+      const response = await request(app)
+        .post('/api/dashboard/refresh')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ message: 'Dashboard refresh initiated' });
+    });
+
+    it('should reject refresh for viewer', async () => {
+      const token = createToken('viewer');
+
+      const response = await request(app)
+        .post('/api/dashboard/refresh')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Insufficient permissions');
+    });
+
+    it('should require authentication', async () => {
+      const response = await request(app)
+        .post('/api/dashboard/refresh');
+
+      expect(response.status).toBe(401);
+    });
+
     it('should handle refresh errors', async () => {
       const { robotService } = require('../src/sockets/websocket');
 
       robotService.broadcastDashboardUpdate.mockRejectedValue(new Error('Broadcast failed'));
+      const token = createToken('operator');
 
       const response = await request(app)
-        .post('/api/dashboard/refresh');
+        .post('/api/dashboard/refresh')
+        .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Failed to refresh dashboard' });

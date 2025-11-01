@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 import { aiService } from '../services/AllServices';
 
 const router = express.Router();
@@ -319,7 +319,7 @@ router.get('/providers', authenticateToken, async (req, res) => {
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-router.put('/providers/:providerName', authenticateToken, async (req, res) => {
+router.put('/providers/:providerName', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { providerName } = req.params;
     const success = aiService.setDefaultProvider(providerName);

@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import csv from 'csv-parser';
 import fs from 'fs';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 import { uploadService } from '../services/AllServices';
 
 const router = express.Router();
@@ -60,8 +60,91 @@ function detectCsvFormat(headers: string | string[]): string {
   return 'unknown';
 }
 
+/**
+ * @swagger
+ * /api/upload/csv:
+ *   post:
+ *     summary: Загрузить CSV файл с данными инвентаря
+ *     description: Загружает и обрабатывает CSV файл с данными инвентаризации. Доступно для операторов и администраторов.
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file]
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV файл с данными инвентаря
+ *           encoding:
+ *             file:
+ *               contentType: text/csv, application/vnd.ms-excel
+ *     responses:
+ *       200:
+ *         description: CSV файл успешно обработан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 processed_rows:
+ *                   type: integer
+ *                   example: 150
+ *                   description: Количество обработанных строк
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: []
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     total_products:
+ *                       type: integer
+ *                       example: 120
+ *                     total_quantity:
+ *                       type: integer
+ *                       example: 5000
+ *                     zones_updated:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["A", "B", "C"]
+ *             example:
+ *               success: true
+ *               processed_rows: 150
+ *               errors: []
+ *               summary:
+ *                 total_products: 120
+ *                 total_quantity: 5000
+ *                 zones_updated: ["A", "B", "C"]
+ *       400:
+ *         description: Ошибка валидации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "No file uploaded"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // POST /api/upload/csv - загрузка CSV файла
-router.post('/csv', authenticateToken, upload.single('file'), async (req, res) => {
+router.post('/csv', authenticateToken, requireRole(['operator', 'admin']), upload.single('file'), async (req, res) => {
   try {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -116,8 +199,39 @@ router.post('/csv', authenticateToken, upload.single('file'), async (req, res) =
   }
 });
 
-// GET /api/upload/template - скачивание шаблона CSV
-router.get('/template', authenticateToken, async (req, res) => {
+/**
+ * @swagger
+ * /api/upload/template:
+ *   get:
+ *     summary: Скачать шаблон CSV файла
+ *     description: Возвращает шаблон CSV файла для загрузки данных инвентаря. Доступно для операторов и администраторов.
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Шаблон CSV файла
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *             example: |
+ *               robot_id,product_id,product_name,quantity,zone,row_number,shelf_number,status,scanned_at
+ *               ROBOT-001,PROD-001,Sample Product,10,A,1,1,OK,2024-01-15T10:30:00.000Z
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *               example: "attachment; filename=inventory_template.csv"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/upload/template - скачивание шаблона CSV (доступно operator и admin для загрузки данных)
+router.get('/template', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
     const templateData = [
       {

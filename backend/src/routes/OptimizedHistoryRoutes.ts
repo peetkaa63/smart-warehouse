@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 import { optimizedHistoryRepository } from '../repositories/OptimizedHistoryRepository';
 
 const router = express.Router();
@@ -85,7 +85,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 });
 
 // POST /api/history/refresh - принудительное обновление кэша
-router.post('/refresh', authenticateToken, async (req, res) => {
+router.post('/refresh', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
     console.log('🔄 Refreshing history cache');
     

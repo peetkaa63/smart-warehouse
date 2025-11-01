@@ -2,6 +2,7 @@ import React from 'react'
 import { Paper, Typography, Box, Button, Select, MenuItem, FormControl, InputLabel, List, ListItem, ListItemText, Divider, TextField } from '@mui/material'
 import { Pause, PlayArrow, DeleteOutline } from '@mui/icons-material'
 import api, { pauseRobotUniversal, resumeRobotUniversal } from '../services/api'
+import { socketService } from '../services/socketService'
 import { useEffect, useRef } from 'react';
 import update from 'immutability-helper';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
@@ -52,17 +53,17 @@ const RobotTasksPanel: React.FC = () => {
 
   const load = async () => {
     const mode = localStorage.getItem('dataTransport') || 'socket';
-    if (mode === 'socket' && window.socket) {
+    if (mode === 'socket' && socketService.isConnected()) {
       // Также получаем статусы роботов отдельно
       const robotsResp = await api.get('/api/robots');
       const robotStatusMap = new Map((robotsResp.data?.robots || []).map((rob: any) => [rob.id, rob.status]));
       
       // запросить актуальные задачи через сокет
-      window.socket.emit('request_robot_tasks');
+      socketService.requestRobotTasks();
       
       // при получении от сокета обновить data
-      window.socket.off('robot_tasks_update'); // снять предыдущую подписку
-      window.socket.on('robot_tasks_update', async (tasks: any) => {
+      socketService.offRobotTasksUpdate(); // снять предыдущую подписку
+      socketService.onRobotTasksUpdate(async (tasks: any) => {
         // Получаем актуальные статусы роботов каждый раз
         const robotsResp = await api.get('/api/robots');
         const currentRobotStatusMap = new Map((robotsResp.data?.robots || []).map((rob: any) => [rob.id, rob.status]));
@@ -187,8 +188,8 @@ const RobotTasksPanel: React.FC = () => {
         
         // В socket режиме обновление придет через socket
         const mode = localStorage.getItem('dataTransport') || 'socket';
-        if (mode === 'socket' && window.socket) {
-          window.socket.emit('request_robot_tasks');
+        if (mode === 'socket' && socketService.isConnected()) {
+          socketService.requestRobotTasks();
         } else {
           // В HTTP режиме загружаем обновленные данные после небольшой задержки для завершения анимации
           setTimeout(() => load(), 300);
@@ -251,7 +252,7 @@ const RobotTasksPanel: React.FC = () => {
                       item.robotId === group.robotId ? { ...item, status: 'paused' } : item
                     );
                     await pauseRobotUniversal(group.robotId); 
-                    try { (window as any).socket?.emit('request_dashboard_update'); } catch {}; 
+                    try { socketService.requestDashboardUpdate(); } catch {}; 
                     await load(); 
                   }} title="Пауза">Пауза</Button>
                 )}
@@ -265,7 +266,7 @@ const RobotTasksPanel: React.FC = () => {
                       item.robotId === group.robotId ? { ...item, status: 'active' } : item
                     );
                     await resumeRobotUniversal(group.robotId); 
-                    try { (window as any).socket?.emit('request_dashboard_update'); } catch {}; 
+                    try { socketService.requestDashboardUpdate(); } catch {}; 
                     await load(); 
                   }} title="Продолжить">Продолжить</Button>
                 )}

@@ -285,7 +285,7 @@ const Main: React.FC = () => {
 			}}
 		  >
 			<motion.img
-			  src="/logo.png"
+			  src={theme.palette.mode === 'dark' ? "/logo_white.png" : "/logo.png"}
 			  alt="Ростелеком"
 			  initial={{ scale: 0, opacity: 0 }}
 			  animate={{ 
@@ -336,13 +336,12 @@ const Main: React.FC = () => {
                 <Toolbar>
                   <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
                     <img
-                      src="/logo.png"
+                      src="/logo_white.png"
                       alt="Ростелеком"
                       style={{
                         height: 60,
                         marginRight: 16,
                         marginTop: -6,
-                        filter: "brightness(0) invert(1)",
                       }}
                     />
                     <Typography variant="h6">

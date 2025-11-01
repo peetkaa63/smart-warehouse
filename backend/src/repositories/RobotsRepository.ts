@@ -73,6 +73,22 @@ export class RobotsRepository {
     }
   }
 
+  // Обновление статуса робота (pause/resume)
+  async updateRobotStatus(robotId: string, status: 'active' | 'paused'): Promise<RobotData | null> {
+    await pool.query(
+      `UPDATE robots SET status = $1, last_update = NOW() WHERE id = $2`,
+      [status, robotId]
+    );
+    const result = await pool.query('SELECT * FROM robots WHERE id = $1', [robotId]);
+    return result.rows[0] || null;
+  }
+
+  // Получение робота по ID
+  async getRobotById(robotId: string): Promise<RobotData | null> {
+    const result = await pool.query('SELECT * FROM robots WHERE id = $1', [robotId]);
+    return result.rows[0] || null;
+  }
+
   // Получение всех роботов
   async getAllRobots(): Promise<RobotData[]> {
     const query = `

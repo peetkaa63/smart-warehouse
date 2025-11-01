@@ -49,6 +49,58 @@ const registerFonts = (doc: PDFKit.PDFDocument): boolean => {
   }
 };
 
+/**
+ * @swagger
+ * /api/export/excel:
+ *   get:
+ *     summary: Экспортировать данные в Excel (CSV формат)
+ *     description: Экспортирует данные инвентаря в CSV формат с разделителем ';'. Доступно для всех авторизованных пользователей.
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Начальная дата для экспорта
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Конечная дата для экспорта
+ *       - in: query
+ *         name: zone
+ *         schema:
+ *           type: string
+ *         description: Фильтр по зоне
+ *       - in: query
+ *         name: product_id
+ *         schema:
+ *           type: string
+ *         description: Фильтр по ID товара
+ *     responses:
+ *       200:
+ *         description: CSV файл успешно создан
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *             example: |
+ *               product_id;product_name;quantity;zone;date;row;shelf
+ *               TEL-4567;Роутер RT-AC68U;25;A;2024-01-15;5;3
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *               example: "attachment; filename=inventory_export_2024-01-15.csv"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/export/excel - экспорт в Excel
 router.get('/excel', authenticateToken, async (req, res) => {
   try {
@@ -86,6 +138,56 @@ router.get('/excel', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/export/pdf:
+ *   get:
+ *     summary: Экспортировать данные в PDF
+ *     description: Экспортирует данные инвентаря в PDF формат с форматированием. Доступно для всех авторизованных пользователей.
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Начальная дата для экспорта
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Конечная дата для экспорта
+ *       - in: query
+ *         name: zone
+ *         schema:
+ *           type: string
+ *         description: Фильтр по зоне
+ *       - in: query
+ *         name: product_id
+ *         schema:
+ *           type: string
+ *         description: Фильтр по ID товара
+ *     responses:
+ *       200:
+ *         description: PDF файл успешно создан
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *               example: "attachment; filename=inventory_report_2024-01-15.pdf"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/export/pdf - экспорт в PDF
 router.get('/pdf', authenticateToken, async (req, res) => {
   try {

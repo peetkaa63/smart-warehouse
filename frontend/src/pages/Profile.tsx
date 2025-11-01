@@ -13,6 +13,7 @@ import { useDispatch as useReduxDispatch } from 'react-redux'
 import { setAll, setShowCritical, setShowLow, setShowSystem, setAutoCollapse, setLowBatteryThreshold } from '../store/slices/notificationSettingsSlice'
 import { profileAPI } from '../services/api'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // Добавляем тему в Redux store или используем локальное состояние
 const Profile: React.FC = () => {
@@ -270,20 +271,31 @@ const Profile: React.FC = () => {
 
             {/* Логотип и версия */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, pt: 3, pb: 2 }}>
-              <Box
-                component="img"
-                src="/logo.png"
-                alt="Logo"
-                sx={{
-                  height: 48,
-                  width: 'auto',
-                  objectFit: 'contain'
-                }}
-                onError={(e: any) => {
-                  // Если логотип не найден, скрываем его
-                  e.target.style.display = 'none'
-                }}
-              />
+              <Box sx={{ position: 'relative', height: 48, width: 'auto' }}>
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={themeMode}
+                    src={themeMode === 'dark' ? "/logo_white.png" : "/logo.png"}
+                    alt="Logo"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    style={{
+                      height: 48,
+                      width: 'auto',
+                      objectFit: 'contain',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                    }}
+                    onError={(e: any) => {
+                      // Если логотип не найден, скрываем его
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                </AnimatePresence>
+              </Box>
               <Typography variant="caption" color="text.secondary">
                 Версия 1.0
               </Typography>

@@ -1,7 +1,7 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 import { robotService } from '../sockets/websocket';
-import { pool } from '../config/database';
+import { inventoryRepository } from '../repositories/InventoryRepository';
 
 const router = express.Router();
 
@@ -77,7 +77,7 @@ router.get('/current', authenticateToken, async (req, res) => {
  * /api/dashboard/refresh:
  *   post:
  *     summary: Обновить данные dashboard
- *     description: Принудительно обновляет данные dashboard и отправляет их всем подключенным клиентам через WebSocket
+ *     description: Принудительно обновляет данные dashboard и отправляет их всем подключенным клиентам через WebSocket. Доступно для операторов и администраторов.
  *     tags: [Dashboard]
  *     security:
  *       - bearerAuth: []
@@ -89,21 +89,20 @@ router.get('/current', authenticateToken, async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
  *                 message:
  *                   type: string
  *                   example: "Dashboard refresh initiated"
  *             example:
- *               success: true
  *               message: "Dashboard refresh initiated"
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *         description: Доступ запрещен (требуется роль operator или admin)
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-router.post('/refresh', authenticateToken, async (req, res) => {
+router.post('/refresh', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
     await robotService.broadcastDashboardUpdate();
     res.json({ message: 'Dashboard refresh initiated' });
@@ -120,24 +119,9 @@ export const replenishmentRouter = express.Router();
 
 replenishmentRouter.get('/suggestions', authenticateToken, async (req, res) => {
   try {
-    const low = await pool.query(`
-      SELECT product_id, zone, SUM(quantity) as qty
-      FROM inventory_history
-      WHERE status IN ('LOW_STOCK','CRITICAL') AND scanned_at > NOW() - INTERVAL '1 day'
-      GROUP BY product_id, zone
-      ORDER BY qty ASC
-      LIMIT 5
-    `);
-    // Заглушка источника избыточных зон — берем любые OK за 1д
-    const surplus = await pool.query(`
-      SELECT product_id, zone, SUM(quantity) as qty
-      FROM inventory_history
-      WHERE status = 'OK' AND scanned_at > NOW() - INTERVAL '1 day'
-      GROUP BY product_id, zone
-      ORDER BY qty DESC
-      LIMIT 5
-    `);
-    res.json({ success: true, data: { low: low.rows, surplus: surplus.rows } });
+    const low = await inventoryRepository.getLowStockSuggestions(5);
+    const surplus = await inventoryRepository.getSurplusSuggestions(5);
+    res.json({ success: true, data: { low, surplus } });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }

@@ -27,6 +27,19 @@
 - `GET /api/robots` - Получить список всех роботов
 - `GET /api/robots/stats` - Получить статистику роботов
 
+### 🎮 Управление роботами
+- `POST /api/robots/:id/pause` - Поставить робота на паузу (operator, admin)
+- `POST /api/robots/:id/resume` - Возобновить работу робота (operator, admin)
+- `POST /api/robots/:id/rescan` - Инициировать пересканирование зоны/ячейки (operator, admin)
+- `POST /api/robots/:id/tasks/assign` - Назначить задачу роботу (operator, admin)
+- `GET /api/robots/:id/tasks` - Получить список всех задач робота (operator, admin)
+- `GET /api/robots/:id/tasks/peek` - Просмотреть очередь задач робота без удаления
+- `GET /api/robots/:id/tasks/next` - Получить следующую задачу робота (для эмулятора)
+- `GET /api/robots/tasks` - Получить задачи всех роботов (operator, admin)
+- `POST /api/robots/tasks/reassign` - Переназначить задачи между роботами (operator, admin)
+- `POST /api/robots/tasks/reorder` - Переупорядочить задачи робота (operator, admin)
+- `POST /api/robots/tasks/delete` - Удалить задачу (operator, admin)
+
 ### 🧠 AI Analytics
 - `POST /api/ai/predict` - Получить прогнозы от ИИ
 - `POST /api/ai/predict/advanced` - Расширенная аналитика с фильтрами

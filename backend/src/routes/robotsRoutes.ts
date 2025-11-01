@@ -2,10 +2,10 @@ import express from 'express';
 import { robotsService } from '../services/AllServices';
 import { robotService } from '../sockets/websocket';
 import notificationAnalyzerService from '../services/notificationAnalyzerService';
-import { pool } from '../config/database';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 import { taskQueueService } from '../services/TaskQueueService';
 import { getTransportMode } from '../services/TransportMode';
+import { robotsRepository } from '../repositories/RobotsRepository';
 
 const router = express.Router();
 
@@ -140,15 +140,55 @@ router.get('/', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/pause:
+ *   post:
+ *     summary: Поставить робота на паузу
+ *     description: Временно останавливает работу робота. Робот переходит в статус 'paused'. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     responses:
+ *       200:
+ *         description: Робот успешно поставлен на паузу
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Robot RB-001 paused"
+ *             example:
+ *               success: true
+ *               message: "Robot RB-001 paused"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Пауза робота (оператор/админ)
 router.post('/:id/pause', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query(`UPDATE robots SET status = 'paused', last_update = NOW() WHERE id = $1`, [id]);
+    const robot = await robotsRepository.updateRobotStatus(id, 'paused');
     robotService.io.emit('robot_command', { type: 'pause', robotId: id, timestamp: new Date().toISOString() });
     // Команда паузы передается по сокету; не добавляем её в очередь задач
-    const rob = await pool.query('SELECT * FROM robots WHERE id = $1', [id]);
-    console.log(`[PAUSE] Текущий статус робота после паузы:`, rob.rows[0]);
+    console.log(`[PAUSE] Текущий статус робота после паузы:`, robot);
     // Больше не переносим автоматически задачи при паузе — сохраняем очередь у этого робота
     res.json({ success: true, message: `Robot ${id} paused` });
   } catch (error: any) {
@@ -157,15 +197,55 @@ router.post('/:id/pause', authenticateToken, requireRole(['operator', 'admin']),
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/resume:
+ *   post:
+ *     summary: Возобновить работу робота
+ *     description: Возобновляет работу робота после паузы. Робот переходит в статус 'active'. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     responses:
+ *       200:
+ *         description: Робот успешно возобновлен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Robot RB-001 resumed"
+ *             example:
+ *               success: true
+ *               message: "Robot RB-001 resumed"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Возобновление робота (оператор/админ)
 router.post('/:id/resume', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query(`UPDATE robots SET status = 'active', last_update = NOW() WHERE id = $1`, [id]);
+    const robot = await robotsRepository.updateRobotStatus(id, 'active');
     robotService.io.emit('robot_command', { type: 'resume', robotId: id, timestamp: new Date().toISOString() });
     // Команда продолжения передается по сокету; не добавляем её в очередь задач
-    const rob = await pool.query('SELECT * FROM robots WHERE id = $1', [id]);
-    console.log(`[RESUME] Текущий статус робота после продолжения:`, rob.rows[0]);
+    console.log(`[RESUME] Текущий статус робота после продолжения:`, robot);
     res.json({ success: true, message: `Robot ${id} resumed` });
   } catch (error: any) {
     console.error('❌ Resume robot error:', error);
@@ -173,6 +253,91 @@ router.post('/:id/resume', authenticateToken, requireRole(['operator', 'admin'])
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/rescan:
+ *   post:
+ *     summary: Пересканировать зону или ячейку
+ *     description: Отправляет команду роботу на повторное сканирование указанной зоны, ряда и полки. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               zone:
+ *                 type: string
+ *                 pattern: '^[A-E]$'
+ *                 example: "A"
+ *                 description: Зона для пересканирования
+ *               row:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 20
+ *                 example: 5
+ *                 description: Ряд для пересканирования
+ *               shelf:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 10
+ *                 example: 3
+ *                 description: Полка для пересканирования
+ *           example:
+ *             zone: "A"
+ *             row: 5
+ *             shelf: 3
+ *     responses:
+ *       200:
+ *         description: Команда пересканирования отправлена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Robot RB-001 requested to rescan"
+ *                 target:
+ *                   type: object
+ *                   properties:
+ *                     zone:
+ *                       type: string
+ *                       example: "A"
+ *                     row:
+ *                       type: integer
+ *                       example: 5
+ *                     shelf:
+ *                       type: integer
+ *                       example: 3
+ *             example:
+ *               success: true
+ *               message: "Robot RB-001 requested to rescan"
+ *               target:
+ *                 zone: "A"
+ *                 row: 5
+ *                 shelf: 3
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Пересканировать зону или ячейку (оператор/админ)
 router.post('/:id/rescan', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
@@ -186,6 +351,85 @@ router.post('/:id/rescan', authenticateToken, requireRole(['operator', 'admin'])
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/tasks/assign:
+ *   post:
+ *     summary: Назначить задачу роботу
+ *     description: Добавляет новую задачу в очередь робота. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [taskId]
+ *             properties:
+ *               taskId:
+ *                 type: string
+ *                 example: "TASK-001"
+ *                 description: Идентификатор задачи
+ *               priority:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 10
+ *                 example: 1
+ *                 description: Приоритет задачи (1 - высший, 10 - низший)
+ *               payload:
+ *                 type: object
+ *                 example:
+ *                   zone: "A"
+ *                   row: 5
+ *                   shelf: 3
+ *                 description: Дополнительные данные задачи
+ *           example:
+ *             taskId: "TASK-001"
+ *             priority: 1
+ *             payload:
+ *               zone: "A"
+ *               row: 5
+ *               shelf: 3
+ *     responses:
+ *       200:
+ *         description: Задача успешно назначена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *             example:
+ *               success: true
+ *       400:
+ *         description: Ошибка валидации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "taskId required"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Назначить задачу роботу
 router.post('/:id/tasks/assign', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
@@ -203,6 +447,60 @@ router.post('/:id/tasks/assign', authenticateToken, requireRole(['operator', 'ad
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/tasks/next:
+ *   get:
+ *     summary: Получить следующую задачу робота (для эмулятора)
+ *     description: Возвращает и удаляет из очереди следующую задачу для робота. Используется эмулятором робота для получения задач. Не требует аутентификации.
+ *     tags: [Robots]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     responses:
+ *       200:
+ *         description: Задача успешно получена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 task:
+ *                   type: object
+ *                   nullable: true
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "TASK-001"
+ *                     priority:
+ *                       type: integer
+ *                       example: 1
+ *                     payload:
+ *                       type: object
+ *                       example:
+ *                         zone: "A"
+ *                         row: 5
+ *                         shelf: 3
+ *             example:
+ *               success: true
+ *               task:
+ *                 id: "TASK-001"
+ *                 priority: 1
+ *                 payload:
+ *                   zone: "A"
+ *                   row: 5
+ *                   shelf: 3
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Получить следующую задачу робота (эмулятор будет опрашивать)
 router.get('/:id/tasks/next', async (req, res) => {
   try {
@@ -216,6 +514,69 @@ router.get('/:id/tasks/next', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/tasks:
+ *   get:
+ *     summary: Получить список задач робота
+ *     description: Возвращает все задачи в очереди указанного робота. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     responses:
+ *       200:
+ *         description: Список задач успешно получен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "TASK-001"
+ *                       priority:
+ *                         type: integer
+ *                         example: 1
+ *                       payload:
+ *                         type: object
+ *             example:
+ *               success: true
+ *               data:
+ *                 - id: "TASK-001"
+ *                   priority: 1
+ *                   payload:
+ *                     zone: "A"
+ *                     row: 5
+ *                     shelf: 3
+ *                 - id: "TASK-002"
+ *                   priority: 2
+ *                   payload:
+ *                     zone: "B"
+ *                     row: 10
+ *                     shelf: 1
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Получить список задач для робота
 router.get('/:id/tasks', authenticateToken, requireRole(['operator','admin']), (req, res) => {
   try {
@@ -227,6 +588,55 @@ router.get('/:id/tasks', authenticateToken, requireRole(['operator','admin']), (
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/{id}/tasks/peek:
+ *   get:
+ *     summary: Просмотреть очередь задач робота (без удаления)
+ *     description: Возвращает все задачи в очереди робота без их удаления. Используется для просмотра очереди без изменения. Не требует аутентификации.
+ *     tags: [Robots]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "RB-001"
+ *         description: ID робота
+ *     responses:
+ *       200:
+ *         description: Очередь задач успешно получена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 tasks:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "TASK-001"
+ *                       priority:
+ *                         type: integer
+ *                         example: 1
+ *                       payload:
+ *                         type: object
+ *             example:
+ *               success: true
+ *               tasks:
+ *                 - id: "TASK-001"
+ *                   priority: 1
+ *                   payload:
+ *                     zone: "A"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Получить ВСЮ очередь задач для робота (НЕ удалять из очереди, только READ)
 router.get('/:id/tasks/peek', async (req, res) => {
   try {
@@ -238,6 +648,56 @@ router.get('/:id/tasks/peek', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/tasks:
+ *   get:
+ *     summary: Получить задачи всех роботов
+ *     description: Возвращает очереди задач для всех роботов в системе. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список задач всех роботов успешно получен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       robotId:
+ *                         type: string
+ *                         example: "RB-001"
+ *                       tasks:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *             example:
+ *               success: true
+ *               data:
+ *                 - robotId: "RB-001"
+ *                   tasks:
+ *                     - id: "TASK-001"
+ *                       priority: 1
+ *                 - robotId: "RB-002"
+ *                   tasks:
+ *                     - id: "TASK-002"
+ *                       priority: 2
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Получить список задач по всем роботам
 router.get('/tasks', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
   try {
@@ -250,6 +710,64 @@ router.get('/tasks', authenticateToken, requireRole(['operator','admin']), async
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/tasks/reassign:
+ *   post:
+ *     summary: Переназначить задачи между роботами
+ *     description: Перемещает все задачи от одного робота к другому. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [from, to]
+ *             properties:
+ *               from:
+ *                 type: string
+ *                 example: "RB-001"
+ *                 description: ID робота-источника
+ *               to:
+ *                 type: string
+ *                 example: "RB-002"
+ *                 description: ID робота-получателя
+ *           example:
+ *             from: "RB-001"
+ *             to: "RB-002"
+ *     responses:
+ *       200:
+ *         description: Задачи успешно переназначены
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *             example:
+ *               success: true
+ *       400:
+ *         description: Ошибка валидации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "from/to robot ids required"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Ручное переназначение задач между роботами
 router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
   try {
@@ -266,8 +784,57 @@ router.post('/tasks/reassign', authenticateToken, requireRole(['operator','admin
   }
 });
 
+/**
+ * @swagger
+ * /api/robots/tasks/delete:
+ *   post:
+ *     summary: Удалить задачу из очереди робота
+ *     description: Удаляет задачу по индексу из очереди указанного робота. Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [robotId, idx]
+ *             properties:
+ *               robotId:
+ *                 type: string
+ *                 example: "RB-001"
+ *                 description: ID робота
+ *               idx:
+ *                 type: integer
+ *                 minimum: 0
+ *                 example: 1
+ *                 description: Индекс задачи в очереди (начинается с 0)
+ *           example:
+ *             robotId: "RB-001"
+ *             idx: 1
+ *     responses:
+ *       200:
+ *         description: Задача успешно удалена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *             example:
+ *               success: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Удалить задачу из очереди по индексу
-router.post('/tasks/delete', async (req, res) => {
+router.post('/tasks/delete', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {
     const { robotId, idx } = req.body;
     const tasks = taskQueueService.getTasks(robotId);
@@ -287,6 +854,85 @@ router.post('/tasks/delete', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
+/**
+ * @swagger
+ * /api/robots/tasks/reorder:
+ *   post:
+ *     summary: Изменить порядок задач в очереди робота
+ *     description: Позволяет изменить порядок задач в очереди робота (например, через drag-and-drop). Доступно для операторов и администраторов.
+ *     tags: [Robots]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [robotId, tasks]
+ *             properties:
+ *               robotId:
+ *                 type: string
+ *                 example: "RB-001"
+ *                 description: ID робота
+ *               tasks:
+ *                 type: array
+ *                 description: Массив задач в новом порядке
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "TASK-001"
+ *                     priority:
+ *                       type: integer
+ *                       example: 1
+ *                     payload:
+ *                       type: object
+ *           example:
+ *             robotId: "RB-001"
+ *             tasks:
+ *               - id: "TASK-002"
+ *                 priority: 1
+ *                 payload:
+ *                   zone: "B"
+ *               - id: "TASK-001"
+ *                 priority: 2
+ *                 payload:
+ *                   zone: "A"
+ *     responses:
+ *       200:
+ *         description: Порядок задач успешно изменен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *             example:
+ *               success: true
+ *       400:
+ *         description: Ошибка валидации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: "tasks должен быть массивом"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Переустановить очередь (drag&drop)
 router.post('/tasks/reorder', authenticateToken, requireRole(['operator','admin']), async (req, res) => {
   try {

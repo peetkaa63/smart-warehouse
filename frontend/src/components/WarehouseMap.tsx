@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Paper, Typography, Box, IconButton, Chip, Popover, FormGroup, FormControlLabel, Switch, useTheme } from '@mui/material';
 import MiniSparkline from './MiniSparkline';
 import { robotsAPI, pauseRobotUniversal, resumeRobotUniversal } from '../services/api';
+import { socketService } from '../services/socketService';
 import { useDispatch } from 'react-redux';
 import { showNotification } from '../store/slices/notificationsSlice';
 import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups, PlayArrow, Pause, ArrowBack } from '@mui/icons-material';
@@ -32,11 +33,31 @@ declare global {
 
 const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const theme = useTheme();
+  const user = useSelector((state: RootState) => state.auth.user);
   const [scale, setScale] = useState(1);
   const [selectedRobot, setSelectedRobot] = useState<Robot | null>(null);
   const [popoverRobot, setPopoverRobot] = useState<Robot | null>(null);
   const [cardAnimatingOut, setCardAnimatingOut] = useState(false);
   const [currentRobots, setCurrentRobots] = useState<Robot[]>(robots);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
+  const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedCellRobots, setSelectedCellRobots] = useState<Robot[]>([]);
+  const [selectedCellPosition, setSelectedCellPosition] = useState<{zone: string, row: number, shelf: number} | null>(null);
+  const [selectedCellInfo, setSelectedCellInfo] = useState<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string} | null>(null);
+  const [selectedCellHistory, setSelectedCellHistory] = useState<Array<{productId: string; productName?: string; quantity: number; status: string; scannedAt: string}>>([]);
+  const [loadingCellInfo, setLoadingCellInfo] = useState(false);
+  const [cellHistoryValues, setCellHistoryValues] = useState<number[]>([]);
+  const dispatch = useDispatch();
+  const mapFocus = useSelector((state: RootState) => state.mapFocus.target);
+  const recentScans = useSelector((state: RootState) => state.dashboard.recentScans as any[]);
+  const lowBatteryThreshold = useSelector((state: RootState) => state.notificationSettings.thresholds.lowBattery);
+  const [showOnlyCriticalCells, setShowOnlyCriticalCells] = useState(false);
+  const [showOnlyLowBattery, setShowOnlyLowBattery] = useState(false);
+  const [showCellStates, setShowCellStates] = useState(false);
+  const [cellStatusMapState, setCellStatusMapState] = useState<Map<string, string>>(new Map());
+  
+  // Проверка прав на управление роботами
+  const canManageRobots = user?.role === 'operator' || user?.role === 'admin';
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
   const [groupAnchorEl, setGroupAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedCellRobots, setSelectedCellRobots] = useState<Robot[]>([]);
@@ -257,21 +278,19 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
       }
     };
 
-    if (window.socket) {
+    if (socketService.isConnected()) {
       console.log('📡 Subscribing to WebSocket events for map updates');
-      window.socket.on('map_update', handleMapUpdate);
-      window.socket.on('robot_update', handleRobotUpdate);
+      socketService.onMapUpdate(handleMapUpdate);
+      socketService.onRobotUpdate(handleRobotUpdate);
       
-      window.socket.emit('request_dashboard_update');
+      socketService.requestDashboardUpdate();
     } else {
       console.log('⚠️ WebSocket not available, using polling data only');
     }
 
     return () => {
-      if (window.socket) {
-        window.socket.off('map_update', handleMapUpdate);
-        window.socket.off('robot_update', handleRobotUpdate);
-      }
+      socketService.offMapUpdate(handleMapUpdate);
+      socketService.offRobotUpdate(handleRobotUpdate);
     };
   }, [selectedRobot]);
 
@@ -827,46 +846,50 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                 )})()}
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 1 }}>
-                <IconButton 
-                  size="small" 
-                  onClick={async () => {
-                    if (!popoverRobot) return;
-                    const newStatus = popoverRobot.status === 'paused' ? 'active' : 'paused';
-                    // Оптимистично обновляем статус сразу
-                    const updatedRobot = { ...popoverRobot, status: newStatus } as Robot;
-                    setPopoverRobot(updatedRobot);
-                    // Обновляем currentRobots сразу
-                    setCurrentRobots(prev => prev.map(robot => 
-                      robot.id === popoverRobot.id ? updatedRobot : robot
-                    ));
-                    // Обновляем selectedRobot если он выбран
-                    if (selectedRobot && selectedRobot.id === popoverRobot.id) {
-                      setSelectedRobot(updatedRobot);
-                    }
-                    
-                    if (popoverRobot.status === 'paused') {
-                      await resumeRobotUniversal(popoverRobot.id);
-                      try { (window as any).socket?.emit('request_dashboard_update'); } catch {}
-                      dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${popoverRobot.id} возобновлен`, duration: 3000 } as any));
-                    } else {
-                      await pauseRobotUniversal(popoverRobot.id);
-                      try { (window as any).socket?.emit('request_dashboard_update'); } catch {}
-                      dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${popoverRobot.id} поставлен на паузу`, duration: 3000 } as any));
-                    }
-                  }}
-                  sx={{ fontSize: '12px' }}
-                  title={popoverRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
-                >{popoverRobot.status === 'paused' ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}</IconButton>
-                <IconButton 
-                  size="small" 
-                  onClick={async () => {
-                    if (!popoverRobot) return;
-                    await robotsAPI.rescan(popoverRobot.id, { zone: popoverRobot.current_zone, row: popoverRobot.current_row, shelf: popoverRobot.current_shelf });
-                    dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${popoverRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
-                  }}
-                  sx={{ fontSize: '12px' }}
-                  title="Пересканировать ячейку"
-                >🔄</IconButton>
+                {canManageRobots && (
+                  <>
+                    <IconButton 
+                      size="small" 
+                      onClick={async () => {
+                        if (!popoverRobot) return;
+                        const newStatus = popoverRobot.status === 'paused' ? 'active' : 'paused';
+                        // Оптимистично обновляем статус сразу
+                        const updatedRobot = { ...popoverRobot, status: newStatus } as Robot;
+                        setPopoverRobot(updatedRobot);
+                        // Обновляем currentRobots сразу
+                        setCurrentRobots(prev => prev.map(robot => 
+                          robot.id === popoverRobot.id ? updatedRobot : robot
+                        ));
+                        // Обновляем selectedRobot если он выбран
+                        if (selectedRobot && selectedRobot.id === popoverRobot.id) {
+                          setSelectedRobot(updatedRobot);
+                        }
+                        
+                        if (popoverRobot.status === 'paused') {
+                          await resumeRobotUniversal(popoverRobot.id);
+                          try { socketService.requestDashboardUpdate(); } catch {}
+                          dispatch(showNotification({ type: 'success', title: 'Продолжение', message: `Робот ${popoverRobot.id} возобновлен`, duration: 3000 } as any));
+                        } else {
+                          await pauseRobotUniversal(popoverRobot.id);
+                          try { socketService.requestDashboardUpdate(); } catch {}
+                          dispatch(showNotification({ type: 'info', title: 'Пауза', message: `Робот ${popoverRobot.id} поставлен на паузу`, duration: 3000 } as any));
+                        }
+                      }}
+                      sx={{ fontSize: '12px' }}
+                      title={popoverRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
+                    >{popoverRobot.status === 'paused' ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}</IconButton>
+                    <IconButton 
+                      size="small" 
+                      onClick={async () => {
+                        if (!popoverRobot) return;
+                        await robotsAPI.rescan(popoverRobot.id, { zone: popoverRobot.current_zone, row: popoverRobot.current_row, shelf: popoverRobot.current_shelf });
+                        dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${popoverRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
+                      }}
+                      sx={{ fontSize: '12px' }}
+                      title="Пересканировать ячейку"
+                    >🔄</IconButton>
+                  </>
+                )}
                 <IconButton 
                   size="small" 
                   onClick={() => {

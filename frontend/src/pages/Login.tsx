@@ -183,7 +183,11 @@ const Login: React.FC = () => {
               zIndex: 10,
             }}
           >
-            <img src="/logo.png" alt="Ростелеком" style={{ width: 200 }} />
+            <img 
+              src={theme.palette.mode === 'dark' ? "/logo_white.png" : "/logo.png"} 
+              alt="Ростелеком" 
+              style={{ width: 200 }} 
+            />
           </motion.div>
         )}
       </AnimatePresence>

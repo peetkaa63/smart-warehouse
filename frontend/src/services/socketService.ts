@@ -15,7 +15,7 @@ class SocketService {
       : 'ws://localhost:3000');
 
     this.socket = io(wsUrl);
-    // Экспортируем ссылку глобально, чтобы существующий код (pause/resume, карта) всегда имел доступ
+    // Экспортируем ссылку глобально для обратной совместимости (но лучше использовать socketService методы)
     (window as any).socket = this.socket;
     
     this.socket.on('connect', () => {
@@ -76,6 +76,62 @@ class SocketService {
   // Дополнительный метод для проверки подключения
   isConnected(): boolean {
     return this.socket?.connected || false;
+  }
+
+  // Получить сокет для прямого доступа (для совместимости с существующим кодом)
+  getSocket(): Socket | null {
+    return this.socket;
+  }
+
+  // Методы для работы с задачами роботов
+  requestRobotTasks() {
+    this.socket?.emit('request_robot_tasks');
+  }
+
+  onRobotTasksUpdate(callback: (tasks: any) => void) {
+    this.socket?.on('robot_tasks_update', callback);
+  }
+
+  offRobotTasksUpdate(callback?: (tasks: any) => void) {
+    if (callback) {
+      this.socket?.off('robot_tasks_update', callback);
+    } else {
+      this.socket?.off('robot_tasks_update');
+    }
+  }
+
+  // Методы для работы с картой
+  onMapUpdate(callback: (data: any) => void) {
+    this.socket?.on('map_update', callback);
+  }
+
+  offMapUpdate(callback?: (data: any) => void) {
+    if (callback) {
+      this.socket?.off('map_update', callback);
+    } else {
+      this.socket?.off('map_update');
+    }
+  }
+
+  onRobotUpdate(callback: (data: any) => void) {
+    this.socket?.on('robot_update', callback);
+  }
+
+  offRobotUpdate(callback?: (data: any) => void) {
+    if (callback) {
+      this.socket?.off('robot_update', callback);
+    } else {
+      this.socket?.off('robot_update');
+    }
+  }
+
+  requestDashboardUpdate() {
+    this.socket?.emit('request_dashboard_update');
+  }
+
+  // Команды для роботов
+  sendRobotCommand(command: { type: string; robotId: string; [key: string]: any }) {
+    this.socket?.emit('robot_command', command);
   }
 }
 

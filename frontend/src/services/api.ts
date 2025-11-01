@@ -296,8 +296,9 @@ export const profileAPI = {
 export const pauseRobotUniversal = async (robotId: string) => {
   // Отправляем и через сокет (если есть), и через HTTP для надёжности
   try {
-    if (window.socket) {
-      window.socket.emit('robot_command', { type: 'pause', robotId });
+    const { socketService } = await import('./socketService');
+    if (socketService.isConnected()) {
+      socketService.sendRobotCommand({ type: 'pause', robotId });
     }
   } catch (e) {
     // игнор: сокет может отсутствовать
@@ -312,8 +313,9 @@ export const pauseRobotUniversal = async (robotId: string) => {
 
 export const resumeRobotUniversal = async (robotId: string) => {
   try {
-    if (window.socket) {
-      window.socket.emit('robot_command', { type: 'resume', robotId });
+    const { socketService } = await import('./socketService');
+    if (socketService.isConnected()) {
+      socketService.sendRobotCommand({ type: 'resume', robotId });
     }
   } catch (e) {}
   try {

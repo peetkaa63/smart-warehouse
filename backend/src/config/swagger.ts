@@ -398,6 +398,50 @@ const options = {
             }
           }
         },
+        // Схемы для задач
+        Task: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              example: 'TASK-001',
+              description: 'Идентификатор задачи'
+            },
+            priority: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 10,
+              example: 1,
+              description: 'Приоритет задачи (1 - высший, 10 - низший)'
+            },
+            payload: {
+              type: 'object',
+              description: 'Дополнительные данные задачи',
+              example: {
+                zone: 'A',
+                row: 5,
+                shelf: 3
+              }
+            }
+          }
+        },
+        TaskQueue: {
+          type: 'object',
+          properties: {
+            robotId: {
+              type: 'string',
+              example: 'RB-001',
+              description: 'ID робота'
+            },
+            tasks: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/Task'
+              },
+              description: 'Список задач в очереди'
+            }
+          }
+        },
         // Схемы для WebSocket
         WebSocketMessage: {
           type: 'object',
@@ -557,6 +601,14 @@ const options = {
       {
         name: 'Inventory',
         description: 'Управление инвентаризацией и товарами'
+      },
+      {
+        name: 'Upload',
+        description: 'Загрузка данных через CSV файлы'
+      },
+      {
+        name: 'Admin',
+        description: 'Административные функции системы'
       },
       {
         name: 'Analytics',
