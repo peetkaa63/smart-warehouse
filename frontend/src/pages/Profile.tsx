@@ -285,9 +285,6 @@ const Profile: React.FC = () => {
                       height: 48,
                       width: 'auto',
                       objectFit: 'contain',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
                     }}
                     onError={(e: any) => {
                       // Если логотип не найден, скрываем его
