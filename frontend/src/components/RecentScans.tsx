@@ -16,19 +16,7 @@ import { Pause, PlayArrow } from '@mui/icons-material';
 import { useDispatch } from 'react-redux';
 import { addScan } from '../store/slices/dashboardSlice';
 import { socketService } from '../services/socketService';
-import { keyframes } from '@emotion/react';
-
-// Анимация появления нового элемента сверху вниз
-const slideDownAnimation = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(-40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Scan {
   time: string;
@@ -84,7 +72,10 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
     }
   };
 
-  // Мемоизация валидных сканирований с проверкой на изменение
+  // Ограничиваем количество отображаемых сканирований
+  const MAX_VISIBLE_SCANS = 20;
+
+  // Мемоизация валидных сканирований с правильной обработкой новых элементов
   const filteredScans = useMemo(() => {
     if (isPaused) {
       return previousScansRef.current;
@@ -100,55 +91,38 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
       !isNaN(Number(scan.quantity))
     );
     
-    // Сравниваем по строковому представлению, чтобы избежать лишних обновлений
-    const scansString = JSON.stringify(validScans.map(s => ({
-      time: s.time,
-      robot_id: s.robot_id,
-      product_id: s.product_id
-    })));
+    // Берем только первые MAX_VISIBLE_SCANS для отображения
+    const visibleScans = validScans.slice(0, MAX_VISIBLE_SCANS);
     
-    // Если данные не изменились, возвращаем предыдущее значение
-    if (scansString === scansStringRef.current && previousScansRef.current.length === validScans.length) {
-      return previousScansRef.current;
+    // Определяем новые сканирования
+    const previousKeys = new Set(
+      previousScansRef.current.map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
+    );
+    
+    const newKeys = new Set(
+      visibleScans
+        .filter(scan => {
+          const key = `${scan.robot_id}-${scan.product_id}-${scan.time}`;
+          return !previousKeys.has(key);
+        })
+        .map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
+    );
+
+    if (newKeys.size > 0) {
+      setNewScanKeys(newKeys);
+      // Убираем метку новых через 2 секунды
+      setTimeout(() => {
+        setNewScanKeys(prev => {
+          const updated = new Set(prev);
+          newKeys.forEach(key => updated.delete(key));
+          return updated;
+        });
+      }, 2000);
     }
     
-    scansStringRef.current = scansString;
-    previousScansRef.current = validScans;
-    return validScans;
+    previousScansRef.current = visibleScans;
+    return visibleScans;
   }, [scans, isPaused]);
-
-  // Определяем новые сканирования отдельно, чтобы избежать цикла
-  useEffect(() => {
-    if (!isPaused && filteredScans.length > 0) {
-      const currentKeys = new Set(
-        filteredScans.map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
-      );
-      
-      // Определяем, есть ли новые сканирования
-      const previousKeys = new Set(
-        (previousScansRef.current || []).map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
-      );
-      
-      const newKeys = new Set(
-        Array.from(currentKeys).filter(key => !previousKeys.has(key))
-      );
-
-      if (newKeys.size > 0) {
-        setNewScanKeys(newKeys);
-
-        // Убираем анимацию через 2 секунды
-        const timeoutId = setTimeout(() => {
-          setNewScanKeys(prev => {
-            const updated = new Set(prev);
-            newKeys.forEach(key => updated.delete(key));
-            return updated;
-          });
-        }, 2000);
-        
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [filteredScans, isPaused]);
 
   // Мемоизация обработчика для предотвращения пересоздания подписки
   const handleInventoryScanRef = useRef<((scanData: any) => void) | null>(null);
@@ -236,53 +210,77 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredScans.map((scan, index) => {
-              const scanKey = `${scan.robot_id}-${scan.product_id}-${scan.time}`;
-              const isNew = newScanKeys.has(scanKey);
-              
-              return (
-                <TableRow
-                  key={scanKey}
-                  hover
-                  sx={{
-                    backgroundColor: isNew ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
-                    transition: 'background-color 0.6s ease',
-                    ...(isNew && {
-                      animation: `${slideDownAnimation} 0.5s cubic-bezier(0.4, 0, 0.2, 1)`,
-                    }),
-                    '&:hover': {
-                      backgroundColor: 'action.hover'
-                    }
-                  }}
-                >
-                  <TableCell>
-                    {scan.time ? formatTime(scan.time) : '-'}
-                  </TableCell>
-                  <TableCell>{scan.robot_id || '-'}</TableCell>
-                  <TableCell>{scan.zone || '-'}</TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold">
-                        {scan.product_name || scan.product_id || 'N/A'}
-                      </Typography>
-                      {scan.product_id && (
-                        <Typography variant="caption" color="textSecondary">
-                          {scan.product_id}
+            <AnimatePresence initial={false}>
+              {filteredScans.map((scan, index) => {
+                const scanKey = `${scan.robot_id}-${scan.product_id}-${scan.time}`;
+                const isNew = newScanKeys.has(scanKey);
+                
+                return (
+                  <TableRow
+                    key={scanKey}
+                    component={motion.tr}
+                    layout
+                    initial={isNew ? { 
+                      opacity: 0, 
+                      y: -60,
+                      height: 0
+                    } : false}
+                    animate={{ 
+                      opacity: 1, 
+                      y: 0,
+                      height: 'auto'
+                    }}
+                    exit={{ 
+                      opacity: 0, 
+                      y: 20,
+                      height: 0,
+                      transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+                    }}
+                    transition={{
+                      layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                      opacity: { duration: 0.4 },
+                      y: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+                      height: { duration: 0.4 }
+                    }}
+                    hover
+                    sx={{
+                      backgroundColor: isNew ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                      transition: 'background-color 0.6s ease',
+                      display: 'table-row',
+                      '&:hover': {
+                        backgroundColor: 'action.hover'
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      {scan.time ? formatTime(scan.time) : '-'}
+                    </TableCell>
+                    <TableCell>{scan.robot_id || '-'}</TableCell>
+                    <TableCell>{scan.zone || '-'}</TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {scan.product_name || scan.product_id || 'N/A'}
                         </Typography>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={getStatusText(scan.status)} 
-                      color={getStatusColor(scan.status) as any}
-                      size="small"
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                        {scan.product_id && (
+                          <Typography variant="caption" color="textSecondary">
+                            {scan.product_id}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={getStatusText(scan.status)} 
+                        color={getStatusColor(scan.status) as any}
+                        size="small"
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </AnimatePresence>
             {filteredScans.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
