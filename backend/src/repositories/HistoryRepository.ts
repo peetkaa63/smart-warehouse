@@ -3,8 +3,8 @@ import { pool } from '../config/database';
 export interface HistoryFilters {
   from?: string;
   to?: string;
-  zone?: string;
-  status?: string;
+  zone?: string | string[];
+  status?: string | string[];
   product_id?: string;
   robot_id?: string;
   page?: string;
@@ -67,9 +67,24 @@ export class HistoryRepository {
     }
 
     // Фильтры по зоне/ряду/полке/статусу/роботу/продукту
-    if (zone && typeof zone === 'string' && zone.trim() !== '') {
-      params.push(zone);
-      query += ` AND ih.zone = $${params.length}`;
+    if (zone) {
+      if (Array.isArray(zone) && zone.length > 0) {
+        // Если это массив зон - используем IN
+        const validZones = zone.filter((z: any) => z && typeof z === 'string' && z.trim() !== '');
+        if (validZones.length > 0) {
+          const zonePlaceholders = validZones
+            .map((z: string) => {
+              params.push(z);
+              return `$${params.length}`;
+            })
+            .join(', ');
+          query += ` AND ih.zone IN (${zonePlaceholders})`;
+        }
+      } else if (typeof zone === 'string' && zone.trim() !== '') {
+        // Если это строка - простое сравнение
+        params.push(zone);
+        query += ` AND ih.zone = $${params.length}`;
+      }
     }
     if (row && row.trim() !== '') {
       params.push(parseInt(row));
@@ -157,9 +172,22 @@ export class HistoryRepository {
     }
 
     // Применяем те же фильтры, что и в основном запросе
-    if (zone && typeof zone === 'string' && zone.trim() !== '') {
-      countParams.push(zone);
-      countQuery += ` AND ih.zone = $${countParams.length}`;
+    if (zone) {
+      if (Array.isArray(zone) && zone.length > 0) {
+        const validZones = zone.filter((z: any) => z && typeof z === 'string' && z.trim() !== '');
+        if (validZones.length > 0) {
+          const zonePlaceholders = validZones
+            .map((z: string) => {
+              countParams.push(z);
+              return `$${countParams.length}`;
+            })
+            .join(', ');
+          countQuery += ` AND ih.zone IN (${zonePlaceholders})`;
+        }
+      } else if (typeof zone === 'string' && zone.trim() !== '') {
+        countParams.push(zone);
+        countQuery += ` AND ih.zone = $${countParams.length}`;
+      }
     }
     if (row && row.trim() !== '') {
       countParams.push(parseInt(row));

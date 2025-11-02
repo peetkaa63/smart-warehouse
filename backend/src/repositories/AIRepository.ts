@@ -49,10 +49,13 @@ export class AIRepository {
         p.name as product_name,
         COALESCE(latest.quantity, 0) as current_stock,
         COALESCE(p.min_stock, 10) as min_stock,
-        COALESCE(p.optimal_stock, 50) as optimal_stock
+        COALESCE(p.optimal_stock, 50) as optimal_stock,
+        latest.zone,
+        latest.row_number,
+        latest.shelf_number
       FROM products p
       LEFT JOIN LATERAL (
-        SELECT quantity, scanned_at
+        SELECT quantity, scanned_at, zone, row_number, shelf_number
         FROM inventory_history ih
         WHERE ih.product_id = p.id
         ORDER BY ih.scanned_at DESC
@@ -67,7 +70,10 @@ export class AIRepository {
       product_name: row.product_name,
       current_stock: Number(row.current_stock) || 0,
       min_stock: Number(row.min_stock) || 0,
-      optimal_stock: Number(row.optimal_stock) || 0
+      optimal_stock: Number(row.optimal_stock) || 0,
+      zone: row.zone,
+      row_number: row.row_number,
+      shelf_number: row.shelf_number
     }));
   }
 

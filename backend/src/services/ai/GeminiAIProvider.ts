@@ -186,10 +186,19 @@ ${historicalDataJson}
 ТЕКУЩИЕ ОСТАТКИ:
 ${currentStockJson}
 
-СОЗДАЙ ПРОГНОЗЫ НА 7 ДНЕЙ:
-1. Ожидаемый спрос по товарам
-2. Рекомендуемые уровни запасов
-3. Риски дефицита
+СОЗДАЙ ПРОГНОЗЫ НА ${request.periodDays || 7} ДНЕЙ:
+1. Рассчитай через сколько дней закончатся запасы (days_until_stockout) на основе текущего остатка и исторических данных о потреблении
+2. Рекомендуемое количество для заказа (recommended_order_quantity) - ОБЯЗАТЕЛЬНО учитывай optimal_stock из БД (это оптимальный уровень запаса для товара)
+   - Если current_stock < optimal_stock, то recommended_order_quantity = optimal_stock - current_stock + дополнительный запас на время доставки (3-5 дней)
+   - Если current_stock >= optimal_stock, то recommended_order_quantity = 0 (запас достаточен)
+   - Всегда учитывай optimal_stock как целевой уровень запаса для товара
+3. Риски дефицита (высокий риск если current_stock < min_stock)
+
+ОБЯЗАТЕЛЬНО:
+- Используй ТЕКУЩИЙ ОСТАТОК (current_stock) из данных текущих остатков
+- Используй optimal_stock (оптимальный уровень запаса) из данных текущих остатков для расчета recommended_order_quantity
+- Используй min_stock (минимальный уровень запаса) из данных текущих остатков для оценки риска
+- Если current_stock = 0, то это критическая ситуация
 
 ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ (все текстовые поля на русском языке):
 {
@@ -197,19 +206,27 @@ ${currentStockJson}
     {
       "product_id": "string",
       "product_name": "string",
-      "predicted_demand": число,
-      "recommended_stock": число,
-      "risk_level": "LOW|MEDIUM|HIGH",
-      "confidence": число,
-      "reasoning": "строка на русском"
+      "current_stock": число (ОБЯЗАТЕЛЬНО из текущих остатков, НЕ 0 если есть остатки),
+      "days_until_stockout": число (сколько дней до исчерпания запасов),
+      "recommended_order_quantity": число (сколько заказать),
+      "confidence_score": число (от 0 до 1),
+      "risk_level": "HIGH|MEDIUM|LOW",
+      "reasoning": "строка на русском - объяснение прогноза"
     }
   ],
-  "confidence": число,
+  "period_days": ${request.periodDays || 7},
   "analysis_summary": "строка на русском"
 }
 
-ВАЖНО: Все текстовые поля должны быть на русском языке.
-Только JSON, без дополнительного текста.
+ВАЖНО: 
+- current_stock ДОЛЖЕН браться из ТЕКУЩИХ ОСТАТКОВ и быть реальным числом
+- optimal_stock (оптимальный запас) УКАЗАН в данных текущих остатков - используй его как ЦЕЛЕВОЙ УРОВЕНЬ для recommended_order_quantity
+- min_stock (минимальный запас) УКАЗАН в данных текущих остатков - используй для оценки риска дефицита
+- recommended_order_quantity рассчитывай так: если current_stock < optimal_stock, то заказать нужно (optimal_stock - current_stock) + запас на доставку
+- Если current_stock >= optimal_stock, то recommended_order_quantity = 0 (запас достаточен)
+- Если current_stock в данных = 0, но есть исторические данные - укажи это в reasoning
+- Все текстовые поля должны быть на русском языке
+- Только JSON, без дополнительного текста
 `;
   }
 
@@ -255,7 +272,35 @@ ${historicalDataJson}
       // Пытаемся найти JSON в ответе
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Нормализуем predictions если они есть
+        if (parsed.predictions && Array.isArray(parsed.predictions)) {
+          // Находим информацию о местоположении из currentStock для каждого товара
+          const currentStockMap = new Map(
+            (request.currentStock || []).map((cs: any) => [cs.product_id, cs])
+          );
+
+          parsed.predictions = parsed.predictions.map((p: any) => {
+            const stockInfo = currentStockMap.get(p.product_id);
+            return {
+              product_id: p.product_id,
+              product_name: p.product_name || 'Неизвестный товар',
+              current_stock: Number(p.current_stock) || (stockInfo ? Number(stockInfo.current_stock) : 0),
+              days_until_stockout: p.days_until_stockout !== undefined && p.days_until_stockout !== null ? Number(p.days_until_stockout) : null,
+              recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || 0,
+              confidence_score: Number(p.confidence_score) || Number(p.confidence) || 0,
+              risk_level: p.risk_level || (p.days_until_stockout <= 2 ? 'HIGH' : p.days_until_stockout <= 5 ? 'MEDIUM' : 'LOW'),
+              reasoning: p.reasoning || '',
+              // Добавляем информацию о местоположении если есть
+              zone: stockInfo?.zone || p.zone,
+              row_number: stockInfo?.row_number || p.row_number,
+              shelf_number: stockInfo?.shelf_number || p.shelf_number
+            };
+          });
+        }
+        
+        return parsed;
       }
       throw new Error('No JSON found in response');
     } catch (error) {

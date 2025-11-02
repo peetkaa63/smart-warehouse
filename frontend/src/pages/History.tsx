@@ -77,7 +77,10 @@ const History: React.FC = () => {
 
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
-      if (filters.zones.length) params.zone = filters.zones;
+      if (filters.zones.length) {
+        // Бэкенд поддерживает как строку, так и массив зон
+        params.zone = filters.zones.length === 1 ? filters.zones[0] : filters.zones;
+      }
       if (filters.statuses.length) {
         // Бэкенд поддерживает как строку, так и массив статусов
         params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
@@ -155,7 +158,9 @@ const History: React.FC = () => {
 
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
-      if (filters.zones.length) params.zone = filters.zones;
+      if (filters.zones.length) {
+        params.zone = filters.zones.length === 1 ? filters.zones[0] : filters.zones;
+      }
       if (filters.statuses.length) {
         params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
       }
@@ -199,7 +204,9 @@ const History: React.FC = () => {
 
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
-      if (filters.zones.length) params.zone = filters.zones;
+      if (filters.zones.length) {
+        params.zone = filters.zones.length === 1 ? filters.zones[0] : filters.zones;
+      }
       if (filters.statuses.length) {
         params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
       }

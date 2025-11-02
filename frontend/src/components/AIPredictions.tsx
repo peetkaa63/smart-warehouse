@@ -92,13 +92,22 @@ const AIPredictions: React.FC = () => {
       const normalized = (response.predictions || []).map((p: any) => ({
         product_id: p.product_id,
         product_name: p.product_name || p.name || p.productId || 'Товар',
-        current_stock: p.current_stock ?? p.stock ?? p.currentStock ?? 0,
-        days_until_stockout: p.days_until_stockout ?? p.daysUntilStockout ?? p.days ?? null,
-        recommended_order_quantity: p.recommended_order_quantity ?? p.recommended_order ?? p.recommended ?? 0,
-        confidence_score: typeof p.confidence_score === 'number' ? p.confidence_score : typeof p.confidence === 'number' ? p.confidence : 0,
-        reasoning: p.reasoning,
+        // Используем реальные данные из ответа, если они есть
+        current_stock: Number(p.current_stock) || Number(p.stock) || Number(p.currentStock) || 0,
+        days_until_stockout: p.days_until_stockout !== undefined && p.days_until_stockout !== null 
+          ? Number(p.days_until_stockout) 
+          : (p.daysUntilStockout !== undefined ? Number(p.daysUntilStockout) : (p.days !== undefined ? Number(p.days) : null)),
+        recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || Number(p.recommended) || 0,
+        confidence_score: typeof p.confidence_score === 'number' 
+          ? p.confidence_score 
+          : (typeof p.confidence === 'number' ? p.confidence : 0),
+        reasoning: p.reasoning || '',
         risk_level: p.risk_level || p.risk || undefined,
-        prediction_date: p.prediction_date || p.date || undefined
+        prediction_date: p.prediction_date || p.date || undefined,
+        // Информация о месте пополнения (если есть)
+        zone: p.zone,
+        row_number: p.row_number,
+        shelf_number: p.shelf_number
       }));
 
       setPredictions(normalized);
@@ -390,6 +399,19 @@ const AIPredictions: React.FC = () => {
                       🛒 Рекомендуемый заказ: <strong>{prediction.recommended_order_quantity} шт.</strong>
                     </Typography>
                   </Box>
+
+                  {(prediction.zone || prediction.row_number || prediction.shelf_number) && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        📍 Рекомендация пополнения: 
+                        <strong>
+                          {prediction.zone ? ` Зона ${prediction.zone}` : ''}
+                          {prediction.row_number ? `, Ряд ${prediction.row_number}` : ''}
+                          {prediction.shelf_number ? `, Полка ${prediction.shelf_number}` : ''}
+                        </strong>
+                      </Typography>
+                    </Box>
+                  )}
 
                   {prediction.reasoning && (
                     <Tooltip title={prediction.reasoning} arrow>

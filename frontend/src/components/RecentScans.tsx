@@ -29,7 +29,8 @@ interface RecentScansProps {
 }
 
 const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [filteredScans, setFilteredScans] = useState<Scan[]>([]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -64,17 +65,51 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
     }
   };
 
-  console.log('📦 RecentScans received:', scans);
+  // Фильтруем валидные данные
+  React.useEffect(() => {
+    if (!isPaused) {
+      const validScans = scans.filter(scan => 
+        scan && 
+        scan.time && 
+        scan.robot_id && 
+        scan.product_id &&
+        scan.quantity !== undefined &&
+        scan.quantity !== null &&
+        !isNaN(Number(scan.quantity))
+      );
+      setFilteredScans(validScans);
+    }
+  }, [scans, isPaused]);
+
+  const handleTogglePause = () => {
+    setIsPaused(!isPaused);
+    if (isPaused) {
+      // При возобновлении обновляем данные
+      const validScans = scans.filter(scan => 
+        scan && 
+        scan.time && 
+        scan.robot_id && 
+        scan.product_id &&
+        scan.quantity !== undefined &&
+        scan.quantity !== null &&
+        !isNaN(Number(scan.quantity))
+      );
+      setFilteredScans(validScans);
+    }
+  };
+
+  console.log('📦 RecentScans received:', scans.length, 'scans, paused:', isPaused);
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">Последние сканирования</Typography>
         <IconButton 
-          onClick={() => setAutoScroll(!autoScroll)}
-          color={autoScroll ? "primary" : "default"}
+          onClick={handleTogglePause}
+          color={isPaused ? "default" : "primary"}
+          title={isPaused ? "Возобновить обновление" : "Приостановить обновление"}
         >
-          {autoScroll ? <Pause /> : <PlayArrow />}
+          {isPaused ? <PlayArrow /> : <Pause />}
         </IconButton>
       </Box>
       
@@ -91,7 +126,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {scans.filter(scan => scan && scan.time && scan.robot_id).map((scan, index) => (
+            {filteredScans.map((scan, index) => (
               <TableRow key={`${scan.robot_id}-${scan.time}-${index}`} hover>
                 <TableCell>
                   {scan.time ? formatTime(scan.time) : '-'}
@@ -120,11 +155,11 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
                 </TableCell>
               </TableRow>
             ))}
-            {scans.length === 0 && (
+            {filteredScans.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   <Typography color="textSecondary" sx={{ py: 2 }}>
-                    Нет данных о сканированиях
+                    {isPaused ? 'Обновление приостановлено' : 'Нет данных о сканированиях'}
                   </Typography>
                 </TableCell>
               </TableRow>
