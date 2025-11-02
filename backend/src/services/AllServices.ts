@@ -409,38 +409,68 @@ export class UploadService {
       for (const row of csvData) {
         try {
           processedRows++;
-          const scannedAt = new Date(row.scanned_at || new Date());
           
-          // Проверяем существование робота
-          const robotExists = await uploadRepository.checkRobotExists(row.robot_id);
-          if (!robotExists) {
-            await uploadRepository.createRobot({
-              id: row.robot_id || importRobotId,
-              status: 'active',
-              battery_level: 100,
-              current_zone: row.zone || 'A',
-              current_row: row.row_number || 1,
-              current_shelf: row.shelf_number || 1
-            });
+          // Нормализуем названия полей (поддержка альтернативных форматов CSV)
+          const normalizedRow = {
+            robot_id: row.robot_id || row.robotId || null,
+            product_id: row.product_id || row.productId || '',
+            product_name: row.product_name || row.productName || '',
+            quantity: row.quantity || row.qty || 0,
+            zone: row.zone || row.zone_id || 'A',
+            row_number: row.row_number || row.row || row.rowNumber || 1,
+            shelf_number: row.shelf_number || row.shelf || row.shelfNumber || 1,
+            scanned_at: row.scanned_at || row.date || row.scannedAt || new Date(),
+            status: row.status || 'OK',
+            category: row.category || 'Unknown'
+          };
+          
+          const scannedAt = new Date(normalizedRow.scanned_at);
+          
+          // Проверяем существование робота (если указан)
+          if (normalizedRow.robot_id) {
+            const robotExists = await uploadRepository.checkRobotExists(normalizedRow.robot_id);
+            if (!robotExists) {
+              await uploadRepository.createRobot({
+                id: normalizedRow.robot_id,
+                status: 'active',
+                battery_level: 100,
+                current_zone: normalizedRow.zone || 'A',
+                current_row: parseInt(String(normalizedRow.row_number)) || 1,
+                current_shelf: parseInt(String(normalizedRow.shelf_number)) || 1
+              });
+            }
+          }
+          
+          // Генерируем product_id если его нет в CSV или он пустой
+          let productId = (normalizedRow.product_id || '').trim();
+          if (!productId || productId === '') {
+            // Генерируем уникальный ID на основе product_name и timestamp
+            const nameBase = (normalizedRow.product_name || 'PROD')
+              .replace(/[^a-zA-Z0-9А-Яа-я]/g, '')
+              .toUpperCase()
+              .substring(0, 10) || 'PROD';
+            productId = `${nameBase}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+            console.log(`⚠️ Generated product_id for product: "${normalizedRow.product_name}" -> "${productId}"`);
           }
           
           // Проверяем существование продукта
-          const productExists = await uploadRepository.checkProductExists(row.product_id);
+          const productExists = await uploadRepository.checkProductExists(productId);
           if (!productExists) {
             await uploadRepository.createProduct({
-              id: row.product_id,
-              name: row.product_name || `Product ${row.product_id}`,
-              category: row.category || 'Unknown',
+              id: productId,
+              name: normalizedRow.product_name || `Product ${productId}`,
+              category: normalizedRow.category || 'Unknown',
               min_stock: row.min_stock || 10,
               optimal_stock: row.optimal_stock || 50
             });
             summary.total_products++;
           }
           
-          // Проверяем на дубликаты
+          // Проверяем на дубликаты (только если есть robot_id)
+          const robotIdForScan = normalizedRow.robot_id || importRobotId;
           const isDuplicate = await uploadRepository.checkDuplicateScan({
-            robot_id: row.robot_id,
-            product_id: row.product_id,
+            robot_id: robotIdForScan,
+            product_id: productId,
             scanned_at: scannedAt
           });
           
@@ -451,20 +481,20 @@ export class UploadService {
           
           // Сохраняем данные сканирования
           await uploadRepository.saveScanData({
-            robot_id: row.robot_id,
-            product_id: row.product_id,
-            quantity: parseInt(row.quantity) || 0,
-            zone: row.zone || 'A',
-            row_number: parseInt(row.row_number) || 1,
-            shelf_number: parseInt(row.shelf_number) || 1,
-            status: row.status || 'OK',
+            robot_id: robotIdForScan,
+            product_id: productId,
+            quantity: parseInt(String(normalizedRow.quantity)) || 0,
+            zone: normalizedRow.zone || 'A',
+            row_number: parseInt(String(normalizedRow.row_number)) || 1,
+            shelf_number: parseInt(String(normalizedRow.shelf_number)) || 1,
+            status: normalizedRow.status || 'OK',
             scanned_at: scannedAt
           });
           
           importedRows++;
-          summary.total_quantity += parseInt(row.quantity) || 0;
-          if (row.zone) {
-            summary.zones_updated.add(row.zone);
+          summary.total_quantity += parseInt(String(normalizedRow.quantity)) || 0;
+          if (normalizedRow.zone) {
+            summary.zones_updated.add(normalizedRow.zone);
           }
         } catch (rowError: any) {
           errors.push({

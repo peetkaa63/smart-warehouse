@@ -16,6 +16,19 @@ import { Pause, PlayArrow } from '@mui/icons-material';
 import { useDispatch } from 'react-redux';
 import { addScan } from '../store/slices/dashboardSlice';
 import { socketService } from '../services/socketService';
+import { keyframes } from '@emotion/react';
+
+// Анимация появления нового элемента сверху вниз
+const slideDownAnimation = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
 
 interface Scan {
   time: string;
@@ -228,31 +241,17 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
               const isNew = newScanKeys.has(scanKey);
               
               return (
-                <TableRow 
+                <TableRow
                   key={scanKey}
                   hover
                   sx={{
-                    backgroundColor: isNew ? 'action.hover' : 'transparent',
-                    transition: 'background-color 0.5s ease, transform 0.4s ease, opacity 0.4s ease',
-                    transform: isNew ? 'translateY(0)' : 'none',
-                    opacity: 1,
-                    animation: isNew ? 'slideDownFromTop 0.5s ease-out' : 'none',
-                    '@keyframes slideDownFromTop': {
-                      '0%': {
-                        transform: 'translateY(-100%)',
-                        opacity: 0,
-                        maxHeight: 0,
-                        overflow: 'hidden'
-                      },
-                      '50%': {
-                        opacity: 0.5,
-                        maxHeight: '200px'
-                      },
-                      '100%': {
-                        transform: 'translateY(0)',
-                        opacity: 1,
-                        maxHeight: '200px'
-                      }
+                    backgroundColor: isNew ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                    transition: 'background-color 0.6s ease',
+                    ...(isNew && {
+                      animation: `${slideDownAnimation} 0.5s cubic-bezier(0.4, 0, 0.2, 1)`,
+                    }),
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
                     }
                   }}
                 >
