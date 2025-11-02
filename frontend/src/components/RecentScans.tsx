@@ -16,7 +16,7 @@ import { Pause, PlayArrow } from '@mui/icons-material';
 import { useDispatch } from 'react-redux';
 import { addScan } from '../store/slices/dashboardSlice';
 import { socketService } from '../services/socketService';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 interface Scan {
   time: string;
@@ -38,6 +38,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
   const dispatch = useDispatch();
   const previousScansRef = useRef<Scan[]>([]);
   const scansStringRef = useRef<string>('');
+  const prefersReducedMotion = useReducedMotion();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -192,8 +193,29 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
           onClick={handleTogglePause}
           color={isPaused ? "default" : "primary"}
           title={isPaused ? "Возобновить обновление" : "Приостановить обновление"}
+          sx={{
+            position: 'relative',
+            width: 48,
+            height: 48
+          }}
         >
-          {isPaused ? <PlayArrow /> : <Pause />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={isPaused ? 'play' : 'pause'}
+              initial={{ scale: 0, rotate: -180, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+              exit={{ scale: 0, rotate: 180, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              style={{ 
+                position: 'absolute',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {isPaused ? <PlayArrow /> : <Pause />}
+            </motion.div>
+          </AnimatePresence>
         </IconButton>
       </Box>
       
@@ -219,10 +241,10 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
                   <TableRow
                     key={scanKey}
                     component={motion.tr}
-                    layout
-                    initial={isNew ? { 
+                    layout={isNew && !prefersReducedMotion ? "position" : false}
+                    initial={isNew && !prefersReducedMotion ? { 
                       opacity: 0, 
-                      y: -60,
+                      y: -40,
                       height: 0
                     } : false}
                     animate={{ 
@@ -230,17 +252,31 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
                       y: 0,
                       height: 'auto'
                     }}
-                    exit={{ 
+                    exit={prefersReducedMotion ? {} : { 
                       opacity: 0, 
-                      y: 20,
+                      y: 15,
                       height: 0,
-                      transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+                      transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
                     }}
-                    transition={{
-                      layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
-                      opacity: { duration: 0.4 },
-                      y: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
-                      height: { duration: 0.4 }
+                    transition={prefersReducedMotion ? { duration: 0 } : {
+                      layout: { 
+                        duration: 0.25, 
+                        ease: [0.4, 0, 0.2, 1],
+                        type: "tween"
+                      },
+                      opacity: { 
+                        duration: 0.2,
+                        ease: "easeOut"
+                      },
+                      y: { 
+                        duration: 0.25, 
+                        ease: [0.4, 0, 0.2, 1],
+                        type: "tween"
+                      },
+                      height: { 
+                        duration: 0.25,
+                        ease: "easeOut"
+                      }
                     }}
                     hover
                     sx={{

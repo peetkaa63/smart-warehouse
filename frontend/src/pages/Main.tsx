@@ -287,7 +287,8 @@ const Main: React.FC = () => {
       backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5',
       position: "relative",
       overflow: "hidden",
-      transition: 'background-color 0.3s ease'
+      transition: 'background-color 0.6s ease, color 0.6s ease',
+      willChange: 'background-color'
     }}>
       {/* Начальная анимация логотипа или фона при выходе */}
       <AnimatePresence>
@@ -355,11 +356,13 @@ const Main: React.FC = () => {
             {/* AppBar */}
             <motion.div variants={appBarAnimation}>
               <AppBar 
-                position="static" 
+                position={isMobile ? "sticky" : "static"}
                 elevation={2}
                 sx={{
                   backgroundColor: '#1976d2 !important', // Голубой AppBar всегда
                   transition: 'background-color 0.3s ease',
+                  top: 0,
+                  zIndex: (theme) => theme.zIndex.drawer + 1,
                 }}
               >
                 <Toolbar>
@@ -393,15 +396,17 @@ const Main: React.FC = () => {
                       </Tooltip>
                     )}
 
-                    {!isMobile && (
-                      <>
-                        <Tooltip title="Уведомления">
+                    <Tooltip title="Уведомления">
                           <IconButton color="inherit" onClick={() => setNotificationsDrawerOpen(true)}>
                             <Badge badgeContent={unreadCount} color="error">
                               <Notifications />
                             </Badge>
                           </IconButton>
                         </Tooltip>
+
+                    {!isMobile && (
+                      <>
+                        
 
                         <Box sx={{ display: "flex", mx: 1 }}>
                           <Tooltip title="Текущий мониторинг">
@@ -479,10 +484,13 @@ const Main: React.FC = () => {
             >
               <Box sx={{ 
                 flex: 1, 
-                position: "relative", 
-                overflow: "hidden",
+                position: "relative",
+                overflowY: isMobile ? "auto" : "hidden",
+                overflowX: "hidden",
+                WebkitOverflowScrolling: "touch",
                 minHeight: 0,
-                width: "100%"
+                width: "100%",
+                height: isMobile ? "auto" : "100%"
               }}>
                 {/* Dashboard Tab */}
                 <Box sx={{ 

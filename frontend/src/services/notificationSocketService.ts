@@ -146,11 +146,14 @@ class NotificationSocketService {
     this.emit('notification_alert', notification);
     
     // Показываем браузерное уведомление ТОЛЬКО если вкладка не видна
-    if (Notification.permission === 'granted' && !this.isTabVisible) {
-      console.log('📱 Showing browser notification (tab is hidden)');
-      this.showBrowserNotification(notification);
-    } else if (this.isTabVisible) {
-      console.log('🚫 Skipping browser notification (tab is visible)');
+    // Проверяем доступность Notification API (iOS может не поддерживать)
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted' && !this.isTabVisible) {
+        console.log('📱 Showing browser notification (tab is hidden)');
+        this.showBrowserNotification(notification);
+      } else if (this.isTabVisible) {
+        console.log('🚫 Skipping browser notification (tab is visible)');
+      }
     }
   }
 
@@ -199,8 +202,11 @@ class NotificationSocketService {
     this.emit('notification_alert', notification);
     
     // Показываем браузерное уведомление ТОЛЬКО если вкладка не видна
-    if (Notification.permission === 'granted' && !this.isTabVisible) {
-      this.showBrowserNotification(notification);
+    // Проверяем доступность Notification API (iOS может не поддерживать)
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted' && !this.isTabVisible) {
+        this.showBrowserNotification(notification);
+      }
     }
   }
 
@@ -370,8 +376,11 @@ class NotificationSocketService {
     this.emit('notification_alert', notification);
     
     // Показываем браузерное уведомление для критических алертов
-    if (Notification.permission === 'granted') {
-      this.showBrowserNotification(notification);
+    // Проверяем доступность Notification API (iOS может не поддерживать)
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        this.showBrowserNotification(notification);
+      }
     }
     
     console.log('🚨 Critical alert processed and displayed:', notification);
