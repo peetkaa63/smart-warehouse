@@ -160,7 +160,7 @@ router.put('/users/:id/block', authenticateToken, requireRole(['admin']), async 
 router.get('/logs', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     // Temporary fix until getLogs method is implemented
-    const logs = []; // taskQueueService.getLogs();
+    const logs: any[] = []; // taskQueueService.getLogs();
     res.json({ success: true, data: logs });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
