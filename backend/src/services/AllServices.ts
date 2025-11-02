@@ -403,6 +403,9 @@ export class UploadService {
         zones_updated: new Set<string>()
       };
       
+	  // Генерируем robot_id для импорта если его нет в CSV
+      const importRobotId = 'IMPORT-ROBOT-' + Date.now();
+	  
       for (const row of csvData) {
         try {
           processedRows++;
@@ -412,7 +415,7 @@ export class UploadService {
           const robotExists = await uploadRepository.checkRobotExists(row.robot_id);
           if (!robotExists) {
             await uploadRepository.createRobot({
-              id: row.robot_id,
+              id: row.robot_id || importRobotId,
               status: 'active',
               battery_level: 100,
               current_zone: row.zone || 'A',
