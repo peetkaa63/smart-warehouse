@@ -405,6 +405,32 @@ export class UploadService {
       
 	  // Генерируем robot_id для импорта если его нет в CSV
       const importRobotId = 'IMPORT-ROBOT-' + Date.now();
+      
+      // Проверяем, нужен ли importRobotId, и создаем его заранее
+      let importRobotNeeded = false;
+      for (const row of csvData) {
+        const robotId = row.robot_id || row.robotId || null;
+        if (!robotId || robotId.trim() === '') {
+          importRobotNeeded = true;
+          break;
+        }
+      }
+      
+      // Создаем импорт-робота заранее, если он нужен
+      if (importRobotNeeded) {
+        const importRobotExists = await uploadRepository.checkRobotExists(importRobotId);
+        if (!importRobotExists) {
+          await uploadRepository.createRobot({
+            id: importRobotId,
+            status: 'active',
+            battery_level: 100,
+            current_zone: 'A',
+            current_row: 1,
+            current_shelf: 1
+          });
+          console.log(`✅ Created import robot: ${importRobotId}`);
+        }
+      }
 	  
       for (const row of csvData) {
         try {
@@ -426,19 +452,23 @@ export class UploadService {
           
           const scannedAt = new Date(normalizedRow.scanned_at);
           
-          // Проверяем существование робота (если указан)
-          if (normalizedRow.robot_id) {
-            const robotExists = await uploadRepository.checkRobotExists(normalizedRow.robot_id);
-            if (!robotExists) {
-              await uploadRepository.createRobot({
-                id: normalizedRow.robot_id,
-                status: 'active',
-                battery_level: 100,
-                current_zone: normalizedRow.zone || 'A',
-                current_row: parseInt(String(normalizedRow.row_number)) || 1,
-                current_shelf: parseInt(String(normalizedRow.shelf_number)) || 1
-              });
-            }
+          // Определяем, какой robot_id использовать
+          const robotIdForScan = normalizedRow.robot_id && normalizedRow.robot_id.trim() !== '' 
+            ? normalizedRow.robot_id 
+            : importRobotId;
+          
+          // Проверяем существование робота и создаем если нужно
+          const robotExists = await uploadRepository.checkRobotExists(robotIdForScan);
+          if (!robotExists) {
+            await uploadRepository.createRobot({
+              id: robotIdForScan,
+              status: 'active',
+              battery_level: 100,
+              current_zone: normalizedRow.zone || 'A',
+              current_row: parseInt(String(normalizedRow.row_number)) || 1,
+              current_shelf: parseInt(String(normalizedRow.shelf_number)) || 1
+            });
+            console.log(`✅ Created robot: ${robotIdForScan}`);
           }
           
           // Генерируем product_id если его нет в CSV или он пустой
@@ -466,8 +496,7 @@ export class UploadService {
             summary.total_products++;
           }
           
-          // Проверяем на дубликаты (только если есть robot_id)
-          const robotIdForScan = normalizedRow.robot_id || importRobotId;
+          // Проверяем на дубликаты
           const isDuplicate = await uploadRepository.checkDuplicateScan({
             robot_id: robotIdForScan,
             product_id: productId,
