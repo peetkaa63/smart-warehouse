@@ -92,8 +92,8 @@ INSERT INTO robots (id, status, battery_level, last_update, current_zone, curren
 ('RB-001', 'active', 85, NOW(), 'A', 1, 1),
 ('RB-002', 'active', 45, NOW(), 'B', 5, 2),
 ('RB-003', 'charging', 95, NOW(), 'C', 10, 3),
-('RB-004', 'offline', 15, NOW() - INTERVAL '1 hour', 'D', 15, 4)
-('RB-005', 'active', 95, NOW(), 'C', 10, 3),
+('RB-004', 'offline', 15, NOW() - INTERVAL '1 hour', 'D', 15, 4),
+('RB-005', 'active', 95, NOW(), 'C', 10, 3)
 ON CONFLICT (id) DO NOTHING;
 
 -- Тестовые товары
