@@ -28,6 +28,7 @@ import {
   SmartToy
 } from '@mui/icons-material';
 import { aiAPI } from '../services/api';
+import { useSpring, animated } from '@react-spring/web';
 
 interface AIPrediction {
   product_id: string;
@@ -371,10 +372,19 @@ const AIPredictions: React.FC = () => {
       </Collapse>
 
       {/* Контент прогнозов с анимацией */}
-      <Collapse in={!loading} timeout={300}>
-        <Fade in={!loading} timeout={400}>
-          <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
-            {predictions.length === 0 ? (
+      {(() => {
+        const contentAnimation = useSpring({
+          height: !loading ? 'auto' : 0,
+          opacity: !loading ? 1 : 0,
+          config: { tension: 200, friction: 20 }
+        });
+
+        return (
+          <animated.div style={{ ...contentAnimation, overflow: 'hidden' }}>
+            <Collapse in={!loading} timeout={300}>
+              <Fade in={!loading} timeout={400}>
+                <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
+                  {predictions.length === 0 ? (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Нет данных для прогноза. Загрузите исторические данные через CSV.
               </Alert>
@@ -459,10 +469,13 @@ const AIPredictions: React.FC = () => {
                 </Paper>
               ))}
               </Box>
-            )}
-          </Box>
-        </Fade>
-      </Collapse>
+                  )}
+                </Box>
+              </Fade>
+            </Collapse>
+          </animated.div>
+        );
+      })()}
 
       {/* Футер с информацией */}
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>

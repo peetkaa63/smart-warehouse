@@ -23,6 +23,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Edit, Refresh, Check, Close } from '@mui/icons-material';
 import api from '../../services/api';
 
@@ -117,17 +118,49 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="lg" 
+      fullWidth
+      PaperProps={{
+        component: motion.div,
+        initial: { opacity: 0, scale: 0.9, y: 20 },
+        animate: { opacity: 1, scale: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.9, y: 20 },
+        transition: { duration: 0.3, ease: 'easeOut' }
+      }}
+    >
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6">Управление товарными лимитами</Typography>
           <IconButton onClick={loadProducts} disabled={loading}>
-            <Refresh />
+            <motion.div
+              animate={{ rotate: loading ? 360 : 0 }}
+              transition={{ 
+                duration: loading ? 1 : 0,
+                repeat: loading ? Infinity : 0,
+                ease: 'linear'
+              }}
+            >
+              <Refresh />
+            </motion.div>
           </IconButton>
         </Box>
       </DialogTitle>
       <DialogContent>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         <Paper sx={{ p: 2, mb: 3 }}>
           <Typography variant="subtitle1" gutterBottom>Пороги для статусов</Typography>
@@ -175,11 +208,26 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
         </Paper>
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          </motion.div>
         ) : (
-          <TableContainer component={Paper}>
+          <motion.div
+            key="table-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            layout
+          >
+            <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -190,8 +238,16 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
+                <AnimatePresence mode="popLayout">
+                  {products.map((product, index) => (
+                    <TableRow 
+                      key={product.id}
+                      component={motion.tr}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                    >
                     <TableCell>{product.name}</TableCell>
                     <TableCell>
                       {editingId === product.id ? (
@@ -235,11 +291,13 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
                         </IconButton>
                       )}
                     </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  ))}
+                </AnimatePresence>
               </TableBody>
             </Table>
           </TableContainer>
+          </motion.div>
         )}
       </DialogContent>
       <DialogActions>

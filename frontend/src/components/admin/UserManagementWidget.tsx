@@ -28,6 +28,7 @@ import {
   FormControlLabel,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSpring, animated } from '@react-spring/web';
 import {
   Add,
   Refresh,
@@ -86,6 +87,12 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
     role: 'operator',
   });
   const [roleValues, setRoleValues] = useState<{ [key: number]: string }>({});
+
+  const formAnimation = useSpring({
+    height: showAddForm ? 'auto' : 0,
+    opacity: showAddForm ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
 
   const loadUsers = async () => {
     setLoading(true);
@@ -189,17 +196,35 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
           <Typography variant="h6">Управление пользователями</Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <IconButton onClick={loadUsers} disabled={loading} size="small">
-              <Refresh />
+              <motion.div
+                animate={{ rotate: loading ? 360 : 0 }}
+                transition={{ 
+                  duration: loading ? 1 : 0,
+                  repeat: loading ? Infinity : 0,
+                  ease: 'linear'
+                }}
+              >
+                <Refresh />
+              </motion.div>
             </IconButton>
           </Box>
         </Box>
       </DialogTitle>
       <DialogContent>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle1">Список пользователей</Typography>
@@ -212,8 +237,8 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
           </Button>
         </Box>
 
-        {showAddForm && (
-          <Paper sx={{ p: 2, mb: 2 }}>
+        <animated.div style={{ ...formAnimation, overflow: 'hidden' }}>
+              <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
               Новый пользователь
             </Typography>
@@ -264,14 +289,29 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
               </Box>
             </Box>
           </Paper>
-        )}
+        </animated.div>
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          </motion.div>
         ) : (
-          <TableContainer component={Paper}>
+          <motion.div
+            key="table-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            layout
+          >
+            <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -284,15 +324,23 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      Нет пользователей
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
+                <AnimatePresence mode="popLayout">
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        Нет пользователей
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((user, index) => (
+                      <TableRow 
+                        key={user.id}
+                        component={motion.tr}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2, delay: index * 0.03 }}
+                      >
                       <TableCell>{user.id}</TableCell>
                       <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -372,12 +420,14 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
                           </IconButton>
                         </Tooltip>
                       </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                      </TableRow>
+                    ))
+                  )}
+                </AnimatePresence>
               </TableBody>
             </Table>
           </TableContainer>
+          </motion.div>
         )}
       </DialogContent>
       <DialogActions>

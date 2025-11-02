@@ -448,7 +448,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const groupOpen = Boolean(groupAnchorEl);
 
   return (
-    <Paper elevation={3} sx={{ p: 2, height: { xs: 520, md: 680 }, position: 'relative' }}>
+    <Paper elevation={3} sx={{ p: 2, height: { xs: 540, md: 680 }, position: 'relative' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h6">Карта склада</Typography>
@@ -530,7 +530,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         sx={{ 
           border: (theme) => `1px solid ${theme.palette.divider}`,
           backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.paper : '#f9f9f9',
-          height: 'calc(100% - 220px)',
+          height: { xs: 'calc(100% - 240px)', md: 'calc(100% - 220px)' },
           overflow: 'auto',
           position: 'relative',
           transition: 'background-color 0.3s ease, border-color 0.3s ease'

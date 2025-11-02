@@ -29,6 +29,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { analyticsAPI } from '../services/api';
+import { useSpring, animated } from '@react-spring/web';
 
 interface TrendChartProps {}
 
@@ -222,16 +223,33 @@ const TrendChart: React.FC<TrendChartProps> = () => {
         />
       </Box>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-          <Box textAlign="center">
-            <CircularProgress size={40} />
-            <Typography variant="body1" sx={{ mt: 2 }}>
-              Загрузка данных графика...
-            </Typography>
-          </Box>
-        </Box>
-      ) : chartData.length > 0 && selectedProducts.length > 0 ? (
+      {(() => {
+        const chartAnimation = useSpring({
+          height: loading ? 0 : 'auto',
+          opacity: loading ? 0 : 1,
+          config: { tension: 200, friction: 20 }
+        });
+
+        const loadingAnimation = useSpring({
+          height: loading ? 'auto' : 0,
+          opacity: loading ? 1 : 0,
+          config: { tension: 200, friction: 20 }
+        });
+
+        return (
+          <>
+            <animated.div style={{ ...loadingAnimation, overflow: 'hidden' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+                <Box textAlign="center">
+                  <CircularProgress size={40} />
+                  <Typography variant="body1" sx={{ mt: 2 }}>
+                    Загрузка данных графика...
+                  </Typography>
+                </Box>
+              </Box>
+            </animated.div>
+            <animated.div style={{ ...chartAnimation, overflow: 'hidden' }}>
+              {chartData.length > 0 && selectedProducts.length > 0 ? (
         <>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
@@ -309,8 +327,21 @@ const TrendChart: React.FC<TrendChartProps> = () => {
               {loadingProducts ? 'Загрузка списка товаров...' : 'Выберите товары для построения графика'}
             </Typography>
           </Box>
-        </Box>
-      )}
+            </Box>
+              ) : (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+                  <Box textAlign="center">
+                    <TrendingUp sx={{ fontSize: 48, color: 'text.secondary', mb: 1, opacity: 0.5 }} />
+                    <Typography variant="body1" color="textSecondary">
+                      {loadingProducts ? 'Загрузка списка товаров...' : 'Выберите товары для построения графика'}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </animated.div>
+          </>
+        );
+      })()}
     </Paper>
   );
 };

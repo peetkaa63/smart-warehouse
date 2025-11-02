@@ -2,6 +2,7 @@ import React from 'react'
 import { Paper, Box, Typography, List, ListItem, ListItemText, Button, Chip, CircularProgress, IconButton, useTheme } from '@mui/material'
 import { Refresh, TrendingDown, TrendingUp, Warning } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSpring, animated } from '@react-spring/web'
 import api from '../services/api'
 
 const ReplenishmentPanel: React.FC = () => {
@@ -78,13 +79,16 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          <AnimatePresence>
-            <motion.div
-              initial={initialLoad ? { opacity: 0, height: 0 } : false}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+          {(() => {
+            const lowLength = (data.low || []).length;
+            const listAnimation = useSpring({
+              height: lowLength > 0 ? 'auto' : 0,
+              opacity: lowLength > 0 ? 1 : 0,
+              config: { tension: 200, friction: 20 }
+            });
+
+            return (
+              <animated.div style={{ ...listAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.low || []).map((i, idx) => (
                   <motion.div
@@ -151,8 +155,9 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-            </motion.div>
-          </AnimatePresence>
+              </animated.div>
+            );
+          })()}
         </Box>
 
         {/* Избыток */}
@@ -169,13 +174,16 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          <AnimatePresence>
-            <motion.div
-              initial={initialLoad ? { opacity: 0, height: 0 } : false}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+          {(() => {
+            const surplusLength = (data.surplus || []).length;
+            const listAnimation = useSpring({
+              height: surplusLength > 0 ? 'auto' : 0,
+              opacity: surplusLength > 0 ? 1 : 0,
+              config: { tension: 200, friction: 20 }
+            });
+
+            return (
+              <animated.div style={{ ...listAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.surplus || []).map((i, idx) => (
                   <motion.div
@@ -247,8 +255,9 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-            </motion.div>
-          </AnimatePresence>
+              </animated.div>
+            );
+          })()}
         </Box>
       </Box>
     </Paper>

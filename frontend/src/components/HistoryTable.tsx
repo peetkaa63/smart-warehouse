@@ -64,13 +64,30 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
         Таблица исторических данных
       </Typography>
       
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : data.length > 0 ? (
-        <>
-          <TableContainer>
+      {(() => {
+        const tableAnimation = useSpring({
+          height: loading ? 0 : 'auto',
+          opacity: loading ? 0 : 1,
+          config: { tension: 200, friction: 20 }
+        });
+
+        const loadingAnimation = useSpring({
+          height: loading ? 'auto' : 0,
+          opacity: loading ? 1 : 0,
+          config: { tension: 200, friction: 20 }
+        });
+
+        return (
+          <>
+            <animated.div style={{ ...loadingAnimation, overflow: 'hidden' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            </animated.div>
+            <animated.div style={{ ...tableAnimation, overflow: 'hidden' }}>
+              {data.length > 0 ? (
+                <>
+                  <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
@@ -124,27 +141,31 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
               `${from}-${to} из ${count}`
             }
           />
-        </>
-      ) : (
-        <Box 
-          sx={{ 
-            textAlign: 'center', 
-            py: 6,
-            color: 'text.secondary'
-          }}
-        >
-          <Info sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
-          <Typography variant="h6" gutterBottom>
-            Нет данных
-          </Typography>
-          <Typography variant="body1">
-            {hasActiveFilters
-              ? 'Попробуйте изменить параметры фильтрации'
-              : 'Исторические данные появятся после работы роботов'
-            }
-          </Typography>
-        </Box>
-      )}
+                </>
+              ) : (
+                <Box 
+                  sx={{ 
+                    textAlign: 'center', 
+                    py: 6,
+                    color: 'text.secondary'
+                  }}
+                >
+                  <Info sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Нет данных
+                  </Typography>
+                  <Typography variant="body1">
+                    {hasActiveFilters
+                      ? 'Попробуйте изменить параметры фильтрации'
+                      : 'Исторические данные появятся после работы роботов'
+                    }
+                  </Typography>
+                </Box>
+              )}
+            </animated.div>
+          </>
+        );
+      })()}
     </Paper>
   );
 };

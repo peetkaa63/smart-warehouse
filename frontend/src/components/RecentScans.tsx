@@ -17,6 +17,7 @@ import { useDispatch } from 'react-redux';
 import { addScan } from '../store/slices/dashboardSlice';
 import { socketService } from '../services/socketService';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useSpring, animated } from '@react-spring/web';
 
 interface Scan {
   time: string;
@@ -219,7 +220,16 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
         </IconButton>
       </Box>
       
-      <TableContainer sx={{ maxHeight: 300 }}>
+      {(() => {
+        const tableAnimation = useSpring({
+          height: filteredScans.length > 0 ? 'auto' : 0,
+          opacity: filteredScans.length > 0 ? 1 : 0.5,
+          config: { tension: 200, friction: 20 }
+        });
+
+        return (
+          <animated.div style={{ ...tableAnimation, overflow: 'hidden' }}>
+            <TableContainer sx={{ maxHeight: 300 }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
@@ -329,6 +339,9 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
           </TableBody>
         </Table>
       </TableContainer>
+          </animated.div>
+        );
+      })()}
     </Paper>
   );
 };

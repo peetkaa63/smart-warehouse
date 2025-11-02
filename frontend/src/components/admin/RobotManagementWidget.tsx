@@ -26,6 +26,7 @@ import {
   InputLabel,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSpring, animated } from '@react-spring/web';
 import {
   Add,
   Delete,
@@ -82,6 +83,12 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
   const [editingMaintenance, setEditingMaintenance] = useState<string | null>(null);
   const [maintenanceDate, setMaintenanceDate] = useState('');
   const [newRobot, setNewRobot] = useState({ id: '', name: '', zone: '' });
+
+  const formAnimation = useSpring({
+    height: showAddForm ? 'auto' : 0,
+    opacity: showAddForm ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
 
   const loadRobots = async () => {
     setLoading(true);
@@ -183,17 +190,35 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
           <Typography variant="h6">Управление роботами</Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <IconButton onClick={loadRobots} disabled={loading} size="small">
-              <Refresh />
+              <motion.div
+                animate={{ rotate: loading ? 360 : 0 }}
+                transition={{ 
+                  duration: loading ? 1 : 0,
+                  repeat: loading ? Infinity : 0,
+                  ease: 'linear'
+                }}
+              >
+                <Refresh />
+              </motion.div>
             </IconButton>
           </Box>
         </Box>
       </DialogTitle>
       <DialogContent>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle1">Список роботов</Typography>
@@ -206,8 +231,8 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
           </Button>
         </Box>
 
-        {showAddForm && (
-          <Paper sx={{ p: 2, mb: 2 }}>
+        <animated.div style={{ ...formAnimation, overflow: 'hidden' }}>
+              <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
               Новый робот
             </Typography>
@@ -234,17 +259,32 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
               <Button variant="contained" onClick={handleAddRobot}>
                 Сохранить
               </Button>
-              <Button onClick={() => setShowAddForm(false)}>Отмена</Button>
+              <Button onClick={() => setShowAddForm(false)}>Отмена              </Button>
             </Box>
           </Paper>
-        )}
+        </animated.div>
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          </motion.div>
         ) : (
-          <TableContainer component={Paper}>
+          <motion.div
+            key="table-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            layout
+          >
+            <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -259,15 +299,23 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
                 </TableRow>
               </TableHead>
               <TableBody>
-                {robots.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} align="center">
-                      Нет роботов
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  robots.map((robot) => (
-                    <TableRow key={robot.id}>
+                <AnimatePresence mode="popLayout">
+                  {robots.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        Нет роботов
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    robots.map((robot, index) => (
+                      <TableRow 
+                        key={robot.id}
+                        component={motion.tr}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2, delay: index * 0.03 }}
+                      >
                       <TableCell>{robot.id}</TableCell>
                       <TableCell>{robot.name || '-'}</TableCell>
                       <TableCell>
@@ -352,12 +400,14 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
                           </Tooltip>
                         </Box>
                       </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                      </TableRow>
+                    ))
+                  )}
+                </AnimatePresence>
               </TableBody>
             </Table>
           </TableContainer>
+          </motion.div>
         )}
       </DialogContent>
       <DialogActions>

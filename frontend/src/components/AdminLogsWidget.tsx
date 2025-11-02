@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import { Close, RefreshCw, Storage, People, Security, Settings } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSpring, animated } from '@react-spring/web'
 import { useDispatch as useReduxDispatch } from 'react-redux'
 import { setAll } from '../store/slices/notificationSettingsSlice'
 import { profileAPI } from '../services/api'
@@ -126,6 +127,11 @@ const AdminLogsWidget: React.FC = () => {
       (n.title || '').toLowerCase().includes(q)
     ).slice(0, 100)
   }, [allItems, filter, selectedCategory])
+
+  const listAnimation = useSpring({
+    opacity: filtered.length > 0 ? 1 : 0.5,
+    config: { tension: 200, friction: 20 }
+  })
 
   const handleForceRefresh = async () => {
     try {
@@ -255,9 +261,10 @@ const AdminLogsWidget: React.FC = () => {
 
           <Divider sx={{ mb: 2 }} />
           
-          <List dense sx={{ maxHeight: 500, overflow: 'auto' }}>
-            <AnimatePresence>
-              {filtered.map((ev, idx) => (
+          <animated.div style={{ ...listAnimation, overflow: 'hidden' }}>
+            <List dense sx={{ maxHeight: 500, overflow: 'auto' }}>
+              <AnimatePresence>
+                {filtered.map((ev, idx) => (
                 <motion.div
                   key={ev.id || `log-${idx}`}
                   initial={{ opacity: 0, x: -20 }}
@@ -313,9 +320,25 @@ const AdminLogsWidget: React.FC = () => {
               </ListItem>
             )}
           </List>
+          </animated.div>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleForceRefresh} disabled={busy} startIcon={<RefreshCw />}>
+          <Button 
+            onClick={handleForceRefresh} 
+            disabled={busy} 
+            startIcon={
+              <motion.div
+                animate={{ rotate: busy ? 360 : 0 }}
+                transition={{ 
+                  duration: busy ? 1 : 0,
+                  repeat: busy ? Infinity : 0,
+                  ease: 'linear'
+                }}
+              >
+                <RefreshCw />
+              </motion.div>
+            }
+          >
             Обновить
           </Button>
           <Button onClick={() => setOpen(false)}>Закрыть</Button>
