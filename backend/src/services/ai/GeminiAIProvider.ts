@@ -47,7 +47,7 @@ export class GeminiAIProvider implements IAIProvider {
       });
       
       const responseText = response.text || '';
-      const parsedResponse = this.parseAIResponse(responseText);
+      const parsedResponse = this.parseAIResponse(responseText, request);
       
       return {
         ...parsedResponse,
@@ -74,7 +74,7 @@ export class GeminiAIProvider implements IAIProvider {
       });
       
       const responseText = response.text || '';
-      const parsedResponse = this.parseAIResponse(responseText);
+      const parsedResponse = this.parseAIResponse(responseText, request);
       
       return {
         ...parsedResponse,
@@ -101,7 +101,7 @@ export class GeminiAIProvider implements IAIProvider {
       });
       
       const responseText = response.text || '';
-      const parsedResponse = this.parseAIResponse(responseText);
+      const parsedResponse = this.parseAIResponse(responseText, request);
       
       return {
         ...parsedResponse,
@@ -267,7 +267,7 @@ ${historicalDataJson}
 `;
   }
 
-  private parseAIResponse(responseText: string): any {
+  private parseAIResponse(responseText: string, request?: AIAnalysisRequest): any {
     try {
       // Пытаемся найти JSON в ответе
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -277,12 +277,17 @@ ${historicalDataJson}
         // Нормализуем predictions если они есть
         if (parsed.predictions && Array.isArray(parsed.predictions)) {
           // Находим информацию о местоположении из currentStock для каждого товара
-          const currentStockMap = new Map(
-            (request.currentStock || []).map((cs: any) => [cs.product_id, cs])
-          );
+          const currentStockMap = new Map<string, any>();
+          if (request && request.currentStock && Array.isArray(request.currentStock)) {
+            request.currentStock.forEach((cs: any) => {
+              if (cs && cs.product_id) {
+                currentStockMap.set(cs.product_id, cs);
+              }
+            });
+          }
 
           parsed.predictions = parsed.predictions.map((p: any) => {
-            const stockInfo = currentStockMap.get(p.product_id);
+            const stockInfo: any = currentStockMap.get(p.product_id);
             return {
               product_id: p.product_id,
               product_name: p.product_name || 'Неизвестный товар',
@@ -290,7 +295,7 @@ ${historicalDataJson}
               days_until_stockout: p.days_until_stockout !== undefined && p.days_until_stockout !== null ? Number(p.days_until_stockout) : null,
               recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || 0,
               confidence_score: Number(p.confidence_score) || Number(p.confidence) || 0,
-              risk_level: p.risk_level || (p.days_until_stockout <= 2 ? 'HIGH' : p.days_until_stockout <= 5 ? 'MEDIUM' : 'LOW'),
+              risk_level: p.risk_level || (p.days_until_stockout !== undefined && p.days_until_stockout !== null && p.days_until_stockout <= 2 ? 'HIGH' : (p.days_until_stockout !== undefined && p.days_until_stockout !== null && p.days_until_stockout <= 5 ? 'MEDIUM' : 'LOW')),
               reasoning: p.reasoning || '',
               // Добавляем информацию о местоположении если есть
               zone: stockInfo?.zone || p.zone,
