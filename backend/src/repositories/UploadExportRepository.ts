@@ -82,6 +82,27 @@ export class UploadRepository {
     ]);
   }
 
+  // Проверка существования дубликата записи сканирования (в пределах 1 минуты)
+  async checkDuplicateScan(scanData: {
+    robot_id: string;
+    product_id: string;
+    scanned_at: Date;
+  }): Promise<boolean> {
+    const query = `
+      SELECT 1 FROM inventory_history
+      WHERE robot_id = $1 
+        AND product_id = $2 
+        AND ABS(EXTRACT(EPOCH FROM (scanned_at - $3))) <= 60
+      LIMIT 1
+    `;
+    const result = await pool.query(query, [
+      scanData.robot_id,
+      scanData.product_id,
+      scanData.scanned_at
+    ]);
+    return result.rows.length > 0;
+  }
+
   // Сохранение данных сканирования
   async saveScanData(scanData: {
     robot_id: string;

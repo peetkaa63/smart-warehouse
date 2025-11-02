@@ -1,6 +1,17 @@
 import { profileRepository } from '../repositories/ProfileRepository';
 
+/**
+ * Сервис для работы с профилем пользователя
+ * 
+ * Предоставляет методы для получения и сохранения персональных настроек пользователя
+ */
 export class ProfileService {
+  /**
+   * Получить настройки пользователя
+   * @param userId - ID пользователя
+   * @returns Объект с настройками пользователя
+   * @throws {Error} Если произошла ошибка при получении настроек
+   */
   // Получение настроек пользователя
   async getSettings(userId: number): Promise<any> {
     try {
@@ -12,6 +23,12 @@ export class ProfileService {
     }
   }
 
+  /**
+   * Сохранить настройки пользователя
+   * @param userId - ID пользователя
+   * @param settings - Объект с настройками для сохранения
+   * @throws {Error} Если произошла ошибка при сохранении настроек
+   */
   // Сохранение настроек пользователя
   async saveSettings(userId: number, settings: any): Promise<void> {
     try {

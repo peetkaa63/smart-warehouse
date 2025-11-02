@@ -15,7 +15,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Snackbar
+  Snackbar,
+  Collapse,
+  Fade
 } from '@mui/material';
 import { 
   Refresh, 
@@ -31,12 +33,15 @@ interface AIPrediction {
   product_id: string;
   product_name: string;
   current_stock: number;
-  days_until_stockout: number;
+  days_until_stockout: number | null;
   recommended_order_quantity: number;
   confidence_score: number;
   reasoning?: string;
   risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
   prediction_date?: string;
+  zone?: string;
+  row_number?: number;
+  shelf_number?: number;
 }
 
 interface AIResponse {
@@ -92,13 +97,22 @@ const AIPredictions: React.FC = () => {
       const normalized = (response.predictions || []).map((p: any) => ({
         product_id: p.product_id,
         product_name: p.product_name || p.name || p.productId || 'Товар',
-        current_stock: p.current_stock ?? p.stock ?? p.currentStock ?? 0,
-        days_until_stockout: p.days_until_stockout ?? p.daysUntilStockout ?? p.days ?? null,
-        recommended_order_quantity: p.recommended_order_quantity ?? p.recommended_order ?? p.recommended ?? 0,
-        confidence_score: typeof p.confidence_score === 'number' ? p.confidence_score : typeof p.confidence === 'number' ? p.confidence : 0,
-        reasoning: p.reasoning,
+        // Используем реальные данные из ответа, если они есть
+        current_stock: Number(p.current_stock) || Number(p.stock) || Number(p.currentStock) || 0,
+        days_until_stockout: (p.days_until_stockout !== undefined && p.days_until_stockout !== null 
+          ? Number(p.days_until_stockout) 
+          : (p.daysUntilStockout !== undefined && p.daysUntilStockout !== null ? Number(p.daysUntilStockout) : (p.days !== undefined && p.days !== null ? Number(p.days) : null))) as number | null,
+        recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || Number(p.recommended) || 0,
+        confidence_score: typeof p.confidence_score === 'number' 
+          ? p.confidence_score 
+          : (typeof p.confidence === 'number' ? p.confidence : 0),
+        reasoning: p.reasoning || '',
         risk_level: p.risk_level || p.risk || undefined,
-        prediction_date: p.prediction_date || p.date || undefined
+        prediction_date: p.prediction_date || p.date || undefined,
+        // Информация о месте пополнения (если есть)
+        zone: p.zone,
+        row_number: p.row_number,
+        shelf_number: p.shelf_number
       }));
 
       setPredictions(normalized);
@@ -156,6 +170,7 @@ const AIPredictions: React.FC = () => {
     // Автообновление каждые 30 минут
     const interval = setInterval(() => loadPredictions(), 30 * 60 * 1000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodDays]);
 
   const handlePeriodChange = (event: any) => {
@@ -195,7 +210,8 @@ const AIPredictions: React.FC = () => {
     }
   };
 
-  const getStockoutColor = (days: number) => {
+  const getStockoutColor = (days: number | null) => {
+    if (days === null) return 'default';
     if (days <= 2) return 'error';
     if (days <= 5) return 'warning';
     return 'success';
@@ -207,7 +223,8 @@ const AIPredictions: React.FC = () => {
     return 'error';
   };
 
-  const getStockoutText = (days: number) => {
+  const getStockoutText = (days: number | null) => {
+    if (days === null) return 'Не определено';
     if (days <= 0) return 'ЗАКОНЧИЛСЯ';
     if (days <= 2) return `${days} дн. ⚠️`;
     if (days <= 5) return `${days} дн.`;
@@ -215,7 +232,14 @@ const AIPredictions: React.FC = () => {
   };
 
   return (
-    <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Paper sx={{ 
+      p: 3, 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      transition: 'height 0.3s ease-in-out',
+      minHeight: loading ? '300px' : 'auto'
+    }}>
       {/* Заголовок с управлением */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -325,28 +349,38 @@ const AIPredictions: React.FC = () => {
         </Alert>
       )}
 
-      {/* Прогресс загрузки */}
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, flexGrow: 1 }}>
-          <Box textAlign="center">
-            <CircularProgress size={40} />
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              AI анализирует данные...
-            </Typography>
-          </Box>
+      {/* Прогресс загрузки с анимацией */}
+      <Collapse in={loading} timeout={300}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          py: 4, 
+          flexGrow: 1,
+          minHeight: '200px'
+        }}>
+          <Fade in={loading} timeout={400}>
+            <Box textAlign="center">
+              <CircularProgress size={40} />
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                AI анализирует данные...
+              </Typography>
+            </Box>
+          </Fade>
         </Box>
-      )}
+      </Collapse>
 
-      {/* Контент прогнозов */}
-      {!loading && (
-        <Box sx={{ flexGrow: 1 }}>
-          {predictions.length === 0 ? (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Нет данных для прогноза. Загрузите исторические данные через CSV.
-            </Alert>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {predictions.slice(0, 5).map((prediction, index) => (
+      {/* Контент прогнозов с анимацией */}
+      <Collapse in={!loading} timeout={300}>
+        <Fade in={!loading} timeout={400}>
+          <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
+            {predictions.length === 0 ? (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Нет данных для прогноза. Загрузите исторические данные через CSV.
+              </Alert>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {predictions.slice(0, 5).map((prediction, index) => (
                 <Paper 
                   key={`${prediction.product_id}-${index}`} 
                   variant="outlined" 
@@ -391,6 +425,19 @@ const AIPredictions: React.FC = () => {
                     </Typography>
                   </Box>
 
+                  {(prediction.zone || prediction.row_number || prediction.shelf_number) && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        📍 Рекомендация пополнения: 
+                        <strong>
+                          {prediction.zone ? ` Зона ${prediction.zone}` : ''}
+                          {prediction.row_number ? `, Ряд ${prediction.row_number}` : ''}
+                          {prediction.shelf_number ? `, Полка ${prediction.shelf_number}` : ''}
+                        </strong>
+                      </Typography>
+                    </Box>
+                  )}
+
                   {prediction.reasoning && (
                     <Tooltip title={prediction.reasoning} arrow>
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mt: 1 }}>
@@ -411,10 +458,11 @@ const AIPredictions: React.FC = () => {
                   )}
                 </Paper>
               ))}
-            </Box>
-          )}
-        </Box>
-      )}
+              </Box>
+            )}
+          </Box>
+        </Fade>
+      </Collapse>
 
       {/* Футер с информацией */}
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>

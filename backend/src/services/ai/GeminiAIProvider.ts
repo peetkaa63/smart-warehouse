@@ -47,7 +47,7 @@ export class GeminiAIProvider implements IAIProvider {
       });
       
       const responseText = response.text || '';
-      const parsedResponse = this.parseAIResponse(responseText);
+      const parsedResponse = this.parseAIResponse(responseText, request);
       
       return {
         ...parsedResponse,
@@ -74,7 +74,7 @@ export class GeminiAIProvider implements IAIProvider {
       });
       
       const responseText = response.text || '';
-      const parsedResponse = this.parseAIResponse(responseText);
+      const parsedResponse = this.parseAIResponse(responseText, request);
       
       return {
         ...parsedResponse,
@@ -101,7 +101,7 @@ export class GeminiAIProvider implements IAIProvider {
       });
       
       const responseText = response.text || '';
-      const parsedResponse = this.parseAIResponse(responseText);
+      const parsedResponse = this.parseAIResponse(responseText, request);
       
       return {
         ...parsedResponse,
@@ -186,10 +186,23 @@ ${historicalDataJson}
 ТЕКУЩИЕ ОСТАТКИ:
 ${currentStockJson}
 
-СОЗДАЙ ПРОГНОЗЫ НА 7 ДНЕЙ:
-1. Ожидаемый спрос по товарам
-2. Рекомендуемые уровни запасов
-3. Риски дефицита
+СОЗДАЙ ПРОГНОЗЫ НА ${request.periodDays || 7} ДНЕЙ:
+ВАЖНО: Прогноз создается только на ${request.periodDays || 7} дней. days_until_stockout не должен превышать ${request.periodDays || 7} дней!
+
+1. Рассчитай через сколько дней закончатся запасы (days_until_stockout) на основе текущего остатка и исторических данных о потреблении
+   - days_until_stockout НЕ должен превышать ${request.periodDays || 7} дней (это период прогноза)
+   - Если запасы закончатся позже ${request.periodDays || 7} дней, укажи ${request.periodDays || 7} или null
+2. Рекомендуемое количество для заказа (recommended_order_quantity) - ОБЯЗАТЕЛЬНО учитывай optimal_stock из БД (это оптимальный уровень запаса для товара)
+   - Если current_stock < optimal_stock, то recommended_order_quantity = optimal_stock - current_stock + дополнительный запас на время доставки (3-5 дней)
+   - Если current_stock >= optimal_stock, то recommended_order_quantity = 0 (запас достаточен)
+   - Всегда учитывай optimal_stock как целевой уровень запаса для товара
+3. Риски дефицита (высокий риск если current_stock < min_stock)
+
+ОБЯЗАТЕЛЬНО:
+- Используй ТЕКУЩИЙ ОСТАТОК (current_stock) из данных текущих остатков
+- Используй optimal_stock (оптимальный уровень запаса) из данных текущих остатков для расчета recommended_order_quantity
+- Используй min_stock (минимальный уровень запаса) из данных текущих остатков для оценки риска
+- Если current_stock = 0, то это критическая ситуация
 
 ВЕРНИ ОТВЕТ В JSON ФОРМАТЕ (все текстовые поля на русском языке):
 {
@@ -197,19 +210,27 @@ ${currentStockJson}
     {
       "product_id": "string",
       "product_name": "string",
-      "predicted_demand": число,
-      "recommended_stock": число,
-      "risk_level": "LOW|MEDIUM|HIGH",
-      "confidence": число,
-      "reasoning": "строка на русском"
+      "current_stock": число (ОБЯЗАТЕЛЬНО из текущих остатков, НЕ 0 если есть остатки),
+      "days_until_stockout": число (сколько дней до исчерпания запасов),
+      "recommended_order_quantity": число (сколько заказать),
+      "confidence_score": число (от 0 до 1),
+      "risk_level": "HIGH|MEDIUM|LOW",
+      "reasoning": "строка на русском - объяснение прогноза"
     }
   ],
-  "confidence": число,
+  "period_days": ${request.periodDays || 7},
   "analysis_summary": "строка на русском"
 }
 
-ВАЖНО: Все текстовые поля должны быть на русском языке.
-Только JSON, без дополнительного текста.
+ВАЖНО: 
+- current_stock ДОЛЖЕН браться из ТЕКУЩИХ ОСТАТКОВ и быть реальным числом
+- optimal_stock (оптимальный запас) УКАЗАН в данных текущих остатков - используй его как ЦЕЛЕВОЙ УРОВЕНЬ для recommended_order_quantity
+- min_stock (минимальный запас) УКАЗАН в данных текущих остатков - используй для оценки риска дефицита
+- recommended_order_quantity рассчитывай так: если current_stock < optimal_stock, то заказать нужно (optimal_stock - current_stock) + запас на доставку
+- Если current_stock >= optimal_stock, то recommended_order_quantity = 0 (запас достаточен)
+- Если current_stock в данных = 0, но есть исторические данные - укажи это в reasoning
+- Все текстовые поля должны быть на русском языке
+- Только JSON, без дополнительного текста
 `;
   }
 
@@ -250,12 +271,78 @@ ${historicalDataJson}
 `;
   }
 
-  private parseAIResponse(responseText: string): any {
+  private parseAIResponse(responseText: string, request?: AIAnalysisRequest): any {
     try {
       // Пытаемся найти JSON в ответе
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Нормализуем predictions если они есть
+        if (parsed.predictions && Array.isArray(parsed.predictions)) {
+          // Находим информацию о местоположении из currentStock для каждого товара
+          const currentStockMap = new Map<string, any>();
+          if (request && request.currentStock && Array.isArray(request.currentStock)) {
+            request.currentStock.forEach((cs: any) => {
+              if (cs && cs.product_id) {
+                currentStockMap.set(cs.product_id, cs);
+              }
+            });
+          }
+
+          parsed.predictions = parsed.predictions.map((p: any) => {
+            const stockInfo: any = currentStockMap.get(p.product_id);
+            
+            // Валидация и нормализация days_until_stockout
+            let days_until_stockout: number | null = null;
+            if (p.days_until_stockout !== undefined && p.days_until_stockout !== null) {
+              const rawDays = Number(p.days_until_stockout);
+              if (!isNaN(rawDays) && rawDays >= 0) {
+                // Ограничиваем максимальное значение до периода прогноза (periodDays)
+                // или до 365 дней максимум, если период больше года
+                const periodDays = request?.periodDays || 7;
+                const maxDays = Math.min(periodDays, 365);
+                if (rawDays > maxDays) {
+                  console.warn(`⚠️ AI returned days_until_stockout: ${rawDays} for product ${p.product_id}, capping to period ${maxDays} days`);
+                  days_until_stockout = maxDays;
+                } else {
+                  days_until_stockout = Math.floor(rawDays);
+                }
+              }
+            }
+            
+            // Определяем risk_level на основе валидированных данных
+            let risk_level: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+            if (p.risk_level) {
+              risk_level = p.risk_level;
+            } else if (days_until_stockout !== null) {
+              if (days_until_stockout <= 2) {
+                risk_level = 'HIGH';
+              } else if (days_until_stockout <= 5) {
+                risk_level = 'MEDIUM';
+              } else {
+                risk_level = 'LOW';
+              }
+            }
+            
+            return {
+              product_id: p.product_id,
+              product_name: p.product_name || 'Неизвестный товар',
+              current_stock: Number(p.current_stock) || (stockInfo ? Number(stockInfo.current_stock) : 0),
+              days_until_stockout: days_until_stockout,
+              recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || 0,
+              confidence_score: Math.min(1, Math.max(0, Number(p.confidence_score) || Number(p.confidence) || 0)), // Ограничиваем 0-1
+              risk_level: risk_level,
+              reasoning: p.reasoning || '',
+              // Добавляем информацию о местоположении если есть
+              zone: stockInfo?.zone || p.zone,
+              row_number: stockInfo?.row_number || p.row_number,
+              shelf_number: stockInfo?.shelf_number || p.shelf_number
+            };
+          });
+        }
+        
+        return parsed;
       }
       throw new Error('No JSON found in response');
     } catch (error) {

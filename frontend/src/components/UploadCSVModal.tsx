@@ -37,11 +37,16 @@ import { uploadAPI } from '../services/api';
 
 interface UploadResult {
   success: boolean;
-  summary: {
+  summary?: {
     totalProcessed: number;
     imported: number;
     errors: number;
+    duplicates?: number;
+    total_products?: number;
+    total_quantity?: number;
+    zones_updated?: string[];
   };
+  processed_rows?: number;
   errors: Array<{
     row: number | string;
     error: string;
@@ -137,10 +142,12 @@ const UploadCSVModal: React.FC<UploadCSVModalProps> = ({
         console.log('✅ Upload successful');
       }
     } catch (error: any) {
+      console.error('Upload error:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Неизвестная ошибка';
       setUploadResult({
         success: false,
-        summary: { totalProcessed: 0, imported: 0, errors: 1 },
-        errors: [{ row: 'File', error: error.message, data: {} }]
+        summary: { totalProcessed: 0, imported: 0, errors: 1, duplicates: 0 },
+        errors: [{ row: 'File', error: errorMessage, data: {} }]
       });
       setCurrentStep('result');
     } finally {
@@ -447,15 +454,25 @@ const UploadCSVModal: React.FC<UploadCSVModalProps> = ({
                     {uploadResult.success ? '✅ Загрузка завершена успешно!' : '❌ Ошибка при загрузке'}
                   </Typography>
                   <Box component="ul" sx={{ mb: 0, pl: 2 }}>
-                    <li>Обработано записей: <strong>{uploadResult.summary?.totalProcessed ?? 0}</strong></li>
-                    <li>Импортировано записей: <strong>{uploadResult.summary?.imported ?? 0}</strong></li>
-                    <li>Обнаружено ошибок: <strong>{uploadResult.summary?.errors ?? 0}</strong></li>
+                    <li>Обработано записей: <strong>{uploadResult.summary?.totalProcessed ?? uploadResult.processed_rows ?? 0}</strong></li>
+                    <li>Импортировано записей: <strong>{uploadResult.summary?.imported ?? uploadResult.summary?.totalProcessed ?? 0}</strong></li>
+                    {uploadResult.summary?.duplicates !== undefined && uploadResult.summary.duplicates > 0 && (
+                      <li>Найдено дубликатов (уже в БД): <strong>{uploadResult.summary.duplicates}</strong></li>
+                    )}
+                    <li>Обнаружено ошибок: <strong>{uploadResult.summary?.errors ?? uploadResult.errors?.length ?? 0}</strong></li>
                   </Box>
+                  {uploadResult.summary?.duplicates !== undefined && uploadResult.summary.duplicates > 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <Typography variant="body2">
+                        Часть данных уже была записана в базу данных. Дубликаты пропущены.
+                      </Typography>
+                    </Alert>
+                  )}
                 </Alert>
               </Zoom>
             )}
 
-            {uploadResult && uploadResult.errors.length > 0 && (
+            {uploadResult && uploadResult.errors && uploadResult.errors.length > 0 && (
               <Slide direction="up" in={true} timeout={700}>
                 <Box>
                   <Typography variant="subtitle2" gutterBottom>
