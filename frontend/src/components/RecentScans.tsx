@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Paper,
   Typography,
@@ -33,10 +33,10 @@ interface RecentScansProps {
 
 const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
   const [isPaused, setIsPaused] = useState(false);
-  const [filteredScans, setFilteredScans] = useState<Scan[]>([]);
   const [newScanKeys, setNewScanKeys] = useState<Set<string>>(new Set());
   const dispatch = useDispatch();
   const previousScansRef = useRef<Scan[]>([]);
+  const scansStringRef = useRef<string>('');
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,98 +71,129 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
     }
   };
 
-  // Подписка на WebSocket обновления для новых сканирований
+  // Мемоизация валидных сканирований с проверкой на изменение
+  const filteredScans = useMemo(() => {
+    if (isPaused) {
+      return previousScansRef.current;
+    }
+    
+    const validScans = scans.filter(scan => 
+      scan && 
+      scan.time && 
+      scan.robot_id && 
+      scan.product_id &&
+      scan.quantity !== undefined &&
+      scan.quantity !== null &&
+      !isNaN(Number(scan.quantity))
+    );
+    
+    // Сравниваем по строковому представлению, чтобы избежать лишних обновлений
+    const scansString = JSON.stringify(validScans.map(s => ({
+      time: s.time,
+      robot_id: s.robot_id,
+      product_id: s.product_id
+    })));
+    
+    // Если данные не изменились, возвращаем предыдущее значение
+    if (scansString === scansStringRef.current && previousScansRef.current.length === validScans.length) {
+      return previousScansRef.current;
+    }
+    
+    scansStringRef.current = scansString;
+    previousScansRef.current = validScans;
+    return validScans;
+  }, [scans, isPaused]);
+
+  // Определяем новые сканирования отдельно, чтобы избежать цикла
   useEffect(() => {
-    const socket = socketService.getSocket();
-    if (!socket || isPaused) return;
-
-    const handleInventoryScan = (scanData: any) => {
-      if (!isPaused && scanData) {
-        // Добавляем новое сканирование в Redux
-        dispatch(addScan({
-          time: scanData.scanned_at || scanData.time || new Date().toISOString(),
-          robot_id: scanData.robot_id,
-          zone: scanData.zone,
-          product_name: scanData.product_name || scanData.product?.name || '',
-          product_id: scanData.product_id || scanData.product?.id || '',
-          quantity: scanData.quantity || 0,
-          status: scanData.status || 'OK'
-        }));
-      }
-    };
-
-    // Подписываемся на новые сканирования через inventory_alert
-    socket.on('inventory_alert', handleInventoryScan);
-
-    return () => {
-      if (socket) {
-        socket.off('inventory_alert', handleInventoryScan);
-      }
-    };
-  }, [isPaused, dispatch]);
-
-  // Фильтруем валидные данные и определяем новые сканирования
-  useEffect(() => {
-    if (!isPaused) {
-      const validScans = scans.filter(scan => 
-        scan && 
-        scan.time && 
-        scan.robot_id && 
-        scan.product_id &&
-        scan.quantity !== undefined &&
-        scan.quantity !== null &&
-        !isNaN(Number(scan.quantity))
+    if (!isPaused && filteredScans.length > 0) {
+      const currentKeys = new Set(
+        filteredScans.map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
       );
       
-      // Определяем новые сканирования (которые появились сверху)
-      const previousScans = previousScansRef.current;
-      const newScans = validScans.filter(scan => {
-        const scanKey = `${scan.robot_id}-${scan.product_id}-${scan.time}`;
-        return !previousScans.some(prev => 
-          prev.robot_id === scan.robot_id &&
-          prev.product_id === scan.product_id &&
-          prev.time === scan.time
-        );
-      });
+      // Определяем, есть ли новые сканирования
+      const previousKeys = new Set(
+        (previousScansRef.current || []).map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
+      );
+      
+      const newKeys = new Set(
+        Array.from(currentKeys).filter(key => !previousKeys.has(key))
+      );
 
-      // Помечаем новые сканирования для анимации
-      if (newScans.length > 0) {
-        const newKeys = new Set(
-          newScans.map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
-        );
+      if (newKeys.size > 0) {
         setNewScanKeys(newKeys);
 
         // Убираем анимацию через 2 секунды
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           setNewScanKeys(prev => {
             const updated = new Set(prev);
             newKeys.forEach(key => updated.delete(key));
             return updated;
           });
         }, 2000);
+        
+        return () => clearTimeout(timeoutId);
       }
-
-      setFilteredScans(validScans);
-      previousScansRef.current = validScans;
     }
-  }, [scans, isPaused]);
+  }, [filteredScans, isPaused]);
 
-  const handleTogglePause = () => {
-    setIsPaused(!isPaused);
-    if (isPaused) {
-      // При возобновлении обновляем данные
-      const validScans = scans.filter(scan => 
-        scan && 
-        scan.time && 
-        scan.robot_id && 
-        scan.product_id &&
-        scan.quantity !== undefined &&
-        scan.quantity !== null &&
-        !isNaN(Number(scan.quantity))
-      );
-      setFilteredScans(validScans);
+  // Мемоизация обработчика для предотвращения пересоздания подписки
+  const handleInventoryScanRef = useRef<((scanData: any) => void) | null>(null);
+  const filteredScansRef = useRef<Scan[]>([]);
+
+  // Обновляем ref при изменении filteredScans
+  useEffect(() => {
+    filteredScansRef.current = filteredScans;
+  }, [filteredScans]);
+
+  // Подписка на WebSocket обновления для новых сканирований
+  useEffect(() => {
+    const socket = socketService.getSocket();
+    if (!socket || isPaused) {
+      return;
     }
-  };
+
+    // Создаем обработчик с актуальными данными через ref
+    const handleInventoryScan = (scanData: any) => {
+      if (!isPaused && scanData) {
+        // Проверяем, что это действительно новое сканирование
+        const scanKey = `${scanData.robot_id}-${scanData.product_id || scanData.product?.id}-${scanData.scanned_at || scanData.time}`;
+        const existingKeys = new Set(
+          filteredScansRef.current.map(s => `${s.robot_id}-${s.product_id}-${s.time}`)
+        );
+        
+        // Добавляем только если его еще нет
+        if (!existingKeys.has(scanKey)) {
+          dispatch(addScan({
+            time: scanData.scanned_at || scanData.time || new Date().toISOString(),
+            robot_id: scanData.robot_id,
+            zone: scanData.zone,
+            product_name: scanData.product_name || scanData.product?.name || '',
+            product_id: scanData.product_id || scanData.product?.id || '',
+            quantity: scanData.quantity || 0,
+            status: scanData.status || 'OK'
+          }));
+        }
+      }
+    };
+
+    // Сохраняем ссылку на обработчик для очистки
+    handleInventoryScanRef.current = handleInventoryScan;
+
+    // Подписываемся на новые сканирования через inventory_alert
+    socket.on('inventory_alert', handleInventoryScan);
+
+    return () => {
+      if (socket && handleInventoryScanRef.current) {
+        socket.off('inventory_alert', handleInventoryScanRef.current);
+        handleInventoryScanRef.current = null;
+      }
+    };
+  }, [isPaused, dispatch]);
+
+  const handleTogglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
 
   console.log('📦 RecentScans received:', scans.length, 'scans, paused:', isPaused);
 
