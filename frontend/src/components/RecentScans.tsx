@@ -197,58 +197,60 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
               const isNew = newScanKeys.has(scanKey);
               
               return (
-                <Slide
+                <TableRow 
                   key={scanKey}
-                  direction="down"
-                  in={true}
-                  timeout={300}
-                  mountOnEnter
-                  unmountOnExit
-                >
-                  <TableRow 
-                    hover
-                    sx={{
-                      backgroundColor: isNew ? 'action.hover' : 'transparent',
-                      transition: 'background-color 0.3s ease',
-                      animation: isNew ? 'slideDown 0.3s ease' : 'none',
-                      '@keyframes slideDown': {
-                        from: {
-                          transform: 'translateY(-20px)',
-                          opacity: 0
-                        },
-                        to: {
-                          transform: 'translateY(0)',
-                          opacity: 1
-                        }
+                  hover
+                  sx={{
+                    backgroundColor: isNew ? 'action.hover' : 'transparent',
+                    transition: 'background-color 0.5s ease, transform 0.4s ease, opacity 0.4s ease',
+                    transform: isNew ? 'translateY(0)' : 'none',
+                    opacity: 1,
+                    animation: isNew ? 'slideDownFromTop 0.5s ease-out' : 'none',
+                    '@keyframes slideDownFromTop': {
+                      '0%': {
+                        transform: 'translateY(-100%)',
+                        opacity: 0,
+                        maxHeight: 0,
+                        overflow: 'hidden'
+                      },
+                      '50%': {
+                        opacity: 0.5,
+                        maxHeight: '200px'
+                      },
+                      '100%': {
+                        transform: 'translateY(0)',
+                        opacity: 1,
+                        maxHeight: '200px'
                       }
-                    }}
-                  >
-                    <TableCell>
-                      {scan.time ? formatTime(scan.time) : '-'}
-                    </TableCell>
-                    <TableCell>{scan.robot_id || '-'}</TableCell>
-                    <TableCell>{scan.zone || '-'}</TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          {scan.product_name || scan.product_id || 'N/A'}
+                    }
+                  }}
+                >
+                  <TableCell>
+                    {scan.time ? formatTime(scan.time) : '-'}
+                  </TableCell>
+                  <TableCell>{scan.robot_id || '-'}</TableCell>
+                  <TableCell>{scan.zone || '-'}</TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold">
+                        {scan.product_name || scan.product_id || 'N/A'}
+                      </Typography>
+                      {scan.product_id && (
+                        <Typography variant="caption" color="textSecondary">
+                          {scan.product_id}
                         </Typography>
-                        {scan.product_id && (
-                          <Typography variant="caption" color="textSecondary">
-                            {scan.product_id}
-                          </Typography>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={getStatusText(scan.status)} 
-                        color={getStatusColor(scan.status) as any}
-                        size="small"
-                      />
-                    </TableCell>
-                  </TableRow>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={getStatusText(scan.status)} 
+                      color={getStatusColor(scan.status) as any}
+                      size="small"
+                    />
+                  </TableCell>
+                </TableRow>
               );
             })}
             {filteredScans.length === 0 && (
