@@ -83,8 +83,8 @@ CREATE INDEX IF NOT EXISTS idx_inventory_zone ON inventory_history(zone);
 -- Тестовые пользователи (пароль: password123)
 INSERT INTO users (email, password_hash, name, role) VALUES
 ('operator@rtk.ru', '$2b$10$JDc7XL7WCLS7/H9YoShMzOzWDbDFLnxqBwcvi8H3LXUWFsW8vtoHS', 'Иван Операторов', 'operator'),
-('admin@rtk.ru', '$2a$10$8A9B0C1D2E3F4G5H6I7J8K9L0M1N2O3P4Q5R6S7T8U9V0W1X2Y3Z4a5b6c7d8e9', 'Петр Админов', 'admin'),
-('viewer@rtk.ru', '$2a$10$8A9B0C1D2E3F4G5H6I7J8K9L0M1N2O3P4Q5R6S7T8U9V0W1X2Y3Z4a5b6c7d8e9', 'Сергей Наблюдателев', 'viewer')
+('admin@rtk.ru', '$2b$10$JDc7XL7WCLS7/H9YoShMzOzWDbDFLnxqBwcvi8H3LXUWFsW8vtoHS', 'Петр Админов', 'admin'),
+('viewer@rtk.ru', '$2b$10$JDc7XL7WCLS7/H9YoShMzOzWDbDFLnxqBwcvi8H3LXUWFsW8vtoHS', 'Сергей Наблюдателев', 'viewer')
 ON CONFLICT (email) DO NOTHING;
 
 -- Тестовые роботы
