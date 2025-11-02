@@ -57,24 +57,22 @@ export class AdminRepository {
   }
 
   async getThresholds(): Promise<Thresholds> {
-    try {
-      const result = await pool.query(`
-      SELECT key, value FROM settings WHERE key IN ('threshold_critical', 'threshold_low_stock', 'threshold_warning')
-    `);
-      
-      const thresholds: Thresholds = { critical: 10, low_stock: 30, warning: 50 };
-      result.rows.forEach((row: any) => {
-        const key = row.key.replace('threshold_', '');
-        if (key === 'critical' || key === 'low_stock' || key === 'warning') {
-          thresholds[key] = Number(row.value);
-        }
-      });
-      return thresholds;
-    } catch (error) {
-      // Если таблицы settings нет, возвращаем значения по умолчанию
-      return { critical: 10, low_stock: 30, warning: 50 };
-    }
-  }
+	  try {
+		const result = await pool.query(`
+		  SELECT key, value FROM settings WHERE key IN ('threshold_critical', 'threshold_low_stock', 'threshold_warning')
+		`);
+		
+		const thresholds: Thresholds = { critical: 10, low_stock: 30, warning: 50 };
+		result.rows.forEach((row: any) => {
+		  const key = row.key.replace('threshold_', '') as keyof Thresholds;
+		  thresholds[key] = Number(row.value);
+		});
+		return thresholds;
+	  } catch (error) {
+		// Если таблицы settings нет, возвращаем значения по умолчанию
+		return { critical: 10, low_stock: 30, warning: 50 };
+	  }
+	}
 
   async saveThresholds(thresholds: Thresholds): Promise<void> {
     try {

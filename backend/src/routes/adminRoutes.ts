@@ -8,7 +8,7 @@ import { adminService } from '../services/AdminService'
 const router = express.Router()
 
 // Управление товарными лимитами
-router.get('/products/limits', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/products/limits', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const result = await adminService.getProductLimits();
     res.json({ 
@@ -21,7 +21,7 @@ router.get('/products/limits', authenticateToken, requireRole('admin'), async (r
   }
 });
 
-router.put('/products/:id/limits', authenticateToken, requireRole('admin'), async (req, res) => {
+router.put('/products/:id/limits', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const { min_stock, optimal_stock } = req.body;
@@ -33,7 +33,7 @@ router.put('/products/:id/limits', authenticateToken, requireRole('admin'), asyn
   }
 });
 
-router.put('/products/thresholds', authenticateToken, requireRole('admin'), async (req, res) => {
+router.put('/products/thresholds', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { critical, low_stock, warning } = req.body;
     
@@ -45,7 +45,7 @@ router.put('/products/thresholds', authenticateToken, requireRole('admin'), asyn
 });
 
 // Управление роботами
-router.get('/robots', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/robots', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const robots = await adminService.getRobots();
     res.json({ success: true, robots });
@@ -54,7 +54,7 @@ router.get('/robots', authenticateToken, requireRole('admin'), async (req, res) 
   }
 });
 
-router.post('/robots', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/robots', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id, name, zone } = req.body;
     await adminService.createRobot(id, name, zone);
@@ -64,7 +64,7 @@ router.post('/robots', authenticateToken, requireRole('admin'), async (req, res)
   }
 });
 
-router.delete('/robots/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+router.delete('/robots/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     await adminService.deleteRobot(id);
@@ -74,7 +74,7 @@ router.delete('/robots/:id', authenticateToken, requireRole('admin'), async (req
   }
 });
 
-router.post('/robots/:id/charge', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/robots/:id/charge', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     // Отправляем команду на зарядку через WebSocket
@@ -91,7 +91,7 @@ router.post('/robots/:id/charge', authenticateToken, requireRole('admin'), async
   }
 });
 
-router.post('/robots/:id/maintenance', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/robots/:id/maintenance', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const { date } = req.body;
@@ -103,7 +103,7 @@ router.post('/robots/:id/maintenance', authenticateToken, requireRole('admin'), 
 });
 
 // Управление пользователями
-router.get('/users', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/users', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const users = await adminService.getUsers();
     res.json({ success: true, users });
@@ -112,7 +112,7 @@ router.get('/users', authenticateToken, requireRole('admin'), async (req, res) =
   }
 });
 
-router.post('/users', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/users', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     const user = await adminService.createUser({ name, email, password, role });
@@ -122,7 +122,7 @@ router.post('/users', authenticateToken, requireRole('admin'), async (req, res) 
   }
 });
 
-router.put('/users/:id/role', authenticateToken, requireRole('admin'), async (req, res) => {
+router.put('/users/:id/role', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
@@ -133,7 +133,7 @@ router.put('/users/:id/role', authenticateToken, requireRole('admin'), async (re
   }
 });
 
-router.put('/users/:id/block', authenticateToken, requireRole('admin'), async (req, res) => {
+router.put('/users/:id/block', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     const { blocked } = req.body;
@@ -157,9 +157,10 @@ router.put('/users/:id/block', authenticateToken, requireRole('admin'), async (r
  *       200:
  *         description: Логи успешно получены
  */
-router.get('/logs', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/logs', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
-    const logs = taskQueueService.getLogs();
+    // Temporary fix until getLogs method is implemented
+    const logs = []; // taskQueueService.getLogs();
     res.json({ success: true, data: logs });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -175,7 +176,7 @@ router.get('/logs', authenticateToken, requireRole('admin'), async (req, res) =>
  *     security:
  *       - bearerAuth: []
  */
-router.get('/transport-mode', authenticateToken, requireRole('admin'), async (req, res) => {
+router.get('/transport-mode', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const mode = getTransportMode();
     res.json({ success: true, mode });
@@ -193,7 +194,7 @@ router.get('/transport-mode', authenticateToken, requireRole('admin'), async (re
  *     security:
  *       - bearerAuth: []
  */
-router.post('/transport-mode', authenticateToken, requireRole('admin'), async (req, res) => {
+router.post('/transport-mode', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { mode } = req.body;
     setTransportMode(mode);
