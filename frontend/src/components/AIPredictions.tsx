@@ -31,12 +31,15 @@ interface AIPrediction {
   product_id: string;
   product_name: string;
   current_stock: number;
-  days_until_stockout: number;
+  days_until_stockout: number | null;
   recommended_order_quantity: number;
   confidence_score: number;
   reasoning?: string;
   risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
   prediction_date?: string;
+  zone?: string;
+  row_number?: number;
+  shelf_number?: number;
 }
 
 interface AIResponse {
@@ -94,9 +97,9 @@ const AIPredictions: React.FC = () => {
         product_name: p.product_name || p.name || p.productId || 'Товар',
         // Используем реальные данные из ответа, если они есть
         current_stock: Number(p.current_stock) || Number(p.stock) || Number(p.currentStock) || 0,
-        days_until_stockout: p.days_until_stockout !== undefined && p.days_until_stockout !== null 
+        days_until_stockout: (p.days_until_stockout !== undefined && p.days_until_stockout !== null 
           ? Number(p.days_until_stockout) 
-          : (p.daysUntilStockout !== undefined ? Number(p.daysUntilStockout) : (p.days !== undefined ? Number(p.days) : null)),
+          : (p.daysUntilStockout !== undefined && p.daysUntilStockout !== null ? Number(p.daysUntilStockout) : (p.days !== undefined && p.days !== null ? Number(p.days) : null))) as number | null,
         recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || Number(p.recommended) || 0,
         confidence_score: typeof p.confidence_score === 'number' 
           ? p.confidence_score 
@@ -204,7 +207,8 @@ const AIPredictions: React.FC = () => {
     }
   };
 
-  const getStockoutColor = (days: number) => {
+  const getStockoutColor = (days: number | null) => {
+    if (days === null) return 'default';
     if (days <= 2) return 'error';
     if (days <= 5) return 'warning';
     return 'success';
@@ -216,7 +220,8 @@ const AIPredictions: React.FC = () => {
     return 'error';
   };
 
-  const getStockoutText = (days: number) => {
+  const getStockoutText = (days: number | null) => {
+    if (days === null) return 'Не определено';
     if (days <= 0) return 'ЗАКОНЧИЛСЯ';
     if (days <= 2) return `${days} дн. ⚠️`;
     if (days <= 5) return `${days} дн.`;
