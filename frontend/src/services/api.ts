@@ -85,8 +85,22 @@ export const dashboardAPI = {
 // История данных
 export const historyAPI = {
   getHistory: (params: any) => {
+    // Создаем URLSearchParams для правильной обработки массивов
+    const searchParams = new URLSearchParams();
+    Object.keys(params).forEach(key => {
+      const value = params[key];
+      if (Array.isArray(value)) {
+        // Для массивов добавляем каждый элемент
+        value.forEach((item: any) => {
+          searchParams.append(key, String(item));
+        });
+      } else if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    });
+    
     console.log('📋 Fetching history data with params:', params);
-    return api.get('/api/history', { params });
+    return api.get(`/api/history?${searchParams.toString()}`);
   },
   getStats: (params: any) => {
     console.log('📈 Fetching stats with params:', params);

@@ -288,14 +288,46 @@ ${historicalDataJson}
 
           parsed.predictions = parsed.predictions.map((p: any) => {
             const stockInfo: any = currentStockMap.get(p.product_id);
+            
+            // Валидация и нормализация days_until_stockout
+            let days_until_stockout: number | null = null;
+            if (p.days_until_stockout !== undefined && p.days_until_stockout !== null) {
+              const rawDays = Number(p.days_until_stockout);
+              if (!isNaN(rawDays) && rawDays >= 0) {
+                // Ограничиваем максимальное значение до 365 дней (год)
+                // Если AI вернул нереалистично большое значение (например, 999),
+                // ограничиваем его и помечаем как подозрительное
+                if (rawDays > 365) {
+                  console.warn(`⚠️ AI returned unrealistic days_until_stockout: ${rawDays} for product ${p.product_id}, capping to 365`);
+                  days_until_stockout = 365;
+                } else {
+                  days_until_stockout = Math.floor(rawDays);
+                }
+              }
+            }
+            
+            // Определяем risk_level на основе валидированных данных
+            let risk_level: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+            if (p.risk_level) {
+              risk_level = p.risk_level;
+            } else if (days_until_stockout !== null) {
+              if (days_until_stockout <= 2) {
+                risk_level = 'HIGH';
+              } else if (days_until_stockout <= 5) {
+                risk_level = 'MEDIUM';
+              } else {
+                risk_level = 'LOW';
+              }
+            }
+            
             return {
               product_id: p.product_id,
               product_name: p.product_name || 'Неизвестный товар',
               current_stock: Number(p.current_stock) || (stockInfo ? Number(stockInfo.current_stock) : 0),
-              days_until_stockout: p.days_until_stockout !== undefined && p.days_until_stockout !== null ? Number(p.days_until_stockout) : null,
+              days_until_stockout: days_until_stockout,
               recommended_order_quantity: Number(p.recommended_order_quantity) || Number(p.recommended_order) || 0,
-              confidence_score: Number(p.confidence_score) || Number(p.confidence) || 0,
-              risk_level: p.risk_level || (p.days_until_stockout !== undefined && p.days_until_stockout !== null && p.days_until_stockout <= 2 ? 'HIGH' : (p.days_until_stockout !== undefined && p.days_until_stockout !== null && p.days_until_stockout <= 5 ? 'MEDIUM' : 'LOW')),
+              confidence_score: Math.min(1, Math.max(0, Number(p.confidence_score) || Number(p.confidence) || 0)), // Ограничиваем 0-1
+              risk_level: risk_level,
               reasoning: p.reasoning || '',
               // Добавляем информацию о местоположении если есть
               zone: stockInfo?.zone || p.zone,

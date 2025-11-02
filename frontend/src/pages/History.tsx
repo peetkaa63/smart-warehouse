@@ -78,12 +78,13 @@ const History: React.FC = () => {
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
       if (filters.zones.length) {
-        // Бэкенд поддерживает как строку, так и массив зон
-        params.zone = filters.zones.length === 1 ? filters.zones[0] : filters.zones;
+        // Передаем массив напрямую - axios обработает его правильно
+        // Express будет видеть это как массив в req.query.zone
+        params.zone = filters.zones;
       }
       if (filters.statuses.length) {
-        // Бэкенд поддерживает как строку, так и массив статусов
-        params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
+        // Передаем массив напрямую - axios обработает его правильно
+        params.status = filters.statuses;
       }
       if (filters.productId) params.product_id = filters.productId;
       if (filters.robotId) params.robot_id = filters.robotId;
@@ -159,10 +160,10 @@ const History: React.FC = () => {
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
       if (filters.zones.length) {
-        params.zone = filters.zones.length === 1 ? filters.zones[0] : filters.zones;
+        params.zone = filters.zones;
       }
       if (filters.statuses.length) {
-        params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
+        params.status = filters.statuses;
       }
       if (filters.productId) params.product_id = filters.productId;
       if (filters.robotId) params.robot_id = filters.robotId;
@@ -205,10 +206,10 @@ const History: React.FC = () => {
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
       if (filters.zones.length) {
-        params.zone = filters.zones.length === 1 ? filters.zones[0] : filters.zones;
+        params.zone = filters.zones;
       }
       if (filters.statuses.length) {
-        params.status = filters.statuses.length === 1 ? filters.statuses[0] : filters.statuses;
+        params.status = filters.statuses;
       }
 
       dispatch(startExport('pdf'));

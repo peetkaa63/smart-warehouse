@@ -118,7 +118,45 @@ const router = express.Router();
 // GET /api/history - получение исторических данных с фильтрами
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const filters = req.query;
+    const filters: any = { ...req.query };
+    
+    console.log('📥 Raw query params:', req.query);
+    
+    // Обработка массивов зон
+    // Express автоматически парсит повторяющиеся параметры как массив или строку
+    if (filters.zone) {
+      if (Array.isArray(filters.zone)) {
+        // Уже массив - оставляем как есть
+        filters.zone = filters.zone.filter((z: any) => z && typeof z === 'string' && z.trim() !== '');
+      } else if (typeof filters.zone === 'string') {
+        // Если строка с запятыми - разбиваем
+        if (filters.zone.includes(',')) {
+          filters.zone = filters.zone.split(',').map((z: string) => z.trim()).filter((z: string) => z !== '');
+        } else {
+          // Одна зона - оставляем как строку, репозиторий обработает
+          filters.zone = filters.zone.trim();
+        }
+      }
+    }
+    
+    // Обработка массивов статусов
+    if (filters.status) {
+      if (Array.isArray(filters.status)) {
+        // Уже массив - оставляем как есть
+        filters.status = filters.status.filter((s: any) => s && typeof s === 'string' && s.trim() !== '');
+      } else if (typeof filters.status === 'string') {
+        // Если строка с запятыми - разбиваем
+        if (filters.status.includes(',')) {
+          filters.status = filters.status.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
+        } else {
+          // Один статус - оставляем как строку, репозиторий обработает
+          filters.status = filters.status.trim();
+        }
+      }
+    }
+    
+    console.log('🔍 History filters processed:', JSON.stringify(filters, null, 2));
+    
     const result = await historyService.getHistory(filters);
     res.json(result);
   } catch (error: any) {

@@ -142,21 +142,28 @@ export class LocalAIProvider implements IAIProvider {
         );
         const firstQty = Number(sortedHistory[0]?.quantity) || current_stock;
         const lastQty = Number(sortedHistory[sortedHistory.length - 1]?.quantity) || current_stock;
-        const daysDiff = periodDays || 7;
+        const firstDate = new Date(sortedHistory[0]?.date || sortedHistory[0]?.scanned_at || new Date());
+        const lastDate = new Date(sortedHistory[sortedHistory.length - 1]?.date || sortedHistory[sortedHistory.length - 1]?.scanned_at || new Date());
+        const daysDiff = Math.max(1, Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)));
         avgDailyConsumption = Math.max(0, (firstQty - lastQty) / daysDiff);
       }
       
-      // Если нет истории, используем правило: если текущий остаток меньше минимального, значит расход идет
-      if (avgDailyConsumption === 0 && current_stock < min_stock) {
-        avgDailyConsumption = Math.max(1, (min_stock - current_stock) / 7); // Предполагаем 7 дней до минимума
+      // Если нет истории или очень маленькое потребление, используем правило: если текущий остаток меньше минимального, значит расход идет
+      if (avgDailyConsumption <= 0.01 && current_stock < min_stock) {
+        avgDailyConsumption = Math.max(0.1, (min_stock - current_stock) / 7); // Предполагаем 7 дней до минимума
       }
       
       // Рассчитываем дни до истощения запаса
       let days_until_stockout: number | null = null;
-      if (avgDailyConsumption > 0 && current_stock > 0) {
-        days_until_stockout = Math.floor(current_stock / avgDailyConsumption);
+      if (avgDailyConsumption > 0.01 && current_stock > 0) {
+        const calculatedDays = current_stock / avgDailyConsumption;
+        // Ограничиваем максимальное значение (например, 365 дней)
+        days_until_stockout = Math.min(365, Math.floor(calculatedDays));
       } else if (current_stock <= 0) {
         days_until_stockout = 0;
+      } else if (avgDailyConsumption <= 0.01 && current_stock >= optimal_stock) {
+        // Если потребление очень низкое и запас оптимален, возвращаем null (неопределенно)
+        days_until_stockout = null;
       } else {
         days_until_stockout = null; // Невозможно определить
       }
