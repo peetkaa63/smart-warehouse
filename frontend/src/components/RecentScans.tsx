@@ -13,9 +13,9 @@ import {
   Box
 } from '@mui/material';
 import { Pause, PlayArrow } from '@mui/icons-material';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchDashboardData } from '../store/slices/dashboardSlice';
-import { RootState, AppDispatch } from '../store';
+import { useDispatch } from 'react-redux';
+import { addScan } from '../store/slices/dashboardSlice';
+import { socketService } from '../services/socketService';
 
 interface Scan {
   time: string;
@@ -34,9 +34,9 @@ interface RecentScansProps {
 const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [filteredScans, setFilteredScans] = useState<Scan[]>([]);
-  const dispatch = useDispatch<AppDispatch>();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const previousScansLengthRef = useRef<number>(0);
+  const [newScanKeys, setNewScanKeys] = useState<Set<string>>(new Set());
+  const dispatch = useDispatch();
+  const previousScansRef = useRef<Scan[]>([]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,29 +71,37 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
     }
   };
 
-  // Автоматическое обновление данных при отсутствии паузы
+  // Подписка на WebSocket обновления для новых сканирований
   useEffect(() => {
-    if (!isPaused) {
-      // Обновляем данные каждые 10 секунд
-      intervalRef.current = setInterval(() => {
-        dispatch(fetchDashboardData());
-      }, 10000);
-      
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-      };
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+    const socket = socketService.getSocket();
+    if (!socket || isPaused) return;
+
+    const handleInventoryScan = (scanData: any) => {
+      if (!isPaused && scanData) {
+        // Добавляем новое сканирование в Redux
+        dispatch(addScan({
+          time: scanData.scanned_at || scanData.time || new Date().toISOString(),
+          robot_id: scanData.robot_id,
+          zone: scanData.zone,
+          product_name: scanData.product_name || scanData.product?.name || '',
+          product_id: scanData.product_id || scanData.product?.id || '',
+          quantity: scanData.quantity || 0,
+          status: scanData.status || 'OK'
+        }));
       }
-    }
+    };
+
+    // Подписываемся на новые сканирования через inventory_alert
+    socket.on('inventory_alert', handleInventoryScan);
+
+    return () => {
+      if (socket) {
+        socket.off('inventory_alert', handleInventoryScan);
+      }
+    };
   }, [isPaused, dispatch]);
 
-  // Фильтруем валидные данные
+  // Фильтруем валидные данные и определяем новые сканирования
   useEffect(() => {
     if (!isPaused) {
       const validScans = scans.filter(scan => 
@@ -106,30 +114,36 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
         !isNaN(Number(scan.quantity))
       );
       
-      // Обновляем состояние, если данные изменились
-      setFilteredScans(prevScans => {
-        // Проверяем, действительно ли данные изменились
-        if (validScans.length !== prevScans.length) {
-          previousScansLengthRef.current = validScans.length;
-          return validScans;
-        }
-        
-        const hasChanges = validScans.some((scan, idx) => {
-          const oldScan = prevScans[idx];
-          return !oldScan || 
-            scan.time !== oldScan.time || 
-            scan.robot_id !== oldScan.robot_id || 
-            scan.product_id !== oldScan.product_id ||
-            scan.quantity !== oldScan.quantity;
-        });
-        
-        if (hasChanges) {
-          previousScansLengthRef.current = validScans.length;
-          return validScans;
-        }
-        
-        return prevScans; // Данные не изменились, возвращаем предыдущее состояние
+      // Определяем новые сканирования (которые появились сверху)
+      const previousScans = previousScansRef.current;
+      const newScans = validScans.filter(scan => {
+        const scanKey = `${scan.robot_id}-${scan.product_id}-${scan.time}`;
+        return !previousScans.some(prev => 
+          prev.robot_id === scan.robot_id &&
+          prev.product_id === scan.product_id &&
+          prev.time === scan.time
+        );
       });
+
+      // Помечаем новые сканирования для анимации
+      if (newScans.length > 0) {
+        const newKeys = new Set(
+          newScans.map(scan => `${scan.robot_id}-${scan.product_id}-${scan.time}`)
+        );
+        setNewScanKeys(newKeys);
+
+        // Убираем анимацию через 2 секунды
+        setTimeout(() => {
+          setNewScanKeys(prev => {
+            const updated = new Set(prev);
+            newKeys.forEach(key => updated.delete(key));
+            return updated;
+          });
+        }, 2000);
+      }
+
+      setFilteredScans(validScans);
+      previousScansRef.current = validScans;
     }
   }, [scans, isPaused]);
 
@@ -178,35 +192,65 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredScans.map((scan, index) => (
-              <TableRow key={`${scan.robot_id}-${scan.time}-${index}`} hover>
-                <TableCell>
-                  {scan.time ? formatTime(scan.time) : '-'}
-                </TableCell>
-                <TableCell>{scan.robot_id || '-'}</TableCell>
-                <TableCell>{scan.zone || '-'}</TableCell>
-                <TableCell>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">
-                      {scan.product_name || scan.product_id || 'N/A'}
-                    </Typography>
-                    {scan.product_id && (
-                      <Typography variant="caption" color="textSecondary">
-                        {scan.product_id}
-                      </Typography>
-                    )}
-                  </Box>
-                </TableCell>
-                <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={getStatusText(scan.status)} 
-                    color={getStatusColor(scan.status) as any}
-                    size="small"
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {filteredScans.map((scan, index) => {
+              const scanKey = `${scan.robot_id}-${scan.product_id}-${scan.time}`;
+              const isNew = newScanKeys.has(scanKey);
+              
+              return (
+                <Slide
+                  key={scanKey}
+                  direction="down"
+                  in={true}
+                  timeout={300}
+                  mountOnEnter
+                  unmountOnExit
+                >
+                  <TableRow 
+                    hover
+                    sx={{
+                      backgroundColor: isNew ? 'action.hover' : 'transparent',
+                      transition: 'background-color 0.3s ease',
+                      animation: isNew ? 'slideDown 0.3s ease' : 'none',
+                      '@keyframes slideDown': {
+                        from: {
+                          transform: 'translateY(-20px)',
+                          opacity: 0
+                        },
+                        to: {
+                          transform: 'translateY(0)',
+                          opacity: 1
+                        }
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      {scan.time ? formatTime(scan.time) : '-'}
+                    </TableCell>
+                    <TableCell>{scan.robot_id || '-'}</TableCell>
+                    <TableCell>{scan.zone || '-'}</TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {scan.product_name || scan.product_id || 'N/A'}
+                        </Typography>
+                        {scan.product_id && (
+                          <Typography variant="caption" color="textSecondary">
+                            {scan.product_id}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">{scan.quantity !== undefined && scan.quantity !== null ? scan.quantity : 0}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={getStatusText(scan.status)} 
+                        color={getStatusColor(scan.status) as any}
+                        size="small"
+                      />
+                    </TableCell>
+                  </TableRow>
+              );
+            })}
             {filteredScans.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
