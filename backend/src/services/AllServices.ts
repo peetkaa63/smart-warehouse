@@ -385,15 +385,29 @@ export class AdvancedAnalyticsService {
 
 export class UploadService {
   // Обработка загрузки CSV файла
-  async processCSVUpload(csvData: any[]): Promise<UploadResult> {
+  async processCSVUpload(csvData: any[]): Promise<any> {
     try {
       console.log('📤 Upload Service: Processing CSV upload with', csvData.length, 'rows');
       
-      const errors: string[] = [];
+      const errors: Array<{row: number | string; error: string; data: any}> = [];
       let processedRows = 0;
+      let importedRows = 0;
+      let duplicateRows = 0;
+      const summary = {
+        totalProcessed: 0,
+        imported: 0,
+        duplicates: 0,
+        errors: 0,
+        total_products: 0,
+        total_quantity: 0,
+        zones_updated: new Set<string>()
+      };
       
       for (const row of csvData) {
         try {
+          processedRows++;
+          const scannedAt = new Date(row.scanned_at || new Date());
+          
           // Проверяем существование робота
           const robotExists = await uploadRepository.checkRobotExists(row.robot_id);
           if (!robotExists) {
@@ -417,6 +431,19 @@ export class UploadService {
               min_stock: row.min_stock || 10,
               optimal_stock: row.optimal_stock || 50
             });
+            summary.total_products++;
+          }
+          
+          // Проверяем на дубликаты
+          const isDuplicate = await uploadRepository.checkDuplicateScan({
+            robot_id: row.robot_id,
+            product_id: row.product_id,
+            scanned_at: scannedAt
+          });
+          
+          if (isDuplicate) {
+            duplicateRows++;
+            continue; // Пропускаем дубликат
           }
           
           // Сохраняем данные сканирования
@@ -428,20 +455,44 @@ export class UploadService {
             row_number: parseInt(row.row_number) || 1,
             shelf_number: parseInt(row.shelf_number) || 1,
             status: row.status || 'OK',
-            scanned_at: new Date(row.scanned_at || new Date())
+            scanned_at: scannedAt
           });
           
-          processedRows++;
+          importedRows++;
+          summary.total_quantity += parseInt(row.quantity) || 0;
+          if (row.zone) {
+            summary.zones_updated.add(row.zone);
+          }
         } catch (rowError: any) {
-          errors.push(`Row ${processedRows + 1}: ${rowError.message}`);
+          errors.push({
+            row: processedRows,
+            error: rowError.message,
+            data: row
+          });
         }
       }
+      
+      summary.totalProcessed = processedRows;
+      summary.imported = importedRows;
+      summary.duplicates = duplicateRows;
+      summary.errors = errors.length;
       
       return {
         success: errors.length === 0,
         processed_rows: processedRows,
-        errors,
-        message: `Processed ${processedRows} rows successfully`
+        errors: errors,
+        summary: {
+          totalProcessed: summary.totalProcessed,
+          imported: summary.imported,
+          errors: summary.errors,
+          duplicates: summary.duplicates,
+          total_products: summary.total_products,
+          total_quantity: summary.total_quantity,
+          zones_updated: Array.from(summary.zones_updated)
+        },
+        message: duplicateRows > 0 
+          ? `Обработано ${processedRows} строк, импортировано ${importedRows}, найдено дубликатов: ${duplicateRows}` 
+          : `Обработано ${processedRows} строк успешно`
       };
     } catch (error: any) {
       console.error('❌ Upload Service error:', error);

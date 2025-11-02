@@ -4,6 +4,38 @@ import { profileService } from '../services/ProfileService'
 
 const router = express.Router()
 
+/**
+ * @swagger
+ * /api/profile/settings:
+ *   get:
+ *     summary: Получить настройки профиля пользователя
+ *     description: Возвращает персональные настройки текущего авторизованного пользователя.
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Настройки профиля успешно получены
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 settings:
+ *                   type: object
+ *                   description: Объект с настройками пользователя
+ *                   example:
+ *                     theme: "dark"
+ *                     language: "ru"
+ *                     notifications: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/settings', authenticateToken, async (req: any, res) => {
   try {
     const userId = req.user?.id
@@ -14,6 +46,47 @@ router.get('/settings', authenticateToken, async (req: any, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/profile/settings:
+ *   post:
+ *     summary: Сохранить настройки профиля пользователя
+ *     description: Сохраняет персональные настройки текущего авторизованного пользователя.
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - settings
+ *             properties:
+ *               settings:
+ *                 type: object
+ *                 description: Объект с настройками для сохранения
+ *                 example:
+ *                   theme: "dark"
+ *                   language: "ru"
+ *                   notifications: true
+ *     responses:
+ *       200:
+ *         description: Настройки профиля успешно сохранены
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post('/settings', authenticateToken, async (req: any, res) => {
   try {
     const userId = req.user?.id

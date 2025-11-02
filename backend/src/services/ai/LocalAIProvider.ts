@@ -157,8 +157,10 @@ export class LocalAIProvider implements IAIProvider {
       let days_until_stockout: number | null = null;
       if (avgDailyConsumption > 0.01 && current_stock > 0) {
         const calculatedDays = current_stock / avgDailyConsumption;
-        // Ограничиваем максимальное значение (например, 365 дней)
-        days_until_stockout = Math.min(365, Math.floor(calculatedDays));
+        // Ограничиваем максимальное значение до периода прогноза
+        const periodDays = request?.periodDays || 7;
+        const maxDays = Math.min(periodDays, 365);
+        days_until_stockout = Math.min(maxDays, Math.floor(calculatedDays));
       } else if (current_stock <= 0) {
         days_until_stockout = 0;
       } else if (avgDailyConsumption <= 0.01 && current_stock >= optimal_stock) {

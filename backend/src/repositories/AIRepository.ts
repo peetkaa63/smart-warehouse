@@ -1,5 +1,8 @@
 import { pool } from '../config/database';
 
+/**
+ * Интерфейс прогноза AI
+ */
 export interface AIPrediction {
   product_id: string;
   prediction_date: string;
@@ -9,6 +12,9 @@ export interface AIPrediction {
   created_at: string;
 }
 
+/**
+ * Интерфейс исторических данных для AI
+ */
 export interface HistoricalData {
   product_id: string;
   product_name: string;
@@ -20,7 +26,18 @@ export interface HistoricalData {
   }>;
 }
 
+/**
+ * Репозиторий для работы с данными AI
+ * 
+ * Предоставляет методы для получения исторических данных и текущих остатков для AI анализа,
+ * а также для сохранения и получения прогнозов AI
+ */
 export class AIRepository {
+  /**
+   * Получить исторические данные для AI анализа
+   * @param periodDays - Период для получения данных в днях (по умолчанию 30)
+   * @returns Массив исторических данных, сгруппированных по товарам
+   */
   // Получение исторических данных для AI анализа
   async getHistoricalData(periodDays: number = 30): Promise<HistoricalData[]> {
     const query = `
@@ -41,6 +58,10 @@ export class AIRepository {
     return this.prepareHistoricalData(result.rows);
   }
 
+  /**
+   * Получить текущие остатки товаров
+   * @returns Массив товаров с текущими остатками, минимальными и оптимальными уровнями, а также информацией о местоположении (зона, ряд, полка)
+   */
   // Получение текущих остатков (последние данные для каждого товара из истории)
   async getCurrentStock(): Promise<any[]> {
     const query = `
@@ -77,6 +98,11 @@ export class AIRepository {
     }));
   }
 
+  /**
+   * Сохранить прогнозы AI в БД
+   * @param predictions - Массив прогнозов для сохранения
+   * @remarks Использует INSERT ... ON CONFLICT для обновления существующих прогнозов
+   */
   // Сохранение прогнозов AI в БД
   async savePredictions(predictions: any[]): Promise<void> {
     for (const prediction of predictions) {
@@ -116,6 +142,11 @@ export class AIRepository {
     }
   }
 
+  /**
+   * Получить историю прогнозов AI
+   * @param limit - Максимальное количество записей для возврата
+   * @returns Массив последних прогнозов, отсортированных по дате создания (новые первыми)
+   */
   // Получение истории прогнозов
   async getPredictionHistory(limit: number = 10): Promise<AIPrediction[]> {
     const query = `
@@ -135,11 +166,19 @@ export class AIRepository {
     return result.rows;
   }
 
+  /**
+   * Очистить старые прогнозы (старше 1 часа)
+   * @remarks Удаляет прогнозы, созданные более 1 часа назад, для предотвращения накопления устаревших данных
+   */
   // Очистка старых прогнозов
   async cleanupOldPredictions(): Promise<void> {
     await pool.query('DELETE FROM ai_predictions WHERE created_at < NOW() - INTERVAL \'1 hour\'');
   }
 
+  /**
+   * Получить последние прогнозы для каждого товара
+   * @returns Массив последних прогнозов по каждому товару (только последний прогноз для каждого product_id)
+   */
   // Получение последних прогнозов
   async getLatestPredictions(): Promise<AIPrediction[]> {
     const query = `
@@ -158,6 +197,10 @@ export class AIRepository {
     return result.rows;
   }
 
+  /**
+   * Получить статус AI сервиса
+   * @returns Объект с количеством прогнозов за последние 24 часа и датой последнего прогноза
+   */
   // Получение статуса AI сервиса
   async getAIStatus(): Promise<{ predictions_count: number; last_prediction: string | null }> {
     const query = `

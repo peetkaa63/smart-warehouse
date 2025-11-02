@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Paper,
   Typography,
@@ -13,6 +13,9 @@ import {
   Box
 } from '@mui/material';
 import { Pause, PlayArrow } from '@mui/icons-material';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchDashboardData } from '../store/slices/dashboardSlice';
+import { RootState, AppDispatch } from '../store';
 
 interface Scan {
   time: string;
@@ -31,6 +34,9 @@ interface RecentScansProps {
 const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [filteredScans, setFilteredScans] = useState<Scan[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const previousScansLengthRef = useRef<number>(0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -65,8 +71,30 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
     }
   };
 
+  // Автоматическое обновление данных при отсутствии паузы
+  useEffect(() => {
+    if (!isPaused) {
+      // Обновляем данные каждые 10 секунд
+      intervalRef.current = setInterval(() => {
+        dispatch(fetchDashboardData());
+      }, 10000);
+      
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [isPaused, dispatch]);
+
   // Фильтруем валидные данные
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isPaused) {
       const validScans = scans.filter(scan => 
         scan && 
@@ -77,7 +105,31 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
         scan.quantity !== null &&
         !isNaN(Number(scan.quantity))
       );
-      setFilteredScans(validScans);
+      
+      // Обновляем состояние, если данные изменились
+      setFilteredScans(prevScans => {
+        // Проверяем, действительно ли данные изменились
+        if (validScans.length !== prevScans.length) {
+          previousScansLengthRef.current = validScans.length;
+          return validScans;
+        }
+        
+        const hasChanges = validScans.some((scan, idx) => {
+          const oldScan = prevScans[idx];
+          return !oldScan || 
+            scan.time !== oldScan.time || 
+            scan.robot_id !== oldScan.robot_id || 
+            scan.product_id !== oldScan.product_id ||
+            scan.quantity !== oldScan.quantity;
+        });
+        
+        if (hasChanges) {
+          previousScansLengthRef.current = validScans.length;
+          return validScans;
+        }
+        
+        return prevScans; // Данные не изменились, возвращаем предыдущее состояние
+      });
     }
   }, [scans, isPaused]);
 

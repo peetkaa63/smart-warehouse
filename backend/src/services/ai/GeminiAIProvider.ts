@@ -187,7 +187,11 @@ ${historicalDataJson}
 ${currentStockJson}
 
 СОЗДАЙ ПРОГНОЗЫ НА ${request.periodDays || 7} ДНЕЙ:
+ВАЖНО: Прогноз создается только на ${request.periodDays || 7} дней. days_until_stockout не должен превышать ${request.periodDays || 7} дней!
+
 1. Рассчитай через сколько дней закончатся запасы (days_until_stockout) на основе текущего остатка и исторических данных о потреблении
+   - days_until_stockout НЕ должен превышать ${request.periodDays || 7} дней (это период прогноза)
+   - Если запасы закончатся позже ${request.periodDays || 7} дней, укажи ${request.periodDays || 7} или null
 2. Рекомендуемое количество для заказа (recommended_order_quantity) - ОБЯЗАТЕЛЬНО учитывай optimal_stock из БД (это оптимальный уровень запаса для товара)
    - Если current_stock < optimal_stock, то recommended_order_quantity = optimal_stock - current_stock + дополнительный запас на время доставки (3-5 дней)
    - Если current_stock >= optimal_stock, то recommended_order_quantity = 0 (запас достаточен)
@@ -294,12 +298,13 @@ ${historicalDataJson}
             if (p.days_until_stockout !== undefined && p.days_until_stockout !== null) {
               const rawDays = Number(p.days_until_stockout);
               if (!isNaN(rawDays) && rawDays >= 0) {
-                // Ограничиваем максимальное значение до 365 дней (год)
-                // Если AI вернул нереалистично большое значение (например, 999),
-                // ограничиваем его и помечаем как подозрительное
-                if (rawDays > 365) {
-                  console.warn(`⚠️ AI returned unrealistic days_until_stockout: ${rawDays} for product ${p.product_id}, capping to 365`);
-                  days_until_stockout = 365;
+                // Ограничиваем максимальное значение до периода прогноза (periodDays)
+                // или до 365 дней максимум, если период больше года
+                const periodDays = request?.periodDays || 7;
+                const maxDays = Math.min(periodDays, 365);
+                if (rawDays > maxDays) {
+                  console.warn(`⚠️ AI returned days_until_stockout: ${rawDays} for product ${p.product_id}, capping to period ${maxDays} days`);
+                  days_until_stockout = maxDays;
                 } else {
                   days_until_stockout = Math.floor(rawDays);
                 }

@@ -1,5 +1,8 @@
 import { pool } from '../config/database';
 
+/**
+ * Интерфейс фильтров для истории сканирований
+ */
 export interface HistoryFilters {
   from?: string;
   to?: string;
@@ -11,6 +14,9 @@ export interface HistoryFilters {
   limit?: string;
 }
 
+/**
+ * Интерфейс статистики истории
+ */
 export interface HistoryStats {
   totalScans: number;
   uniqueProducts: number;
@@ -18,7 +24,17 @@ export interface HistoryStats {
   avgZoneTime: number;
 }
 
+/**
+ * Репозиторий для работы с историей сканирований
+ * 
+ * Предоставляет методы для получения исторических данных и статистики из БД
+ */
 export class HistoryRepository {
+  /**
+   * Получить исторические данные с применением фильтров
+   * @param filters - Фильтры (даты, зоны, статусы, пагинация)
+   * @returns Объект с массивом записей истории и информацией о пагинации
+   */
   // Получение исторических данных с фильтрами
   async getHistory(filters: HistoryFilters) {
     const {
@@ -145,6 +161,12 @@ export class HistoryRepository {
     };
   }
 
+  /**
+   * Подсчитать общее количество записей по фильтрам
+   * @param filters - Те же фильтры, что и в основном запросе
+   * @returns Общее количество записей, соответствующих фильтрам
+   * @private
+   */
   // Подсчет общего количества записей
   private async getHistoryCount(filters: HistoryFilters): Promise<number> {
     const { from, to, zone, status, product_id, robot_id } = filters;
@@ -227,6 +249,11 @@ export class HistoryRepository {
     return parseInt(countResult.rows[0].count);
   }
 
+  /**
+   * Получить статистику за период
+   * @param filters - Фильтры по датам (from, to)
+   * @returns Статистика: общее количество сканирований, уникальных товаров, расхождений, среднее время сканирования зоны
+   */
   // Получение статистики за период
   async getStats(filters: { from?: string; to?: string }): Promise<HistoryStats> {
     const { from, to } = filters;

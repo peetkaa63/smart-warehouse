@@ -15,7 +15,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Snackbar
+  Snackbar,
+  Collapse,
+  Fade
 } from '@mui/material';
 import { 
   Refresh, 
@@ -168,6 +170,7 @@ const AIPredictions: React.FC = () => {
     // Автообновление каждые 30 минут
     const interval = setInterval(() => loadPredictions(), 30 * 60 * 1000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodDays]);
 
   const handlePeriodChange = (event: any) => {
@@ -229,7 +232,14 @@ const AIPredictions: React.FC = () => {
   };
 
   return (
-    <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Paper sx={{ 
+      p: 3, 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      transition: 'height 0.3s ease-in-out',
+      minHeight: loading ? '300px' : 'auto'
+    }}>
       {/* Заголовок с управлением */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -339,28 +349,38 @@ const AIPredictions: React.FC = () => {
         </Alert>
       )}
 
-      {/* Прогресс загрузки */}
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, flexGrow: 1 }}>
-          <Box textAlign="center">
-            <CircularProgress size={40} />
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              AI анализирует данные...
-            </Typography>
-          </Box>
+      {/* Прогресс загрузки с анимацией */}
+      <Collapse in={loading} timeout={300}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          py: 4, 
+          flexGrow: 1,
+          minHeight: '200px'
+        }}>
+          <Fade in={loading} timeout={400}>
+            <Box textAlign="center">
+              <CircularProgress size={40} />
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                AI анализирует данные...
+              </Typography>
+            </Box>
+          </Fade>
         </Box>
-      )}
+      </Collapse>
 
-      {/* Контент прогнозов */}
-      {!loading && (
-        <Box sx={{ flexGrow: 1 }}>
-          {predictions.length === 0 ? (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Нет данных для прогноза. Загрузите исторические данные через CSV.
-            </Alert>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {predictions.slice(0, 5).map((prediction, index) => (
+      {/* Контент прогнозов с анимацией */}
+      <Collapse in={!loading} timeout={300}>
+        <Fade in={!loading} timeout={400}>
+          <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
+            {predictions.length === 0 ? (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Нет данных для прогноза. Загрузите исторические данные через CSV.
+              </Alert>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {predictions.slice(0, 5).map((prediction, index) => (
                 <Paper 
                   key={`${prediction.product_id}-${index}`} 
                   variant="outlined" 
@@ -438,10 +458,11 @@ const AIPredictions: React.FC = () => {
                   )}
                 </Paper>
               ))}
-            </Box>
-          )}
-        </Box>
-      )}
+              </Box>
+            )}
+          </Box>
+        </Fade>
+      </Collapse>
 
       {/* Футер с информацией */}
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>

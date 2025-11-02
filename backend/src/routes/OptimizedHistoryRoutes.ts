@@ -4,6 +4,68 @@ import { optimizedHistoryRepository } from '../repositories/OptimizedHistoryRepo
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/history/optimized:
+ *   get:
+ *     summary: Получить историю сканирований (оптимизированная версия)
+ *     description: Возвращает исторические данные сканирований с оптимизированной пагинацией (поддержка cursor-based пагинации для больших объемов данных). Доступно для всех авторизованных пользователей.
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Начальная дата для фильтрации
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Конечная дата для фильтрации
+ *       - in: query
+ *         name: zone
+ *         schema:
+ *           type: string
+ *         description: Фильтр по зоне
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Фильтр по статусу
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Номер страницы (если use_cursor=false)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Количество записей на странице
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         description: Курсор для следующей страницы (если use_cursor=true)
+ *       - in: query
+ *         name: use_cursor
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *           default: false
+ *         description: Использовать cursor-based пагинацию
+ *     responses:
+ *       200:
+ *         description: История сканирований успешно получена
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/history - оптимизированное получение истории
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -57,6 +119,36 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/history/optimized/stats:
+ *   get:
+ *     summary: Получить статистику за период (кэшированная версия)
+ *     description: Возвращает статистическую информацию по истории сканирований за указанный период с использованием кэширования для улучшения производительности. Доступно для всех авторизованных пользователей.
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Начальная дата для статистики
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Конечная дата для статистики
+ *     responses:
+ *       200:
+ *         description: Статистика успешно получена
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/history/stats - кэшированная статистика
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
@@ -84,6 +176,39 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/history/optimized/refresh:
+ *   post:
+ *     summary: Принудительно обновить кэш истории
+ *     description: Очищает и обновляет кэш истории сканирований для улучшения производительности. Доступно для операторов и администраторов.
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Кэш истории успешно обновлен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "History cache refreshed successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // POST /api/history/refresh - принудительное обновление кэша
 router.post('/refresh', authenticateToken, requireRole(['operator', 'admin']), async (req, res) => {
   try {

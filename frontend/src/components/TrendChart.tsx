@@ -134,6 +134,7 @@ const TrendChart: React.FC<TrendChartProps> = () => {
     if (selectedProducts.length > 0) {
       loadChartData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProducts, period]);
 
   const handleProductChange = (event: any, newValue: Product[]) => {

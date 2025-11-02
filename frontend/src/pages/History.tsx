@@ -119,6 +119,7 @@ const History: React.FC = () => {
   useEffect(() => {
     loadData();
     loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage]);
 
   const handleFilterChange = (key: string, value: any) => {
