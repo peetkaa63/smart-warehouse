@@ -6,7 +6,7 @@ import { robotsAPI, pauseRobotUniversal, resumeRobotUniversal } from '../service
 import { socketService } from '../services/socketService';
 import { useDispatch } from 'react-redux';
 import { showNotification } from '../store/slices/notificationsSlice';
-import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups, PlayArrow, Pause, ArrowBack } from '@mui/icons-material';
+import { Add, Remove, MyLocation, Battery20, Battery50, Battery80, BatteryFull, Groups, PlayArrow, Pause, ArrowBack, Refresh } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { historyAPI } from '../services/api';
@@ -55,6 +55,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const [showOnlyLowBattery, setShowOnlyLowBattery] = useState(false);
   const [showCellStates, setShowCellStates] = useState(false);
   const [cellStatusMapState, setCellStatusMapState] = useState<Map<string, string>>(new Map());
+  const [rescanningRobot, setRescanningRobot] = useState<string | null>(null);
   
   // Проверка прав на управление роботами
   const canManageRobots = user?.role === 'operator' || user?.role === 'admin';
@@ -888,17 +889,51 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
                       }}
                       sx={{ fontSize: '12px' }}
                       title={popoverRobot.status === 'paused' ? 'Продолжить' : 'Пауза'}
-                    >{popoverRobot.status === 'paused' ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}</IconButton>
+                    >
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={popoverRobot.status === 'paused' ? 'play' : 'pause'}
+                          initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                          exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        >
+                          {popoverRobot.status === 'paused' ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
+                        </motion.div>
+                      </AnimatePresence>
+                    </IconButton>
                     <IconButton 
                       size="small" 
                       onClick={async () => {
                         if (!popoverRobot) return;
-                        await robotsAPI.rescan(popoverRobot.id, { zone: popoverRobot.current_zone, row: popoverRobot.current_row, shelf: popoverRobot.current_shelf });
-                        dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${popoverRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
+                        setRescanningRobot(popoverRobot.id);
+                        try {
+                          await robotsAPI.rescan(popoverRobot.id, { zone: popoverRobot.current_zone, row: popoverRobot.current_row, shelf: popoverRobot.current_shelf });
+                          dispatch(showNotification({ type: 'info', title: 'Пересканирование', message: `Робот ${popoverRobot.id} пересканирует текущую ячейку`, duration: 3000 } as any));
+                        } catch (error) {
+                          console.error('Rescan error:', error);
+                        } finally {
+                          // Анимация вращения на 3 секунды
+                          setTimeout(() => {
+                            setRescanningRobot(null);
+                          }, 3000);
+                        }
                       }}
                       sx={{ fontSize: '12px' }}
                       title="Пересканировать ячейку"
-                    >🔄</IconButton>
+                      disabled={rescanningRobot === popoverRobot.id}
+                    >
+                      <motion.div
+                        animate={{ rotate: rescanningRobot === popoverRobot.id ? 360 : 0 }}
+                        transition={{ 
+                          duration: rescanningRobot === popoverRobot.id ? 1 : 0,
+                          repeat: rescanningRobot === popoverRobot.id ? Infinity : 0,
+                          ease: 'linear'
+                        }}
+                      >
+                        <Refresh fontSize="small" />
+                      </motion.div>
+                    </IconButton>
                   </>
                 )}
                 <IconButton 

@@ -25,6 +25,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Add,
   Delete,
@@ -164,7 +165,19 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="lg" 
+      fullWidth
+      PaperProps={{
+        component: motion.div,
+        initial: { opacity: 0, scale: 0.9, y: 20 },
+        animate: { opacity: 1, scale: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.9, y: 20 },
+        transition: { duration: 0.3, ease: 'easeOut' }
+      }}
+    >
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6">Управление роботами</Typography>

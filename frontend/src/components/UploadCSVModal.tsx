@@ -23,6 +23,7 @@ import {
   Slide,
   Collapse
 } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Close,
   CloudUpload,
@@ -206,8 +207,13 @@ const UploadCSVModal: React.FC<UploadCSVModalProps> = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
-      TransitionComponent={Fade}
-      transitionDuration={400}
+      PaperProps={{
+        component: motion.div,
+        initial: { opacity: 0, scale: 0.9, y: 20 },
+        animate: { opacity: 1, scale: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.9, y: 20 },
+        transition: { duration: 0.3, ease: 'easeOut' }
+      }}
     >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">

@@ -6,19 +6,24 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('operator', 'admin', 'viewer')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('operator', 'admin', 'viewer', 'manager')),
+    blocked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Создание таблицы роботов
 CREATE TABLE IF NOT EXISTS robots (
     id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255),
     status VARCHAR(50) DEFAULT 'active',
     battery_level INTEGER,
     last_update TIMESTAMP,
     current_zone VARCHAR(10),
+    zone VARCHAR(10),
     current_row INTEGER,
-    current_shelf INTEGER
+    current_shelf INTEGER,
+    last_maintenance TIMESTAMP,
+    next_maintenance TIMESTAMP
 );
 
 -- Создание таблицы товаров
