@@ -206,7 +206,73 @@ export class ExportRepository {
       query += ` AND ih.robot_id = $${params.length}`;
     }
 
-    query += ` ORDER BY ih.scanned_at DESC`;
+    query += ` ORDER BY ih.scanned_at DESC LIMIT 5000`; // Лимит для Excel
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
+  // Получение данных для экспорта в PDF (ограниченное количество)
+  async getExportDataForPDF(filters: {
+    from?: string;
+    to?: string;
+    zone?: string;
+    status?: string;
+    product_id?: string;
+    robot_id?: string;
+  }): Promise<any[]> {
+    let query = `
+      SELECT 
+        ih.id,
+        ih.scanned_at as "scannedAt",
+        r.id as "robotId",
+        ih.zone,
+        p.id as "productId",
+        p.name as "productName",
+        ih.quantity,
+        ih.status,
+        ih.row_number as "rowNumber",
+        ih.shelf_number as "shelfNumber"
+      FROM inventory_history ih
+      LEFT JOIN robots r ON ih.robot_id = r.id
+      LEFT JOIN products p ON ih.product_id = p.id
+      WHERE 1=1
+    `;
+    
+    const params: any[] = [];
+
+    // Добавляем фильтры
+    if (filters.from && typeof filters.from === 'string' && filters.from.trim() !== '') {
+      params.push(new Date(filters.from));
+      query += ` AND ih.scanned_at >= $${params.length}`;
+    }
+
+    if (filters.to && typeof filters.to === 'string' && filters.to.trim() !== '') {
+      params.push(new Date(filters.to));
+      query += ` AND ih.scanned_at <= $${params.length}`;
+    }
+
+    if (filters.zone && typeof filters.zone === 'string' && filters.zone.trim() !== '') {
+      params.push(filters.zone);
+      query += ` AND ih.zone = $${params.length}`;
+    }
+
+    if (filters.status && typeof filters.status === 'string' && filters.status.trim() !== '') {
+      params.push(filters.status);
+      query += ` AND ih.status = $${params.length}`;
+    }
+
+    if (filters.product_id && typeof filters.product_id === 'string' && filters.product_id.trim() !== '') {
+      params.push(filters.product_id);
+      query += ` AND ih.product_id = $${params.length}`;
+    }
+
+    if (filters.robot_id && typeof filters.robot_id === 'string' && filters.robot_id.trim() !== '') {
+      params.push(filters.robot_id);
+      query += ` AND ih.robot_id = $${params.length}`;
+    }
+
+    query += ` ORDER BY ih.scanned_at DESC LIMIT 1000`; // Ограничение для PDF
 
     const result = await pool.query(query, params);
     return result.rows;
@@ -221,6 +287,8 @@ export class ExportRepository {
     unique_products: number;
     discrepancies: number;
     avg_zone_time: number;
+    limited_data?: boolean;
+    total_records_count?: number;
   }> {
     let statsQuery = `
       SELECT 
@@ -281,15 +349,34 @@ export class ExportRepository {
 
     const timeResult = await pool.query(timeQuery, timeParams);
 
+    // Получаем общее количество записей для информации
+    let countQuery = `SELECT COUNT(*) as total_count FROM inventory_history WHERE 1=1`;
+    const countParams: any[] = [];
+
+    if (filters.from && typeof filters.from === 'string' && filters.from.trim() !== '') {
+      countParams.push(new Date(filters.from));
+      countQuery += ` AND scanned_at >= $${countParams.length}`;
+    }
+
+    if (filters.to && typeof filters.to === 'string' && filters.to.trim() !== '') {
+      countParams.push(new Date(filters.to));
+      countQuery += ` AND scanned_at <= $${countParams.length}`;
+    }
+
+    const countResult = await pool.query(countQuery, countParams);
+    const totalRecords = parseInt(countResult.rows[0].total_count) || 0;
+    const limitedData = totalRecords > 1000;
+
     return {
       total_scans: parseInt(statsResult.rows[0].total_scans) || 0,
       unique_products: parseInt(statsResult.rows[0].unique_products) || 0,
       discrepancies: parseInt(statsResult.rows[0].discrepancies) || 0,
-      avg_zone_time: Math.round(parseFloat(timeResult.rows[0]?.avg_zone_time) * 10) / 10 || 0
+      avg_zone_time: Math.round(parseFloat(timeResult.rows[0]?.avg_zone_time) * 10) / 10 || 0,
+      limited_data: limitedData,
+      total_records_count: totalRecords
     };
   }
 }
 
 export const uploadRepository = new UploadRepository();
 export const exportRepository = new ExportRepository();
-

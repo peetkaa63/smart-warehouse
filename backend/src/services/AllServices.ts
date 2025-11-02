@@ -588,11 +588,19 @@ export class ExportService {
     try {
       console.log('📄 Export Service: Exporting to PDF with filters:', filters);
       
-      const data = await exportRepository.getExportData(filters);
+      const data = await exportRepository.getExportDataForPDF(filters); // Используем ограниченный метод
       const stats = await exportRepository.getExportStats(filters);
       
+      // Добавляем информацию об ограничении если нужно
+      const enhancedStats = {
+        ...stats,
+        pdf_note: stats.limited_data 
+          ? `В PDF отображены последние 1000 записей из ${stats.total_records_count} всего. Для полных данных используйте Excel экспорт.`
+          : undefined
+      };
+      
       return {
-        data: [...data, { stats }],
+        data: [...data, { stats: enhancedStats }],
         filename: `inventory_report_${new Date().toISOString().split('T')[0]}.pdf`,
         format: 'pdf'
       };
