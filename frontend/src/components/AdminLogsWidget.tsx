@@ -36,6 +36,7 @@ const AdminLogsWidget: React.FC = () => {
   const rdispatch = useReduxDispatch()
 
   const [logs, setLogs] = React.useState<LogEntry[]>([])
+  const AnimatedBox = animated(Box as any)
 
   const loadLogs = React.useCallback(async () => {
     try {
@@ -261,7 +262,7 @@ const AdminLogsWidget: React.FC = () => {
 
           <Divider sx={{ mb: 2 }} />
           
-          <animated.div style={{ ...listAnimation, overflow: 'hidden' }}>
+          <AnimatedBox style={{ ...listAnimation, overflow: 'hidden' }}>
             <List dense sx={{ maxHeight: 500, overflow: 'auto' }}>
               <AnimatePresence>
                 {filtered.map((ev, idx) => (
@@ -320,7 +321,7 @@ const AdminLogsWidget: React.FC = () => {
               </ListItem>
             )}
           </List>
-          </animated.div>
+          </AnimatedBox>
         </DialogContent>
         <DialogActions>
           <Button 
