@@ -6,7 +6,7 @@ import {
   Stack, RadioGroup, FormControlLabel, Radio, Dialog, DialogTitle, DialogContent, 
   DialogActions, IconButton, Tabs, Tab, Select, MenuItem, FormControl, InputLabel 
 } from '@mui/material'
-import { Close, RefreshCw, Storage, People, Security, Settings } from '@mui/icons-material'
+import { Close, Loop, Storage, People, Security, Settings } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSpring, animated } from '@react-spring/web'
 import { useDispatch as useReduxDispatch } from 'react-redux'
@@ -335,7 +335,7 @@ const AdminLogsWidget: React.FC = () => {
                   ease: 'linear'
                 }}
               >
-                <RefreshCw />
+                <Loop />
               </motion.div>
             }
           >
