@@ -163,49 +163,60 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
         </AnimatePresence>
         
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="subtitle1" gutterBottom>Пороги для статусов</Typography>
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Critical</InputLabel>
-              <Select
-                value={thresholds.critical}
-                onChange={(e) => setThresholds({ ...thresholds, critical: Number(e.target.value) })}
-                label="Critical"
-              >
-                {[5, 10, 15, 20, 25, 30].map(v => (
-                  <MenuItem key={v} value={v}>{v}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Low Stock</InputLabel>
-              <Select
-                value={thresholds.low_stock}
-                onChange={(e) => setThresholds({ ...thresholds, low_stock: Number(e.target.value) })}
-                label="Low Stock"
-              >
-                {[20, 30, 40, 50, 60].map(v => (
-                  <MenuItem key={v} value={v}>{v}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Warning</InputLabel>
-              <Select
-                value={thresholds.warning}
-                onChange={(e) => setThresholds({ ...thresholds, warning: Number(e.target.value) })}
-                label="Warning"
-              >
-                {[40, 50, 60, 70, 80].map(v => (
-                  <MenuItem key={v} value={v}>{v}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button variant="contained" startIcon={<Save />} onClick={handleSaveThresholds}>
-              Сохранить пороги
-            </Button>
-          </Box>
-        </Paper>
+		  <Typography variant="subtitle1" gutterBottom>Пороги для статусов</Typography>
+		  <Box sx={{ 
+			display: 'flex', 
+			flexDirection: { xs: 'column', sm: 'row' }, 
+			gap: 2, 
+			mb: 2,
+			alignItems: { xs: 'stretch', sm: 'flex-start' }
+		  }}>
+			<FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+			  <InputLabel>Critical</InputLabel>
+			  <Select
+				value={thresholds.critical}
+				onChange={(e) => setThresholds({ ...thresholds, critical: Number(e.target.value) })}
+				label="Critical"
+			  >
+				{[5, 10, 15, 20, 25, 30].map(v => (
+				  <MenuItem key={v} value={v}>{v}</MenuItem>
+				))}
+			  </Select>
+			</FormControl>
+			<FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+			  <InputLabel>Low Stock</InputLabel>
+			  <Select
+				value={thresholds.low_stock}
+				onChange={(e) => setThresholds({ ...thresholds, low_stock: Number(e.target.value) })}
+				label="Low Stock"
+			  >
+				{[20, 30, 40, 50, 60].map(v => (
+				  <MenuItem key={v} value={v}>{v}</MenuItem>
+				))}
+			  </Select>
+			</FormControl>
+			<FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+			  <InputLabel>Warning</InputLabel>
+			  <Select
+				value={thresholds.warning}
+				onChange={(e) => setThresholds({ ...thresholds, warning: Number(e.target.value) })}
+				label="Warning"
+			  >
+				{[40, 50, 60, 70, 80].map(v => (
+				  <MenuItem key={v} value={v}>{v}</MenuItem>
+				))}
+			  </Select>
+			</FormControl>
+			<Button 
+			  variant="contained" 
+			  startIcon={<Save />} 
+			  onClick={handleSaveThresholds}
+			  sx={{ width: { xs: '100%', sm: 'auto' } }}
+			>
+			  Сохранить пороги
+			</Button>
+		  </Box>
+		</Paper>
 
         <AnimatePresence mode="wait">
         {loading ? (
