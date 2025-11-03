@@ -212,7 +212,7 @@ export class ExportRepository {
     return result.rows;
   }
 
-  // Получение данных для экспорта в PDF (ограниченное количество)
+  // Получение данных для экспорта в PDF (по умолчанию ограниченное количество)
   async getExportDataForPDF(filters: {
     from?: string;
     to?: string;
@@ -220,7 +220,7 @@ export class ExportRepository {
     status?: string;
     product_id?: string;
     robot_id?: string;
-  }): Promise<any[]> {
+  }, unlimited: boolean = false): Promise<any[]> {
     let query = `
       SELECT 
         ih.id,
@@ -272,7 +272,88 @@ export class ExportRepository {
       query += ` AND ih.robot_id = $${params.length}`;
     }
 
-    query += ` ORDER BY ih.scanned_at DESC LIMIT 1000`; // Ограничение для PDF
+    query += ` ORDER BY ih.scanned_at DESC`;
+    if (!unlimited) {
+      query += ` LIMIT 1000`;
+    }
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
+  // Пакетная выборка для CSV/Excel экспорта
+  async getExportDataBatch(
+    filters: {
+      from?: string;
+      to?: string;
+      zone?: string;
+      status?: string;
+      product_id?: string;
+      robot_id?: string;
+    },
+    limit: number,
+    offset: number,
+    unlimited: boolean = false
+  ): Promise<any[]> {
+    let query = `
+      SELECT 
+        ih.id,
+        ih.scanned_at as "scannedAt",
+        r.id as "robotId",
+        ih.zone,
+        p.id as "productId",
+        p.name as "productName",
+        ih.quantity,
+        ih.status,
+        ih.row_number as "rowNumber",
+        ih.shelf_number as "shelfNumber"
+      FROM inventory_history ih
+      LEFT JOIN robots r ON ih.robot_id = r.id
+      LEFT JOIN products p ON ih.product_id = p.id
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+
+    if (filters.from && typeof filters.from === 'string' && filters.from.trim() !== '') {
+      params.push(new Date(filters.from));
+      query += ` AND ih.scanned_at >= $${params.length}`;
+    }
+    if (filters.to && typeof filters.to === 'string' && filters.to.trim() !== '') {
+      params.push(new Date(filters.to));
+      query += ` AND ih.scanned_at <= $${params.length}`;
+    }
+    if (filters.zone && typeof filters.zone === 'string' && filters.zone.trim() !== '') {
+      params.push(filters.zone);
+      query += ` AND ih.zone = $${params.length}`;
+    }
+    if (filters.status && typeof filters.status === 'string' && filters.status.trim() !== '') {
+      params.push(filters.status);
+      query += ` AND ih.status = $${params.length}`;
+    }
+    if (filters.product_id && typeof filters.product_id === 'string' && filters.product_id.trim() !== '') {
+      params.push(filters.product_id);
+      query += ` AND ih.product_id = $${params.length}`;
+    }
+    if (filters.robot_id && typeof filters.robot_id === 'string' && filters.robot_id.trim() !== '') {
+      params.push(filters.robot_id);
+      query += ` AND ih.robot_id = $${params.length}`;
+    }
+
+    query += ` ORDER BY ih.scanned_at DESC`;
+
+    // If not unlimited, hard cap at 5000 overall
+    if (!unlimited) {
+      // Stop serving beyond cap
+      if (offset >= 5000) {
+        return [];
+      }
+      const remaining = Math.max(0, 5000 - offset);
+      const effectiveLimit = Math.min(limit, remaining);
+      query += ` LIMIT ${effectiveLimit} OFFSET ${offset}`;
+    } else {
+      query += ` LIMIT ${limit} OFFSET ${offset}`;
+    }
 
     const result = await pool.query(query, params);
     return result.rows;

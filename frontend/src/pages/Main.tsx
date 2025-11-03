@@ -387,7 +387,28 @@ const Main: React.FC = () => {
                     </Tooltip>
 
                     {exportState?.inProgress && (
-                      <Tooltip title={exportState.kind === 'pdf' ? 'Экспорт PDF...' : 'Экспорт CSV...'}>
+                      <Tooltip
+                        title={
+                          <Box sx={{ minWidth: 220 }}>
+                            <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
+                              {exportState.kind === 'pdf' ? 'Экспорт PDF' : 'Экспорт CSV'}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ flex: 1 }}>
+                                <Box sx={{ height: 6, bgcolor: 'rgba(255,255,255,0.3)', borderRadius: 3 }}>
+                                  <Box sx={{ height: 6, borderRadius: 3, bgcolor: 'secondary.main', width: `${exportState.progress ?? 10}%`, transition: 'width 0.3s' }} />
+                                </Box>
+                              </Box>
+                              <Typography variant="caption">{Math.max(0, Math.min(100, exportState.progress ?? 10))}%</Typography>
+                            </Box>
+                            {typeof exportState.etaSeconds === 'number' && (
+                              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                                Осталось ~ {Math.ceil((exportState.etaSeconds || 0) / 60)} мин
+                              </Typography>
+                            )}
+                          </Box>
+                        }
+                      >
                         <Box sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
                           <Badge variant="dot" color="secondary">
                             <TrendingUp />

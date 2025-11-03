@@ -17,7 +17,7 @@ import { HistoryActions } from '../components/HistoryActions';
 import { useDispatch } from 'react-redux';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { startExport, finishExport } from '../store/slices/exportSlice';
+import { startExport, finishExport, setExportJob, updateExportProgress } from '../store/slices/exportSlice';
 import { showNotification } from '../store/slices/notificationsSlice';
 
 interface HistoryItem {
@@ -155,6 +155,7 @@ const History: React.FC = () => {
 
   const handleExportExcel = async () => {
     try {
+      alert('Экспорт Excel: максимум 5000 записей за раз для ускорения генерации. Для полного экспорта используйте "Экспорт без лимита".');
       setExporting(prev => ({ ...prev, excel: true }));
       const params: any = {};
 
@@ -213,6 +214,7 @@ const History: React.FC = () => {
         params.status = filters.statuses;
       }
 
+      alert('Экспорт PDF: максимум 1000 записей за раз для ускорения генерации. Для полного экспорта используйте "Экспорт без лимита".');
       dispatch(startExport('pdf'));
       const response = await exportAPI.exportToPDF(params);
       
@@ -237,6 +239,62 @@ const History: React.FC = () => {
       alert('Ошибка при генерации PDF');
     } finally {
       setExporting(prev => ({ ...prev, pdf: false }));
+      dispatch(finishExport());
+    }
+  };
+
+  // Экспорт без лимита (асинхронно с прогрессом)
+  const handleUnlimitedExport = async (type: 'excel' | 'pdf') => {
+    try {
+      const confirmText = type === 'pdf'
+        ? 'Экспорт без лимита (PDF) может занять много времени. Продолжить?'
+        : 'Экспорт без лимита (CSV) может занять много времени. Продолжить?';
+      if (!window.confirm(confirmText)) return;
+
+      dispatch(startExport(type));
+      const params: any = {};
+      if (filters.from) params.from = filters.from;
+      if (filters.to) params.to = filters.to;
+      if (filters.zones.length) params.zone = filters.zones;
+      if (filters.statuses.length) params.status = filters.statuses;
+      if (filters.productId) params.product_id = filters.productId;
+      if (filters.robotId) params.robot_id = filters.robotId;
+
+      const startResp = await exportAPI.startJob(type, params, true);
+      const jobId = startResp.data.jobId as string;
+      dispatch(setExportJob({ jobId }));
+
+      const poll = async () => {
+        try {
+          const statusResp = await exportAPI.getJobStatus(jobId);
+          const { status, progress, etaSeconds, filename } = statusResp.data || {};
+          dispatch(updateExportProgress({ progress: Number(progress) || 0, etaSeconds }));
+          if (status === 'completed') {
+            const dl = await exportAPI.downloadJob(jobId);
+            const url = window.URL.createObjectURL(new Blob([dl.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename || (type === 'pdf' ? 'export.pdf' : 'export.csv'));
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            dispatch(finishExport());
+            return;
+          }
+          if (status === 'failed') {
+            alert('Ошибка при экспорте');
+            dispatch(finishExport());
+            return;
+          }
+        } catch (e) {
+          // tolerate transient errors
+        }
+        setTimeout(poll, 1500);
+      };
+      setTimeout(poll, 1200);
+    } catch (e) {
+      alert('Не удалось запустить экспорт без лимита');
       dispatch(finishExport());
     }
   };
@@ -310,6 +368,8 @@ const History: React.FC = () => {
           <HistoryActions
             onExportExcel={handleExportExcel}
             onExportPDF={handleExportPDF}
+            onExportUnlimitedCSV={() => handleUnlimitedExport('excel')}
+            onExportUnlimitedPDF={() => handleUnlimitedExport('pdf')}
             onOpenAnalytics={() => setChartModalOpen(true)}
           />
         </Box>

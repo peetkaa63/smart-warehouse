@@ -153,6 +153,17 @@ export const exportAPI = {
       responseType: 'blob',
       timeout: 120000
     });
+  },
+
+  // Асинхронные джобы экспорта (без лимита)
+  startJob: (type: 'excel' | 'pdf', filters: any = {}, unlimited: boolean = true) => {
+    return api.post('/api/export/jobs/start', { type, filters, unlimited });
+  },
+  getJobStatus: (jobId: string) => {
+    return api.get(`/api/export/jobs/status/${jobId}`);
+  },
+  downloadJob: (jobId: string) => {
+    return api.get(`/api/export/jobs/download/${jobId}`, { responseType: 'blob' });
   }
 };
 
