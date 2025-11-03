@@ -10,7 +10,6 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-ki
 import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSpring, animated } from '@react-spring/web'
 
 // Sortable task item component
 type SortableTaskProps = { id: string; primary: string; secondary?: string; onDelete: () => void }
@@ -483,15 +482,9 @@ const RobotTasksPanel: React.FC = () => {
               </FormControl>
               {(() => {
                 const showParams = (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan');
-                const paramsAnimation = useSpring({
-                  height: showParams ? 'auto' : 0,
-                  opacity: showParams ? 1 : 0,
-                  config: { tension: 200, friction: 20 }
-                });
-
                 return (
-                  <animated.div style={{ ...paramsAnimation, overflow: 'hidden', pointerEvents: showParams ? 'auto' : 'none' }}>
-                {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
+                  <Box sx={{ overflow: 'hidden', pointerEvents: showParams ? 'auto' : 'none' }}>
+                {showParams && (
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', transition: 'all .2s ease' }}>
                   <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputLabel-root': { overflow: 'visible', whiteSpace: 'nowrap' } }}>
                     <InputLabel id={`zone-${group.robotId}`} sx={{ overflow: 'visible' }}>Зона</InputLabel>
@@ -523,7 +516,7 @@ const RobotTasksPanel: React.FC = () => {
                   />
                 </Box>
                 )}
-              </animated.div>
+              </Box>
                 );
               })()}
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>

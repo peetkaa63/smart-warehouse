@@ -72,6 +72,13 @@ const AIPredictions: React.FC = () => {
   const [aiError, setAiError] = useState<string | null>(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
 
+  // Animations
+  const contentAnimation = useSpring({
+    height: !loading ? 'auto' : 0,
+    opacity: !loading ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+
   // Меню для дополнительных опций
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -372,19 +379,11 @@ const AIPredictions: React.FC = () => {
       </Collapse>
 
       {/* Контент прогнозов с анимацией */}
-      {(() => {
-        const contentAnimation = useSpring({
-          height: !loading ? 'auto' : 0,
-          opacity: !loading ? 1 : 0,
-          config: { tension: 200, friction: 20 }
-        });
-
-        return (
-          <animated.div style={{ ...contentAnimation, overflow: 'hidden' }}>
-            <Collapse in={!loading} timeout={300}>
-              <Fade in={!loading} timeout={400}>
-                <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
-                  {predictions.length === 0 ? (
+      <animated.div style={{ ...contentAnimation, overflow: 'hidden' }}>
+        <Collapse in={!loading} timeout={300}>
+          <Fade in={!loading} timeout={400}>
+            <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
+              {predictions.length === 0 ? (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Нет данных для прогноза. Загрузите исторические данные через CSV.
               </Alert>
@@ -469,13 +468,11 @@ const AIPredictions: React.FC = () => {
                 </Paper>
               ))}
               </Box>
-                  )}
-                </Box>
-              </Fade>
-            </Collapse>
-          </animated.div>
-        );
-      })()}
+            )}
+            </Box>
+          </Fade>
+        </Collapse>
+      </animated.div>
 
       {/* Футер с информацией */}
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>

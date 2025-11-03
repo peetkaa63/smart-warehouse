@@ -11,6 +11,18 @@ const ReplenishmentPanel: React.FC = () => {
   const [loading, setLoading] = React.useState(false)
   const [initialLoad, setInitialLoad] = React.useState(true)
 
+  // Animations
+  const lowListAnimation = useSpring({
+    height: (data.low || []).length > 0 ? 'auto' : 0,
+    opacity: (data.low || []).length > 0 ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+  const surplusListAnimation = useSpring({
+    height: (data.surplus || []).length > 0 ? 'auto' : 0,
+    opacity: (data.surplus || []).length > 0 ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+
   const load = async (manual: boolean = false) => {
     if (manual) {
       setLoading(true);
@@ -79,16 +91,7 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          {(() => {
-            const lowLength = (data.low || []).length;
-            const listAnimation = useSpring({
-              height: lowLength > 0 ? 'auto' : 0,
-              opacity: lowLength > 0 ? 1 : 0,
-              config: { tension: 200, friction: 20 }
-            });
-
-            return (
-              <animated.div style={{ ...listAnimation, overflow: 'hidden' }}>
+          <animated.div style={{ ...lowListAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.low || []).map((i, idx) => (
                   <motion.div
@@ -155,9 +158,7 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-              </animated.div>
-            );
-          })()}
+          </animated.div>
         </Box>
 
         {/* Избыток */}
@@ -174,16 +175,7 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          {(() => {
-            const surplusLength = (data.surplus || []).length;
-            const listAnimation = useSpring({
-              height: surplusLength > 0 ? 'auto' : 0,
-              opacity: surplusLength > 0 ? 1 : 0,
-              config: { tension: 200, friction: 20 }
-            });
-
-            return (
-              <animated.div style={{ ...listAnimation, overflow: 'hidden' }}>
+          <animated.div style={{ ...surplusListAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.surplus || []).map((i, idx) => (
                   <motion.div
@@ -255,9 +247,7 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-              </animated.div>
-            );
-          })()}
+          </animated.div>
         </Box>
       </Box>
     </Paper>

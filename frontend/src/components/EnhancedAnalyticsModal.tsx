@@ -110,6 +110,13 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
   const [aiError, setAiError] = useState<string | null>(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
 
+  // Animations
+  const contentSpring = useSpring({
+    height: 'auto',
+    opacity: 1,
+    config: { tension: 200, friction: 20 }
+  });
+
   const tabs = [
     { label: '📈 Тренды остатков', value: 'trends' },
     { label: '🤖 Эффективность', value: 'efficiency' },
@@ -784,15 +791,8 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
                 </Typography>
               </Box>
             </Box>
-          ) : (() => {
-            const contentSpring = useSpring({
-              height: 'auto',
-              opacity: 1,
-              config: { tension: 200, friction: 20 }
-            });
-
-            return (
-              <animated.div style={{ ...contentSpring, overflow: 'hidden' }}>
+          ) : (
+            <animated.div style={{ ...contentSpring, overflow: 'hidden' }}>
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 20 }}
@@ -805,9 +805,8 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
                 {activeTab === 1 && renderEfficiencyTab()}
                 {activeTab === 2 && renderAIAnalysisTab()}
               </motion.div>
-              </animated.div>
-            );
-          })()}
+            </animated.div>
+          )}
         </Box>
       </Box>
     </Modal>

@@ -186,6 +186,12 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
 
   console.log('📦 RecentScans received:', scans.length, 'scans, paused:', isPaused);
 
+  const tableAnimation = useSpring({
+    height: filteredScans.length > 0 ? 'auto' : 0,
+    opacity: filteredScans.length > 0 ? 1 : 0.5,
+    config: { tension: 200, friction: 20 }
+  });
+
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -220,15 +226,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
         </IconButton>
       </Box>
       
-      {(() => {
-        const tableAnimation = useSpring({
-          height: filteredScans.length > 0 ? 'auto' : 0,
-          opacity: filteredScans.length > 0 ? 1 : 0.5,
-          config: { tension: 200, friction: 20 }
-        });
-
-        return (
-          <animated.div style={{ ...tableAnimation, overflow: 'hidden' }}>
+      <animated.div style={{ ...tableAnimation, overflow: 'hidden' }}>
             <TableContainer sx={{ maxHeight: 300 }}>
         <Table stickyHeader size="small">
           <TableHead>
@@ -339,9 +337,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
           </TableBody>
         </Table>
       </TableContainer>
-          </animated.div>
-        );
-      })()}
+      </animated.div>
     </Paper>
   );
 };
