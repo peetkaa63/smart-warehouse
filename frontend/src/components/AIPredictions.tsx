@@ -78,6 +78,7 @@ const AIPredictions: React.FC = () => {
     opacity: !loading ? 1 : 0,
     config: { tension: 200, friction: 20 }
   });
+  const AnimatedBox = animated(Box as any);
 
   // Меню для дополнительных опций
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -379,7 +380,7 @@ const AIPredictions: React.FC = () => {
       </Collapse>
 
       {/* Контент прогнозов с анимацией */}
-      <animated.div style={{ ...contentAnimation, overflow: 'hidden' }}>
+      <AnimatedBox style={{ ...contentAnimation, overflow: 'hidden' }}>
         <Collapse in={!loading} timeout={300}>
           <Fade in={!loading} timeout={400}>
             <Box sx={{ flexGrow: 1, opacity: loading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}>
@@ -472,7 +473,7 @@ const AIPredictions: React.FC = () => {
             </Box>
           </Fade>
         </Collapse>
-      </animated.div>
+      </AnimatedBox>
 
       {/* Футер с информацией */}
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>

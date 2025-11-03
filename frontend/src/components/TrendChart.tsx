@@ -67,6 +67,7 @@ const TrendChart: React.FC<TrendChartProps> = () => {
     opacity: loading ? 1 : 0,
     config: { tension: 200, friction: 20 }
   });
+  const AnimatedBox = animated(Box as any);
 
   // Загрузка списка товаров
   const loadProducts = async () => {
@@ -236,7 +237,7 @@ const TrendChart: React.FC<TrendChartProps> = () => {
       </Box>
 
       <>
-        <animated.div style={{ ...loadingAnimation, overflow: 'hidden' }}>
+        <AnimatedBox style={{ ...loadingAnimation, overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
             <Box textAlign="center">
               <CircularProgress size={40} />
@@ -245,8 +246,8 @@ const TrendChart: React.FC<TrendChartProps> = () => {
               </Typography>
             </Box>
           </Box>
-        </animated.div>
-        <animated.div style={{ ...chartAnimation, overflow: 'hidden' }}>
+        </AnimatedBox>
+        <AnimatedBox style={{ ...chartAnimation, overflow: 'hidden' }}>
           {chartData.length > 0 && selectedProducts.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={300}>
@@ -327,7 +328,7 @@ const TrendChart: React.FC<TrendChartProps> = () => {
               </Box>
             </Box>
           )}
-        </animated.div>
+        </AnimatedBox>
       </>
     </Paper>
   );

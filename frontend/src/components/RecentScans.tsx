@@ -191,6 +191,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
     opacity: filteredScans.length > 0 ? 1 : 0.5,
     config: { tension: 200, friction: 20 }
   });
+  const AnimatedBox = animated(Box as any);
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
@@ -226,7 +227,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
         </IconButton>
       </Box>
       
-      <animated.div style={{ ...tableAnimation, overflow: 'hidden' }}>
+      <AnimatedBox style={{ ...tableAnimation, overflow: 'hidden' }}>
             <TableContainer sx={{ maxHeight: 300 }}>
         <Table stickyHeader size="small">
           <TableHead>
@@ -337,7 +338,7 @@ const RecentScans: React.FC<RecentScansProps> = ({ scans = [] }) => {
           </TableBody>
         </Table>
       </TableContainer>
-      </animated.div>
+      </AnimatedBox>
     </Paper>
   );
 };

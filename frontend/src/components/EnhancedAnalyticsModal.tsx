@@ -116,6 +116,7 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
     opacity: 1,
     config: { tension: 200, friction: 20 }
   });
+  const AnimatedBox = animated(Box as any);
 
   const tabs = [
     { label: '📈 Тренды остатков', value: 'trends' },
@@ -792,7 +793,7 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
               </Box>
             </Box>
           ) : (
-            <animated.div style={{ ...contentSpring, overflow: 'hidden' }}>
+            <AnimatedBox style={{ ...contentSpring, overflow: 'hidden' }}>
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 20 }}
@@ -805,7 +806,7 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
                 {activeTab === 1 && renderEfficiencyTab()}
                 {activeTab === 2 && renderAIAnalysisTab()}
               </motion.div>
-            </animated.div>
+            </AnimatedBox>
           )}
         </Box>
       </Box>

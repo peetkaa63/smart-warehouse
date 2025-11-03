@@ -60,7 +60,7 @@ const RealTimeStats: React.FC<RealTimeStatsProps> = ({ statistics }) => {
   });
 
   return (
-    <animated.div style={{ ...containerAnimation, overflow: 'hidden' }}>
+    <animated.div as={Box as any} style={{ ...containerAnimation, overflow: 'hidden' }}>
       <Paper elevation={2} sx={{ p: 2 }}>
         <Typography variant="h6" gutterBottom>
           Статистика в реальном времени

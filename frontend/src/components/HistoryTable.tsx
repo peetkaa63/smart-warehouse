@@ -70,6 +70,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
     opacity: loading ? 1 : 0,
     config: { tension: 200, friction: 20 }
   });
+  const AnimatedBox = animated(Box as any);
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
@@ -78,12 +79,12 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
       </Typography>
       
       <>
-        <animated.div style={{ ...loadingAnimation, overflow: 'hidden' }}>
+        <AnimatedBox style={{ ...loadingAnimation, overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </Box>
-        </animated.div>
-        <animated.div style={{ ...tableAnimation, overflow: 'hidden' }}>
+        </AnimatedBox>
+        <AnimatedBox style={{ ...tableAnimation, overflow: 'hidden' }}>
           {data.length > 0 ? (
                 <>
                   <TableContainer>
@@ -161,7 +162,7 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
               </Typography>
             </Box>
           )}
-        </animated.div>
+        </AnimatedBox>
       </>
     </Paper>
   );

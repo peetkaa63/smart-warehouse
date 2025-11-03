@@ -22,6 +22,7 @@ const ReplenishmentPanel: React.FC = () => {
     opacity: (data.surplus || []).length > 0 ? 1 : 0,
     config: { tension: 200, friction: 20 }
   });
+  const AnimatedBox = animated(Box as any);
 
   const load = async (manual: boolean = false) => {
     if (manual) {
@@ -91,7 +92,7 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          <animated.div style={{ ...lowListAnimation, overflow: 'hidden' }}>
+          <AnimatedBox style={{ ...lowListAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.low || []).map((i, idx) => (
                   <motion.div
@@ -158,7 +159,7 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-          </animated.div>
+          </AnimatedBox>
         </Box>
 
         {/* Избыток */}
@@ -175,7 +176,7 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          <animated.div style={{ ...surplusListAnimation, overflow: 'hidden' }}>
+          <AnimatedBox style={{ ...surplusListAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.surplus || []).map((i, idx) => (
                   <motion.div
@@ -247,7 +248,7 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-          </animated.div>
+          </AnimatedBox>
         </Box>
       </Box>
     </Paper>
