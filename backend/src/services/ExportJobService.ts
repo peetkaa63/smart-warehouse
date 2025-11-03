@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { exportRepository } from '../repositories/UploadExportRepository';
 import PDFDocument from 'pdfkit';
-import fs as fsExtra from 'fs';
 
 let fontBuffer: Buffer | null = null;
 let boldFontBuffer: Buffer | null = null;
