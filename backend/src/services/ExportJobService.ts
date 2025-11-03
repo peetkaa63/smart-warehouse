@@ -2,6 +2,38 @@ import fs from 'fs';
 import path from 'path';
 import { exportRepository } from '../repositories/UploadExportRepository';
 import PDFDocument from 'pdfkit';
+import fs as fsExtra from 'fs';
+
+let fontBuffer: Buffer | null = null;
+let boldFontBuffer: Buffer | null = null;
+let logoBuffer: Buffer | null = null;
+
+function preloadResources(): void {
+  try {
+    const fontsDir = path.join(__dirname, '../fonts');
+    const arialPath = path.join(fontsDir, 'arialmt.ttf');
+    const arialBoldPath = path.join(fontsDir, 'arialbd.ttf');
+    if (fs.existsSync(arialPath)) {
+      fontBuffer = fs.readFileSync(arialPath);
+    }
+    if (fs.existsSync(arialBoldPath)) {
+      boldFontBuffer = fs.readFileSync(arialBoldPath);
+    } else if (fontBuffer) {
+      boldFontBuffer = fontBuffer;
+    }
+    const logoPaths = [
+      path.join(__dirname, '../fonts/logo.png'),
+      path.join(__dirname, '../images/logo.png'),
+      path.join(process.cwd(), 'images/logo.png')
+    ];
+    for (const p of logoPaths) {
+      if (fs.existsSync(p)) {
+        logoBuffer = fs.readFileSync(p);
+        break;
+      }
+    }
+  } catch {}
+}
 
 type ExportType = 'excel' | 'pdf';
 
@@ -66,6 +98,8 @@ class ExportJobService {
 
         // Stream CSV
         const stream = fs.createWriteStream(filePath);
+        // BOM for Cyrillic
+        stream.write('\uFEFF', 'utf8');
         // Header
         stream.write('product_id;product_name;quantity;zone;date;row;shelf\n', 'utf8');
 
@@ -113,6 +147,7 @@ class ExportJobService {
         job.filename = filename;
         job.filePath = filePath;
 
+        preloadResources();
         const rows = await exportRepository.getExportDataForPDF(filters, unlimited);
         const statsFull = await exportRepository.getExportStats(filters);
 
@@ -120,21 +155,34 @@ class ExportJobService {
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
 
-        let y = 50;
+        // Fonts & logo like synchronous exporter
+        if (fontBuffer) {
+          try { (doc as any).registerFont('Arial', fontBuffer); } catch {}
+        }
+        if (boldFontBuffer) {
+          try { (doc as any).registerFont('Arial-Bold', boldFontBuffer); } catch {}
+        }
+        const fontFamily = fontBuffer ? 'Arial' : 'Helvetica';
+        const boldFontFamily = boldFontBuffer ? 'Arial-Bold' : 'Helvetica-Bold';
+        if (logoBuffer) {
+          try { (doc as any).image(logoBuffer, 50, 30, { width: 86, height: 30 }); } catch {}
+        }
+
+        let y = 110;
         const pageHeight = 750;
         const rowHeight = 25;
 
-        doc.fontSize(16).text('Отчет по инвентаризации склада', 50, y);
-        y += 30;
+        doc.font(fontFamily).fontSize(20).text('Отчет по инвентаризации склада', 150, 35);
+        doc.font(fontFamily).fontSize(10).text(`Дата создания: ${new Date().toLocaleDateString('ru-RU')}`, 150, 70);
 
         // Table header
-        doc.fontSize(12)
+        doc.font(boldFontFamily).fontSize(12)
           .text('№', 50, y)
-          .text('Товар', 80, y, { width: 200 })
-          .text('Робот', 290, y, { width: 60 })
-          .text('Кол-во', 355, y, { width: 60 })
-          .text('Зона', 420, y, { width: 30 })
-          .text('Статус', 460, y, { width: 100 });
+          .text('Товар', 80, y, { width: 160 })
+          .text('Робот', 250, y, { width: 60 })
+          .text('Кол-во', 320, y, { width: 60 })
+          .text('Зона', 370, y, { width: 30 })
+          .text('Статус', 410, y, { width: 100 });
         y += 25;
         doc.moveTo(50, y).lineTo(550, y).stroke();
         y += 10;
@@ -151,13 +199,13 @@ class ExportJobService {
               doc.addPage();
               y = 50;
             }
-            doc.fontSize(10)
+            doc.font(fontFamily).fontSize(10)
               .text(`${index + 1}`, 50, y)
-              .text(item.productName || item.productId || 'N/A', 80, y, { width: 200, ellipsis: true })
-              .text(item.robotId || 'N/A', 290, y, { width: 60, ellipsis: true })
-              .text(String(item.quantity || 'N/A'), 355, y, { width: 40 })
-              .text(item.zone || 'N/A', 420, y, { width: 25 })
-              .text(item.status || 'N/A', 460, y, { width: 100 });
+              .text(item.productName || item.productId || 'N/A', 80, y, { width: 160, ellipsis: true })
+              .text(item.robotId || 'N/A', 250, y, { width: 60, ellipsis: true })
+              .text(String(item.quantity || 'N/A'), 320, y, { width: 40 })
+              .text(item.zone || 'N/A', 370, y, { width: 25 })
+              .text(item.status || 'N/A', 410, y, { width: 100 });
             y += rowHeight;
             job.processed += 1;
             if (job.total > 0) {
@@ -176,9 +224,9 @@ class ExportJobService {
         } else {
           y += 30;
         }
-        doc.fontSize(14).text('Статистика:', 50, y);
+        doc.font(boldFontFamily).fontSize(14).text('Статистика:', 50, y);
         y += 25;
-        doc.fontSize(11)
+        doc.font(fontFamily).fontSize(11)
           .text(`Всего сканирований: ${statsFull.total_scans || 0}`, 70, y);
         y += 20;
         doc.text(`Уникальных товаров: ${statsFull.unique_products || 0}`, 70, y);

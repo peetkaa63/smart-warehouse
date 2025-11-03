@@ -386,6 +386,7 @@ const Main: React.FC = () => {
                       <IconButton color="inherit">{wsConnected ? <Wifi /> : <WifiOff />}</IconButton>
                     </Tooltip>
 
+                    <AnimatePresence>
                     {exportState?.inProgress && (
                       <Tooltip
                         title={
@@ -409,13 +410,21 @@ const Main: React.FC = () => {
                           </Box>
                         }
                       >
-                        <Box sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
-                          <Badge variant="dot" color="secondary">
-                            <TrendingUp />
-                          </Badge>
-                        </Box>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
+                            <Badge variant="dot" color="secondary">
+                              <TrendingUp />
+                            </Badge>
+                          </Box>
+                        </motion.div>
                       </Tooltip>
                     )}
+                    </AnimatePresence>
 
                     <Tooltip title="Уведомления">
                           <IconButton color="inherit" onClick={() => setNotificationsDrawerOpen(true)}>
