@@ -207,6 +207,7 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
           </Box>
         </Paper>
 
+        <AnimatePresence mode="wait">
         {loading ? (
           <motion.div
             initial={{ opacity: 0 }}
@@ -299,6 +300,7 @@ const ProductLimitsDialog: React.FC<{ open: boolean; onClose: () => void }> = ({
           </TableContainer>
           </motion.div>
         )}
+        </AnimatePresence>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Закрыть</Button>

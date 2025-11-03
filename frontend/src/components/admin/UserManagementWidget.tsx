@@ -240,7 +240,17 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
           </Button>
         </Box>
 
-        <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              key="user-add-form"
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -8, height: 0 }}
+              transition={{ duration: 0.25 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
               <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
               Новый пользователь
@@ -292,7 +302,10 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
               </Box>
             </Box>
           </Paper>
-        </AnimatedBox>
+              </AnimatedBox>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {loading ? (
           <motion.div

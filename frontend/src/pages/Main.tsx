@@ -490,7 +490,8 @@ const Main: React.FC = () => {
                 WebkitOverflowScrolling: "touch",
                 minHeight: 0,
                 width: "100%",
-                height: isMobile ? "auto" : "100%"
+                height: isMobile ? "auto" : "100%",
+                pb: isMobile ? '80px' : 0
               }}>
                 {/* Dashboard Tab */}
                 <Box sx={{ 
@@ -503,7 +504,8 @@ const Main: React.FC = () => {
                   transition: "transform 0.5s ease-in-out", 
                   transform: activeTab === "dashboard" ? "translateX(0)" : activeTab === 'history' ? "translateX(-100%)" : "translateX(-200%)",
                   overflowY: "auto",
-                  overflowX: "hidden"
+                  overflowX: "hidden",
+                  pb: isMobile ? '80px' : 0
                 }}>
                   <Dashboard />
                 </Box>
@@ -519,7 +521,8 @@ const Main: React.FC = () => {
                   transition: "transform 0.5s ease-in-out", 
                   transform: activeTab === "history" ? "translateX(0)" : activeTab === 'dashboard' ? "translateX(100%)" : "translateX(-100%)",
                   overflowY: "auto",
-                  overflowX: "hidden"
+                  overflowX: "hidden",
+                  pb: isMobile ? '80px' : 0
                 }}>
                   <History />
                 </Box>
@@ -535,7 +538,8 @@ const Main: React.FC = () => {
                   transition: "transform 0.5s ease-in-out", 
                   transform: activeTab === "profile" ? "translateX(0)" : activeTab === 'history' ? "translateX(100%)" : "translateX(200%)",
                   overflowY: "auto",
-                  overflowX: "hidden"
+                  overflowX: "hidden",
+                  pb: isMobile ? '80px' : 0
                 }}>
                   <Profile />
                 </Box>
