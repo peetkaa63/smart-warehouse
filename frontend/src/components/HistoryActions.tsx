@@ -10,12 +10,16 @@ import { Download, Analytics } from '@mui/icons-material';
 interface HistoryActionsProps {
   onExportExcel: () => void;
   onExportPDF: () => void;
+  onExportUnlimitedCSV?: () => void;
+  onExportUnlimitedPDF?: () => void;
   onOpenAnalytics: () => void;
 }
 
 export const HistoryActions: React.FC<HistoryActionsProps> = ({
   onExportExcel,
   onExportPDF,
+  onExportUnlimitedCSV,
+  onExportUnlimitedPDF,
   onOpenAnalytics,
 }) => {
   return (
@@ -38,6 +42,24 @@ export const HistoryActions: React.FC<HistoryActionsProps> = ({
         >
           Экспорт в PDF
         </Button>
+        {onExportUnlimitedCSV && (
+          <Button 
+            variant="outlined" 
+            startIcon={<Download />}
+            onClick={onExportUnlimitedCSV}
+          >
+            Экспорт без лимита (CSV)
+          </Button>
+        )}
+        {onExportUnlimitedPDF && (
+          <Button 
+            variant="outlined" 
+            startIcon={<Download />}
+            onClick={onExportUnlimitedPDF}
+          >
+            Экспорт без лимита (PDF)
+          </Button>
+        )}
         <Button 
           variant="outlined" 
           startIcon={<Analytics />} 

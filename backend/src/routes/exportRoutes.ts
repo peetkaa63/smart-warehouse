@@ -5,6 +5,8 @@ import { Parser } from '@json2csv/plainjs';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
+import { exportJobService } from '../services/ExportJobService';
+import { robotService } from '../sockets/websocket';
 
 const router = express.Router();
 
@@ -407,3 +409,56 @@ router.get('/pdf', authenticateToken, async (req, res) => {
 });
 
 export default router;
+
+// Async export jobs API
+export const exportJobsRouter = express.Router();
+
+// Start export job (unlimited supported)
+exportJobsRouter.post('/start', authenticateToken, async (req, res) => {
+  try {
+    const { type, filters, unlimited } = req.body || {};
+    if (type !== 'excel' && type !== 'pdf') {
+      return res.status(400).json({ error: 'Invalid export type' });
+    }
+    const job = await exportJobService.startJob(type, filters || {}, Boolean(unlimited));
+    // Optional: notify via socket
+    try { robotService.io.emit('export_progress', { jobId: job.id, status: job.status, progress: job.progress }); } catch {}
+    res.json({ jobId: job.id });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Failed to start export job' });
+  }
+});
+
+// Get job status
+exportJobsRouter.get('/status/:jobId', authenticateToken, async (req, res) => {
+  const job = exportJobService.getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  res.json({
+    id: job.id,
+    type: job.type,
+    status: job.status,
+    progress: job.progress,
+    processed: job.processed,
+    total: job.total,
+    etaSeconds: job.etaSeconds,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+    filename: job.filename
+  });
+});
+
+// Download result
+exportJobsRouter.get('/download/:jobId', authenticateToken, async (req, res) => {
+  const job = exportJobService.getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (job.status !== 'completed' || !job.filePath || !job.filename) {
+    return res.status(400).json({ error: 'Job not completed' });
+  }
+  res.setHeader('Content-Disposition', `attachment; filename="${job.filename}"`);
+  if (job.type === 'pdf') {
+    res.setHeader('Content-Type', 'application/pdf');
+  } else {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  }
+  fs.createReadStream(job.filePath).pipe(res);
+});
