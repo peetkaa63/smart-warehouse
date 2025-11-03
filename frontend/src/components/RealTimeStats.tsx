@@ -59,8 +59,10 @@ const RealTimeStats: React.FC<RealTimeStatsProps> = ({ statistics }) => {
     config: { tension: 200, friction: 20 }
   });
 
+  const AnimatedBox = animated(Box as any);
+
   return (
-    <animated.div as={Box as any} style={{ ...containerAnimation, overflow: 'hidden' }}>
+    <AnimatedBox style={{ ...containerAnimation, overflow: 'hidden' }}>
       <Paper elevation={2} sx={{ p: 2 }}>
         <Typography variant="h6" gutterBottom>
           Статистика в реальном времени
@@ -92,7 +94,7 @@ const RealTimeStats: React.FC<RealTimeStatsProps> = ({ statistics }) => {
         ))}
       </Box>
       </Paper>
-    </animated.div>
+    </AnimatedBox>
   );
 };
 
