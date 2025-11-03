@@ -235,50 +235,75 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
         </Box>
 
         <AnimatePresence>
-          {showAddForm && (
-            <motion.div
-              key="robot-add-form"
-              initial={{ opacity: 0, y: -8, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              exit={{ opacity: 0, y: -8, height: 0 }}
-              transition={{ duration: 0.25 }}
-              style={{ overflow: 'hidden' }}
-            >
-              <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Новый робот
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-              <TextField
-                label="ID робота *"
-                size="small"
-                value={newRobot.id}
-                onChange={(e) => setNewRobot({ ...newRobot, id: e.target.value })}
-                required
-              />
-              <TextField
-                label="Название"
-                size="small"
-                value={newRobot.name}
-                onChange={(e) => setNewRobot({ ...newRobot, name: e.target.value })}
-              />
-              <TextField
-                label="Зона"
-                size="small"
-                value={newRobot.zone}
-                onChange={(e) => setNewRobot({ ...newRobot, zone: e.target.value })}
-              />
-              <Button variant="contained" onClick={handleAddRobot}>
-                Сохранить
-              </Button>
-              <Button onClick={() => setShowAddForm(false)}>Отмена              </Button>
-            </Box>
-          </Paper>
-              </AnimatedBox>
-            </motion.div>
-          )}
-        </AnimatePresence>
+		  {showAddForm && (
+			<motion.div
+			  key="robot-add-form"
+			  initial={{ opacity: 0, y: -8, height: 0 }}
+			  animate={{ opacity: 1, y: 0, height: 'auto' }}
+			  exit={{ opacity: 0, y: -8, height: 0 }}
+			  transition={{ duration: 0.25 }}
+			  style={{ overflow: 'hidden' }}
+			>
+			  <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
+				<Paper sx={{ p: 2, mb: 2 }}>
+				  <Typography variant="subtitle2" gutterBottom>
+					Новый робот
+				  </Typography>
+				  <Box sx={{ 
+					display: 'flex', 
+					flexDirection: { xs: 'column', sm: 'row' }, 
+					gap: 2, 
+					mb: 2,
+					alignItems: { xs: 'stretch', sm: 'flex-end' }
+				  }}>
+					<TextField
+					  label="ID робота *"
+					  size="small"
+					  value={newRobot.id}
+					  onChange={(e) => setNewRobot({ ...newRobot, id: e.target.value })}
+					  required
+					  sx={{ flex: 1 }}
+					/>
+					<TextField
+					  label="Название"
+					  size="small"
+					  value={newRobot.name}
+					  onChange={(e) => setNewRobot({ ...newRobot, name: e.target.value })}
+					  sx={{ flex: 1 }}
+					/>
+					<TextField
+					  label="Зона"
+					  size="small"
+					  value={newRobot.zone}
+					  onChange={(e) => setNewRobot({ ...newRobot, zone: e.target.value })}
+					  sx={{ flex: 1 }}
+					/>
+					<Box sx={{ 
+					  display: 'flex', 
+					  gap: 1,
+					  flexDirection: { xs: 'row', sm: 'row' },
+					  width: { xs: '100%', sm: 'auto' }
+					}}>
+					  <Button 
+						variant="contained" 
+						onClick={handleAddRobot}
+						sx={{ flex: { xs: 1, sm: 'none' } }}
+					  >
+						Сохранить
+					  </Button>
+					  <Button 
+						onClick={() => setShowAddForm(false)}
+						sx={{ flex: { xs: 1, sm: 'none' } }}
+					  >
+						Отмена
+					  </Button>
+					</Box>
+				  </Box>
+				</Paper>
+			  </AnimatedBox>
+			</motion.div>
+		  )}
+		</AnimatePresence>
 
         {loading ? (
           <motion.div

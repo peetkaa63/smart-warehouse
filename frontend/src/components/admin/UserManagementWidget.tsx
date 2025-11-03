@@ -241,71 +241,84 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
         </Box>
 
         <AnimatePresence>
-          {showAddForm && (
-            <motion.div
-              key="user-add-form"
-              initial={{ opacity: 0, y: -8, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              exit={{ opacity: 0, y: -8, height: 0 }}
-              transition={{ duration: 0.25 }}
-              style={{ overflow: 'hidden' }}
-            >
-              <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
-              <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Новый пользователь
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                label="Имя *"
-                size="small"
-                value={newUser.name}
-                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                required
-                fullWidth
-              />
-              <TextField
-                label="Email *"
-                type="email"
-                size="small"
-                value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                required
-                fullWidth
-              />
-              <TextField
-                label="Пароль * (мин. 8 символов)"
-                type="password"
-                size="small"
-                value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                required
-                fullWidth
-              />
-              <FormControl fullWidth size="small">
-                <InputLabel>Роль</InputLabel>
-                <Select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  label="Роль"
-                >
-                  <MenuItem value="operator">Оператор</MenuItem>
-                  <MenuItem value="manager">Менеджер</MenuItem>
-                  <MenuItem value="admin">Администратор</MenuItem>
-                </Select>
-              </FormControl>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button variant="contained" onClick={handleAddUser}>
-                  Создать
-                </Button>
-                <Button onClick={() => setShowAddForm(false)}>Отмена</Button>
-              </Box>
-            </Box>
-          </Paper>
-              </AnimatedBox>
-            </motion.div>
-          )}
-        </AnimatePresence>
+		  {showAddForm && (
+			<motion.div
+			  key="user-add-form"
+			  initial={{ opacity: 0, y: -8, height: 0 }}
+			  animate={{ opacity: 1, y: 0, height: 'auto' }}
+			  exit={{ opacity: 0, y: -8, height: 0 }}
+			  transition={{ duration: 0.25 }}
+			  style={{ overflow: 'hidden' }}
+			>
+			  <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
+				<Paper sx={{ p: 2, mb: 2 }}>
+				  <Typography variant="subtitle2" gutterBottom>
+					Новый пользователь
+				  </Typography>
+				  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+					<TextField
+					  label="Имя *"
+					  size="small"
+					  value={newUser.name}
+					  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+					  required
+					  fullWidth
+					/>
+					<TextField
+					  label="Email *"
+					  type="email"
+					  size="small"
+					  value={newUser.email}
+					  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+					  required
+					  fullWidth
+					/>
+					<TextField
+					  label="Пароль * (мин. 8 символов)"
+					  type="password"
+					  size="small"
+					  value={newUser.password}
+					  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+					  required
+					  fullWidth
+					/>
+					<FormControl fullWidth size="small">
+					  <InputLabel>Роль</InputLabel>
+					  <Select
+						value={newUser.role}
+						onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+						label="Роль"
+					  >
+						<MenuItem value="operator">Оператор</MenuItem>
+						<MenuItem value="manager">Менеджер</MenuItem>
+						<MenuItem value="admin">Администратор</MenuItem>
+					  </Select>
+					</FormControl>
+					<Box sx={{ 
+					  display: 'flex', 
+					  gap: 1,
+					  flexDirection: { xs: 'column', sm: 'row' }
+					}}>
+					  <Button 
+						variant="contained" 
+						onClick={handleAddUser}
+						sx={{ flex: { xs: 1, sm: 'none' } }}
+					  >
+						Создать
+					  </Button>
+					  <Button 
+						onClick={() => setShowAddForm(false)}
+						sx={{ flex: { xs: 1, sm: 'none' } }}
+					  >
+						Отмена
+					  </Button>
+					</Box>
+				  </Box>
+				</Paper>
+			  </AnimatedBox>
+			</motion.div>
+		  )}
+		</AnimatePresence>
 
         {loading ? (
           <motion.div

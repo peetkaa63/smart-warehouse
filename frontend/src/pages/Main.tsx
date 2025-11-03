@@ -547,72 +547,93 @@ const Main: React.FC = () => {
             </motion.div>
 
             {/* Drawer уведомлений */}
-            <Drawer anchor="right" open={notificationsDrawerOpen} onClose={() => setNotificationsDrawerOpen(false)}>
-              <Box sx={{ width: 420, p: 2 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                  <Typography variant="h6">
-                    Уведомления ({notifications.length})
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Button size="small" disabled={notifications.length === 0} onClick={() => dispatch(clearAllNotifications())}>Очистить все</Button>
-                    {unreadCount > 0 && (
-                      <Button size="small" onClick={handleMarkAllAsRead}>Прочитать все</Button>
-                    )}
-                    <IconButton onClick={() => setNotificationsDrawerOpen(false)}><Close /></IconButton>
-                  </Box>
-                </Box>
+			<Drawer 
+			  anchor={isMobile ? "bottom" : "right"} 
+			  open={notificationsDrawerOpen} 
+			  onClose={() => setNotificationsDrawerOpen(false)}
+			  PaperProps={isMobile ? {
+				sx: { 
+				  height: '80vh',
+				  borderTopLeftRadius: 12,
+				  borderTopRightRadius: 12,
+				}
+			  } : {}}
+			>
+			  <Box sx={{ 
+				width: isMobile ? '100%' : 420, 
+				p: 2,
+				height: isMobile ? '100%' : 'auto'
+			  }}>
+				<Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+				  <Typography variant="h6">
+					Уведомления ({notifications.length})
+				  </Typography>
+				  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+					<Button size="small" disabled={notifications.length === 0} onClick={() => dispatch(clearAllNotifications())}>Очистить все</Button>
+					{unreadCount > 0 && (
+					  <Button size="small" onClick={handleMarkAllAsRead}>Прочитать все</Button>
+					)}
+					<IconButton onClick={() => setNotificationsDrawerOpen(false)}><Close /></IconButton>
+				  </Box>
+				</Box>
 
-                <List>
-                  {notifications.map((notification) => (
-                    <ListItem key={notification.id} disablePadding sx={{ mb: 1 }}
-                      secondaryAction={
-                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); dispatch(removeNotification(notification.id)); }}>
-                          <Close />
-                        </IconButton>
-                      }
-                    >
-                      <ListItemButton
-                        onClick={() => handleNotificationClick(notification)}
-                        sx={{ 
-                          borderLeft: 4,
-                          borderColor: getAlertColor(notification.priority),
-                          backgroundColor: notification.read ? 'transparent' : 'action.hover',
-                          py: 1.5
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 40 }}>{getAlertIcon(notification.type)}</ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: 'wrap' }}>
-                              <Typography variant="subtitle2" sx={{ mr: 0.5 }}>{notification.title}</Typography>
-                              <Chip label={notification.priority} size="small" color={getAlertColor(notification.priority)} />
-                            </Box>
-                          }
-                          secondary={
-                            <Box>
-                              <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                <Typography variant="caption" color="textSecondary">
-                                  {new Date(notification.timestamp).toLocaleString('ru-RU')}
-                                </Typography>
-                                {notification.action_required && (
-                                  <Chip label="Требует действий" size="small" color="error" variant="outlined" />
-                                )}
-                              </Box>
-                            </Box>
-                          }
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                  {notifications.length === 0 && (
-                    <ListItem>
-                      <ListItemText primary="Нет уведомлений" secondary="Все системы работают нормально" sx={{ textAlign: "center", py: 2 }} />
-                    </ListItem>
-                  )}
-                </List>
-              </Box>
-            </Drawer>
+				<List sx={{ 
+				  maxHeight: isMobile ? 'calc(80vh - 120px)' : '70vh', 
+				  overflow: 'auto',
+				  pb: isMobile ? 8 : 2 // Добавляем отступ снизу для мобильной навигации
+				}}>
+				  {notifications.map((notification) => (
+					<ListItem key={notification.id} disablePadding sx={{ mb: 1 }}
+					  secondaryAction={
+						<IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); dispatch(removeNotification(notification.id)); }}>
+						  <Close />
+						</IconButton>
+					  }
+					>
+					  <ListItemButton
+						onClick={() => handleNotificationClick(notification)}
+						sx={{ 
+						  borderLeft: isMobile ? 0 : 4,
+						  borderTop: isMobile ? 4 : 0,
+						  borderColor: getAlertColor(notification.priority),
+						  backgroundColor: notification.read ? 'transparent' : 'action.hover',
+						  py: 1.5,
+						  borderRadius: isMobile ? 1 : 0
+						}}
+					  >
+						<ListItemIcon sx={{ minWidth: 40 }}>{getAlertIcon(notification.type)}</ListItemIcon>
+						<ListItemText
+						  primary={
+							<Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: 'wrap' }}>
+							  <Typography variant="subtitle2" sx={{ mr: 0.5 }}>{notification.title}</Typography>
+							  <Chip label={notification.priority} size="small" color={getAlertColor(notification.priority)} />
+							</Box>
+						  }
+						  secondary={
+							<Box>
+							  <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
+							  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+								<Typography variant="caption" color="textSecondary">
+								  {new Date(notification.timestamp).toLocaleString('ru-RU')}
+								</Typography>
+								{notification.action_required && (
+								  <Chip label="Требует действий" size="small" color="error" variant="outlined" />
+								)}
+							  </Box>
+							</Box>
+						  }
+						/>
+					  </ListItemButton>
+					</ListItem>
+				  ))}
+				  {notifications.length === 0 && (
+					<ListItem>
+					  <ListItemText primary="Нет уведомлений" secondary="Все системы работают нормально" sx={{ textAlign: "center", py: 2 }} />
+					</ListItem>
+				  )}
+				</List>
+			  </Box>
+			</Drawer>
 
             {/* Bottom Navigation для мобильных */}
             {isMobile && (
