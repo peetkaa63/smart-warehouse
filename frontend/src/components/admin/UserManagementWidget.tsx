@@ -94,6 +94,9 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
     config: { tension: 200, friction: 20 }
   });
 
+  // Animated MUI Box wrapper to satisfy TS types
+  const AnimatedBox = animated(Box as any);
+
   const loadUsers = async () => {
     setLoading(true);
     setError(null);
@@ -237,7 +240,7 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
           </Button>
         </Box>
 
-        <animated.div style={{ ...formAnimation, overflow: 'hidden' }}>
+        <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
               <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
               Новый пользователь
@@ -289,7 +292,7 @@ const UserManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = (
               </Box>
             </Box>
           </Paper>
-        </animated.div>
+        </AnimatedBox>
 
         {loading ? (
           <motion.div

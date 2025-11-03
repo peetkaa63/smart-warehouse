@@ -84,6 +84,9 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
   const [maintenanceDate, setMaintenanceDate] = useState('');
   const [newRobot, setNewRobot] = useState({ id: '', name: '', zone: '' });
 
+  // Animated MUI Box wrapper to avoid TS children typing issues on animated.div
+  const AnimatedBox = animated(Box as any);
+
   const formAnimation = useSpring({
     height: showAddForm ? 'auto' : 0,
     opacity: showAddForm ? 1 : 0,
@@ -231,7 +234,7 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
           </Button>
         </Box>
 
-        <animated.div style={{ ...formAnimation, overflow: 'hidden' }}>
+        <AnimatedBox style={{ ...formAnimation, overflow: 'hidden' }}>
               <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
               Новый робот
@@ -262,7 +265,7 @@ const RobotManagementDialog: React.FC<{ open: boolean; onClose: () => void }> = 
               <Button onClick={() => setShowAddForm(false)}>Отмена              </Button>
             </Box>
           </Paper>
-        </animated.div>
+        </AnimatedBox>
 
         {loading ? (
           <motion.div
