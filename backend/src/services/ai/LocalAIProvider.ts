@@ -121,20 +121,82 @@ export class LocalAIProvider implements IAIProvider {
 
   private performLocalPredictions(request: AIAnalysisRequest): any[] {
     const predictions = [];
-    const currentStock = request.currentStock;
+    const currentStock = request.currentStock || [];
+    const historicalData = request.historicalData || [];
+    const periodDays = request.periodDays || 7;
     
-    // Простые прогнозы на основе текущих данных
+    // Простые прогнозы на основе текущих данных и истории
     for (const item of currentStock) {
-      const predictedDemand = Math.max(1, Math.floor(item.current_stock * 0.1)); // 10% от текущего запаса
-      const recommendedStock = Math.max(predictedDemand * 2, 20); // 2x от прогнозируемого спроса
+      const current_stock = Number(item.current_stock) || 0;
+      const min_stock = Number(item.min_stock) || 10;
+      const optimal_stock = Number(item.optimal_stock) || 50;
+      
+      // Получаем историю для этого товара
+      const productHistory = historicalData.filter((h: any) => h.product_id === item.product_id);
+      
+      // Рассчитываем средний дневной расход из истории
+      let avgDailyConsumption = 0;
+      if (productHistory.length > 1) {
+        const sortedHistory = productHistory.sort((a: any, b: any) => 
+          new Date(a.date || a.scanned_at).getTime() - new Date(b.date || b.scanned_at).getTime()
+        );
+        const firstQty = Number(sortedHistory[0]?.quantity) || current_stock;
+        const lastQty = Number(sortedHistory[sortedHistory.length - 1]?.quantity) || current_stock;
+        const firstDate = new Date(sortedHistory[0]?.date || sortedHistory[0]?.scanned_at || new Date());
+        const lastDate = new Date(sortedHistory[sortedHistory.length - 1]?.date || sortedHistory[sortedHistory.length - 1]?.scanned_at || new Date());
+        const daysDiff = Math.max(1, Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)));
+        avgDailyConsumption = Math.max(0, (firstQty - lastQty) / daysDiff);
+      }
+      
+      // Если нет истории или очень маленькое потребление, используем правило: если текущий остаток меньше минимального, значит расход идет
+      if (avgDailyConsumption <= 0.01 && current_stock < min_stock) {
+        avgDailyConsumption = Math.max(0.1, (min_stock - current_stock) / 7); // Предполагаем 7 дней до минимума
+      }
+      
+      // Рассчитываем дни до истощения запаса
+      let days_until_stockout: number | null = null;
+      if (avgDailyConsumption > 0.01 && current_stock > 0) {
+        const calculatedDays = current_stock / avgDailyConsumption;
+        // Ограничиваем максимальное значение до периода прогноза
+        const periodDays = request?.periodDays || 7;
+        const maxDays = Math.min(periodDays, 365);
+        days_until_stockout = Math.min(maxDays, Math.floor(calculatedDays));
+      } else if (current_stock <= 0) {
+        days_until_stockout = 0;
+      } else if (avgDailyConsumption <= 0.01 && current_stock >= optimal_stock) {
+        // Если потребление очень низкое и запас оптимален, возвращаем null (неопределенно)
+        days_until_stockout = null;
+      } else {
+        days_until_stockout = null; // Невозможно определить
+      }
+      
+      // Рекомендуемый заказ = разница между оптимальным и текущим стоком
+      const recommended_order_quantity = Math.max(0, optimal_stock - current_stock);
+      
+      // Определяем уровень риска на основе текущего стока относительно min и optimal
+      let risk_level: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+      if (current_stock < min_stock) {
+        risk_level = 'HIGH';
+      } else if (current_stock < (min_stock + optimal_stock) / 2) {
+        risk_level = 'MEDIUM';
+      }
+      
+      // Уверенность зависит от наличия исторических данных
+      const confidence_score = productHistory.length > 5 ? 0.7 : productHistory.length > 0 ? 0.5 : 0.3;
       
       predictions.push({
         product_id: item.product_id,
         product_name: item.product_name,
-        predicted_demand: predictedDemand,
-        recommended_stock: recommendedStock,
-        risk_level: item.current_stock < 20 ? 'HIGH' : item.current_stock < 50 ? 'MEDIUM' : 'LOW',
-        confidence: 0.5
+        current_stock: current_stock,
+        min_stock: min_stock,
+        optimal_stock: optimal_stock,
+        days_until_stockout: days_until_stockout,
+        recommended_order_quantity: recommended_order_quantity,
+        confidence_score: confidence_score,
+        risk_level: risk_level,
+        reasoning: avgDailyConsumption > 0 
+          ? `Средний дневной расход: ${avgDailyConsumption.toFixed(1)} шт. Текущий остаток: ${current_stock} шт. Минимум: ${min_stock} шт.`
+          : `Текущий остаток: ${current_stock} шт. Рекомендуется довести до оптимального уровня: ${optimal_stock} шт.`
       });
     }
 

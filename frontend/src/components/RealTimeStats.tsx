@@ -1,6 +1,7 @@
 import React from 'react';
 import { Paper, Typography, Box, LinearProgress } from '@mui/material';
 import { BatteryStd, SmartToy, Warning, Inventory } from '@mui/icons-material';
+import { useSpring, animated } from '@react-spring/web';
 
 interface Statistics {
   activeRobots: number;
@@ -52,12 +53,21 @@ const RealTimeStats: React.FC<RealTimeStatsProps> = ({ statistics }) => {
     }
   ];
 
+  const containerAnimation = useSpring({
+    height: 'auto',
+    opacity: 1,
+    config: { tension: 200, friction: 20 }
+  });
+
+  const AnimatedBox = animated(Box as any);
+
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        Статистика в реальном времени
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+    <AnimatedBox style={{ ...containerAnimation, overflow: 'hidden' }}>
+      <Paper elevation={2} sx={{ p: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Статистика в реальном времени
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
         {stats.map((stat, index) => (
           <Box key={index} sx={{ textAlign: 'center', p: 1 }}>
             <Box sx={{ color: stat.color, mb: 1 }}>
@@ -83,7 +93,8 @@ const RealTimeStats: React.FC<RealTimeStatsProps> = ({ statistics }) => {
           </Box>
         ))}
       </Box>
-    </Paper>
+      </Paper>
+    </AnimatedBox>
   );
 };
 

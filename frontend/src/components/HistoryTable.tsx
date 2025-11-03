@@ -14,6 +14,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Info } from '@mui/icons-material';
+import { useSpring, animated } from '@react-spring/web';
 
 interface HistoryItem {
   id: number;
@@ -58,19 +59,35 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
   onRowsPerPageChange,
   hasActiveFilters,
 }) => {
+  const tableAnimation = useSpring({
+    height: loading ? 0 : 'auto',
+    opacity: loading ? 0 : 1,
+    config: { tension: 200, friction: 20 }
+  });
+
+  const loadingAnimation = useSpring({
+    height: loading ? 'auto' : 0,
+    opacity: loading ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+  const AnimatedBox = animated(Box as any);
+
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
         Таблица исторических данных
       </Typography>
       
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : data.length > 0 ? (
-        <>
-          <TableContainer>
+      <>
+        <AnimatedBox style={{ ...loadingAnimation, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        </AnimatedBox>
+        <AnimatedBox style={{ ...tableAnimation, overflow: 'hidden' }}>
+          {data.length > 0 ? (
+                <>
+                  <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
@@ -124,27 +141,29 @@ export const HistoryTable: React.FC<HistoryTableProps> = ({
               `${from}-${to} из ${count}`
             }
           />
-        </>
-      ) : (
-        <Box 
-          sx={{ 
-            textAlign: 'center', 
-            py: 6,
-            color: 'text.secondary'
-          }}
-        >
-          <Info sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
-          <Typography variant="h6" gutterBottom>
-            Нет данных
-          </Typography>
-          <Typography variant="body1">
-            {hasActiveFilters
-              ? 'Попробуйте изменить параметры фильтрации'
-              : 'Исторические данные появятся после работы роботов'
-            }
-          </Typography>
-        </Box>
-      )}
+                </>
+          ) : (
+            <Box 
+              sx={{ 
+                textAlign: 'center', 
+                py: 6,
+                color: 'text.secondary'
+              }}
+            >
+              <Info sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
+              <Typography variant="h6" gutterBottom>
+                Нет данных
+              </Typography>
+              <Typography variant="body1">
+                {hasActiveFilters
+                  ? 'Попробуйте изменить параметры фильтрации'
+                  : 'Исторические данные появятся после работы роботов'
+                }
+              </Typography>
+            </Box>
+          )}
+        </AnimatedBox>
+      </>
     </Paper>
   );
 };

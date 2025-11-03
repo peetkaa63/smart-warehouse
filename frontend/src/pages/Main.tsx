@@ -287,7 +287,8 @@ const Main: React.FC = () => {
       backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.background.default : '#f5f5f5',
       position: "relative",
       overflow: "hidden",
-      transition: 'background-color 0.3s ease'
+      transition: 'background-color 0.6s ease, color 0.6s ease',
+      willChange: 'background-color'
     }}>
       {/* Начальная анимация логотипа или фона при выходе */}
       <AnimatePresence>
@@ -355,11 +356,13 @@ const Main: React.FC = () => {
             {/* AppBar */}
             <motion.div variants={appBarAnimation}>
               <AppBar 
-                position="static" 
+                position={isMobile ? "sticky" : "static"}
                 elevation={2}
                 sx={{
                   backgroundColor: '#1976d2 !important', // Голубой AppBar всегда
                   transition: 'background-color 0.3s ease',
+                  top: 0,
+                  zIndex: (theme) => theme.zIndex.drawer + 1,
                 }}
               >
                 <Toolbar>
@@ -383,25 +386,57 @@ const Main: React.FC = () => {
                       <IconButton color="inherit">{wsConnected ? <Wifi /> : <WifiOff />}</IconButton>
                     </Tooltip>
 
+                    <AnimatePresence>
                     {exportState?.inProgress && (
-                      <Tooltip title={exportState.kind === 'pdf' ? 'Экспорт PDF...' : 'Экспорт CSV...'}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
-                          <Badge variant="dot" color="secondary">
-                            <TrendingUp />
-                          </Badge>
-                        </Box>
+                      <Tooltip
+                        title={
+                          <Box sx={{ minWidth: 220 }}>
+                            <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
+                              {exportState.kind === 'pdf' ? 'Экспорт PDF' : 'Экспорт CSV'}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ flex: 1 }}>
+                                <Box sx={{ height: 6, bgcolor: 'rgba(255,255,255,0.3)', borderRadius: 3 }}>
+                                  <Box sx={{ height: 6, borderRadius: 3, bgcolor: 'secondary.main', width: `${exportState.progress ?? 10}%`, transition: 'width 0.3s' }} />
+                                </Box>
+                              </Box>
+                              <Typography variant="caption">{Math.max(0, Math.min(100, exportState.progress ?? 10))}%</Typography>
+                            </Box>
+                            {typeof exportState.etaSeconds === 'number' && (
+                              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                                Осталось ~ {Math.ceil((exportState.etaSeconds || 0) / 60)} мин
+                              </Typography>
+                            )}
+                          </Box>
+                        }
+                      >
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', mx: 1 }}>
+                            <Badge variant="dot" color="secondary">
+                              <TrendingUp />
+                            </Badge>
+                          </Box>
+                        </motion.div>
                       </Tooltip>
                     )}
+                    </AnimatePresence>
 
-                    {!isMobile && (
-                      <>
-                        <Tooltip title="Уведомления">
+                    <Tooltip title="Уведомления">
                           <IconButton color="inherit" onClick={() => setNotificationsDrawerOpen(true)}>
                             <Badge badgeContent={unreadCount} color="error">
                               <Notifications />
                             </Badge>
                           </IconButton>
                         </Tooltip>
+
+                    {!isMobile && (
+                      <>
+                        
 
                         <Box sx={{ display: "flex", mx: 1 }}>
                           <Tooltip title="Текущий мониторинг">
@@ -479,10 +514,14 @@ const Main: React.FC = () => {
             >
               <Box sx={{ 
                 flex: 1, 
-                position: "relative", 
-                overflow: "hidden",
+                position: "relative",
+                overflowY: isMobile ? "auto" : "hidden",
+                overflowX: "hidden",
+                WebkitOverflowScrolling: "touch",
                 minHeight: 0,
-                width: "100%"
+                width: "100%",
+                height: isMobile ? "auto" : "100%",
+                pb: isMobile ? '80px' : 0
               }}>
                 {/* Dashboard Tab */}
                 <Box sx={{ 
@@ -495,7 +534,8 @@ const Main: React.FC = () => {
                   transition: "transform 0.5s ease-in-out", 
                   transform: activeTab === "dashboard" ? "translateX(0)" : activeTab === 'history' ? "translateX(-100%)" : "translateX(-200%)",
                   overflowY: "auto",
-                  overflowX: "hidden"
+                  overflowX: "hidden",
+                  pb: isMobile ? '80px' : 0
                 }}>
                   <Dashboard />
                 </Box>
@@ -511,7 +551,8 @@ const Main: React.FC = () => {
                   transition: "transform 0.5s ease-in-out", 
                   transform: activeTab === "history" ? "translateX(0)" : activeTab === 'dashboard' ? "translateX(100%)" : "translateX(-100%)",
                   overflowY: "auto",
-                  overflowX: "hidden"
+                  overflowX: "hidden",
+                  pb: isMobile ? '80px' : 0
                 }}>
                   <History />
                 </Box>
@@ -527,7 +568,8 @@ const Main: React.FC = () => {
                   transition: "transform 0.5s ease-in-out", 
                   transform: activeTab === "profile" ? "translateX(0)" : activeTab === 'history' ? "translateX(100%)" : "translateX(200%)",
                   overflowY: "auto",
-                  overflowX: "hidden"
+                  overflowX: "hidden",
+                  pb: isMobile ? '80px' : 0
                 }}>
                   <Profile />
                 </Box>
@@ -535,72 +577,93 @@ const Main: React.FC = () => {
             </motion.div>
 
             {/* Drawer уведомлений */}
-            <Drawer anchor="right" open={notificationsDrawerOpen} onClose={() => setNotificationsDrawerOpen(false)}>
-              <Box sx={{ width: 420, p: 2 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                  <Typography variant="h6">
-                    Уведомления ({notifications.length})
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Button size="small" disabled={notifications.length === 0} onClick={() => dispatch(clearAllNotifications())}>Очистить все</Button>
-                    {unreadCount > 0 && (
-                      <Button size="small" onClick={handleMarkAllAsRead}>Прочитать все</Button>
-                    )}
-                    <IconButton onClick={() => setNotificationsDrawerOpen(false)}><Close /></IconButton>
-                  </Box>
-                </Box>
+			<Drawer 
+			  anchor={isMobile ? "bottom" : "right"} 
+			  open={notificationsDrawerOpen} 
+			  onClose={() => setNotificationsDrawerOpen(false)}
+			  PaperProps={isMobile ? {
+				sx: { 
+				  height: '80vh',
+				  borderTopLeftRadius: 12,
+				  borderTopRightRadius: 12,
+				}
+			  } : {}}
+			>
+			  <Box sx={{ 
+				width: isMobile ? '100%' : 420, 
+				p: 2,
+				height: isMobile ? '100%' : 'auto'
+			  }}>
+				<Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+				  <Typography variant="h6">
+					Уведомления ({notifications.length})
+				  </Typography>
+				  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+					<Button size="small" disabled={notifications.length === 0} onClick={() => dispatch(clearAllNotifications())}>Очистить все</Button>
+					{unreadCount > 0 && (
+					  <Button size="small" onClick={handleMarkAllAsRead}>Прочитать все</Button>
+					)}
+					<IconButton onClick={() => setNotificationsDrawerOpen(false)}><Close /></IconButton>
+				  </Box>
+				</Box>
 
-                <List>
-                  {notifications.map((notification) => (
-                    <ListItem key={notification.id} disablePadding sx={{ mb: 1 }}
-                      secondaryAction={
-                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); dispatch(removeNotification(notification.id)); }}>
-                          <Close />
-                        </IconButton>
-                      }
-                    >
-                      <ListItemButton
-                        onClick={() => handleNotificationClick(notification)}
-                        sx={{ 
-                          borderLeft: 4,
-                          borderColor: getAlertColor(notification.priority),
-                          backgroundColor: notification.read ? 'transparent' : 'action.hover',
-                          py: 1.5
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 40 }}>{getAlertIcon(notification.type)}</ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: 'wrap' }}>
-                              <Typography variant="subtitle2" sx={{ mr: 0.5 }}>{notification.title}</Typography>
-                              <Chip label={notification.priority} size="small" color={getAlertColor(notification.priority)} />
-                            </Box>
-                          }
-                          secondary={
-                            <Box>
-                              <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                <Typography variant="caption" color="textSecondary">
-                                  {new Date(notification.timestamp).toLocaleString('ru-RU')}
-                                </Typography>
-                                {notification.action_required && (
-                                  <Chip label="Требует действий" size="small" color="error" variant="outlined" />
-                                )}
-                              </Box>
-                            </Box>
-                          }
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                  {notifications.length === 0 && (
-                    <ListItem>
-                      <ListItemText primary="Нет уведомлений" secondary="Все системы работают нормально" sx={{ textAlign: "center", py: 2 }} />
-                    </ListItem>
-                  )}
-                </List>
-              </Box>
-            </Drawer>
+				<List sx={{ 
+				  maxHeight: isMobile ? 'calc(80vh - 120px)' : '70vh', 
+				  overflow: 'auto',
+				  pb: isMobile ? 8 : 2 // Добавляем отступ снизу для мобильной навигации
+				}}>
+				  {notifications.map((notification) => (
+					<ListItem key={notification.id} disablePadding sx={{ mb: 1 }}
+					  secondaryAction={
+						<IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); dispatch(removeNotification(notification.id)); }}>
+						  <Close />
+						</IconButton>
+					  }
+					>
+					  <ListItemButton
+						onClick={() => handleNotificationClick(notification)}
+						sx={{ 
+						  borderLeft: isMobile ? 0 : 4,
+						  borderTop: isMobile ? 4 : 0,
+						  borderColor: getAlertColor(notification.priority),
+						  backgroundColor: notification.read ? 'transparent' : 'action.hover',
+						  py: 1.5,
+						  borderRadius: isMobile ? 1 : 0
+						}}
+					  >
+						<ListItemIcon sx={{ minWidth: 40 }}>{getAlertIcon(notification.type)}</ListItemIcon>
+						<ListItemText
+						  primary={
+							<Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: 'wrap' }}>
+							  <Typography variant="subtitle2" sx={{ mr: 0.5 }}>{notification.title}</Typography>
+							  <Chip label={notification.priority} size="small" color={getAlertColor(notification.priority)} />
+							</Box>
+						  }
+						  secondary={
+							<Box>
+							  <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
+							  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+								<Typography variant="caption" color="textSecondary">
+								  {new Date(notification.timestamp).toLocaleString('ru-RU')}
+								</Typography>
+								{notification.action_required && (
+								  <Chip label="Требует действий" size="small" color="error" variant="outlined" />
+								)}
+							  </Box>
+							</Box>
+						  }
+						/>
+					  </ListItemButton>
+					</ListItem>
+				  ))}
+				  {notifications.length === 0 && (
+					<ListItem>
+					  <ListItemText primary="Нет уведомлений" secondary="Все системы работают нормально" sx={{ textAlign: "center", py: 2 }} />
+					</ListItem>
+				  )}
+				</List>
+			  </Box>
+			</Drawer>
 
             {/* Bottom Navigation для мобильных */}
             {isMobile && (

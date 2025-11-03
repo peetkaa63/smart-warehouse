@@ -385,63 +385,176 @@ export class AdvancedAnalyticsService {
 
 export class UploadService {
   // Обработка загрузки CSV файла
-  async processCSVUpload(csvData: any[]): Promise<UploadResult> {
+  async processCSVUpload(csvData: any[]): Promise<any> {
     try {
       console.log('📤 Upload Service: Processing CSV upload with', csvData.length, 'rows');
       
-      const errors: string[] = [];
+      const errors: Array<{row: number | string; error: string; data: any}> = [];
       let processedRows = 0;
+      let importedRows = 0;
+      let duplicateRows = 0;
+      const summary = {
+        totalProcessed: 0,
+        imported: 0,
+        duplicates: 0,
+        errors: 0,
+        total_products: 0,
+        total_quantity: 0,
+        zones_updated: new Set<string>()
+      };
       
+	  // Генерируем robot_id для импорта если его нет в CSV
+      const importRobotId = 'IMPORT-ROBOT-' + Date.now();
+      
+      // Проверяем, нужен ли importRobotId, и создаем его заранее
+      let importRobotNeeded = false;
+      for (const row of csvData) {
+        const robotId = row.robot_id || row.robotId || null;
+        if (!robotId || robotId.trim() === '') {
+          importRobotNeeded = true;
+          break;
+        }
+      }
+      
+      // Создаем импорт-робота заранее, если он нужен
+      if (importRobotNeeded) {
+        const importRobotExists = await uploadRepository.checkRobotExists(importRobotId);
+        if (!importRobotExists) {
+          await uploadRepository.createRobot({
+            id: importRobotId,
+            status: 'active',
+            battery_level: 100,
+            current_zone: 'A',
+            current_row: 1,
+            current_shelf: 1
+          });
+          console.log(`✅ Created import robot: ${importRobotId}`);
+        }
+      }
+	  
       for (const row of csvData) {
         try {
-          // Проверяем существование робота
-          const robotExists = await uploadRepository.checkRobotExists(row.robot_id);
+          processedRows++;
+          
+          // Нормализуем названия полей (поддержка альтернативных форматов CSV)
+          const normalizedRow = {
+            robot_id: row.robot_id || row.robotId || null,
+            product_id: row.product_id || row.productId || '',
+            product_name: row.product_name || row.productName || '',
+            quantity: row.quantity || row.qty || 0,
+            zone: row.zone || row.zone_id || 'A',
+            row_number: row.row_number || row.row || row.rowNumber || 1,
+            shelf_number: row.shelf_number || row.shelf || row.shelfNumber || 1,
+            scanned_at: row.scanned_at || row.date || row.scannedAt || new Date(),
+            status: row.status || 'OK',
+            category: row.category || 'Unknown'
+          };
+          
+          const scannedAt = new Date(normalizedRow.scanned_at);
+          
+          // Определяем, какой robot_id использовать
+          const robotIdForScan = normalizedRow.robot_id && normalizedRow.robot_id.trim() !== '' 
+            ? normalizedRow.robot_id 
+            : importRobotId;
+          
+          // Проверяем существование робота и создаем если нужно
+          const robotExists = await uploadRepository.checkRobotExists(robotIdForScan);
           if (!robotExists) {
             await uploadRepository.createRobot({
-              id: row.robot_id,
+              id: robotIdForScan,
               status: 'active',
               battery_level: 100,
-              current_zone: row.zone || 'A',
-              current_row: row.row_number || 1,
-              current_shelf: row.shelf_number || 1
+              current_zone: normalizedRow.zone || 'A',
+              current_row: parseInt(String(normalizedRow.row_number)) || 1,
+              current_shelf: parseInt(String(normalizedRow.shelf_number)) || 1
             });
+            console.log(`✅ Created robot: ${robotIdForScan}`);
+          }
+          
+          // Генерируем product_id если его нет в CSV или он пустой
+          let productId = (normalizedRow.product_id || '').trim();
+          if (!productId || productId === '') {
+            // Генерируем уникальный ID на основе product_name и timestamp
+            const nameBase = (normalizedRow.product_name || 'PROD')
+              .replace(/[^a-zA-Z0-9А-Яа-я]/g, '')
+              .toUpperCase()
+              .substring(0, 10) || 'PROD';
+            productId = `${nameBase}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+            console.log(`⚠️ Generated product_id for product: "${normalizedRow.product_name}" -> "${productId}"`);
           }
           
           // Проверяем существование продукта
-          const productExists = await uploadRepository.checkProductExists(row.product_id);
+          const productExists = await uploadRepository.checkProductExists(productId);
           if (!productExists) {
             await uploadRepository.createProduct({
-              id: row.product_id,
-              name: row.product_name || `Product ${row.product_id}`,
-              category: row.category || 'Unknown',
+              id: productId,
+              name: normalizedRow.product_name || `Product ${productId}`,
+              category: normalizedRow.category || 'Unknown',
               min_stock: row.min_stock || 10,
               optimal_stock: row.optimal_stock || 50
             });
+            summary.total_products++;
+          }
+          
+          // Проверяем на дубликаты
+          const isDuplicate = await uploadRepository.checkDuplicateScan({
+            robot_id: robotIdForScan,
+            product_id: productId,
+            scanned_at: scannedAt
+          });
+          
+          if (isDuplicate) {
+            duplicateRows++;
+            continue; // Пропускаем дубликат
           }
           
           // Сохраняем данные сканирования
           await uploadRepository.saveScanData({
-            robot_id: row.robot_id,
-            product_id: row.product_id,
-            quantity: parseInt(row.quantity) || 0,
-            zone: row.zone || 'A',
-            row_number: parseInt(row.row_number) || 1,
-            shelf_number: parseInt(row.shelf_number) || 1,
-            status: row.status || 'OK',
-            scanned_at: new Date(row.scanned_at || new Date())
+            robot_id: robotIdForScan,
+            product_id: productId,
+            quantity: parseInt(String(normalizedRow.quantity)) || 0,
+            zone: normalizedRow.zone || 'A',
+            row_number: parseInt(String(normalizedRow.row_number)) || 1,
+            shelf_number: parseInt(String(normalizedRow.shelf_number)) || 1,
+            status: normalizedRow.status || 'OK',
+            scanned_at: scannedAt
           });
           
-          processedRows++;
+          importedRows++;
+          summary.total_quantity += parseInt(String(normalizedRow.quantity)) || 0;
+          if (normalizedRow.zone) {
+            summary.zones_updated.add(normalizedRow.zone);
+          }
         } catch (rowError: any) {
-          errors.push(`Row ${processedRows + 1}: ${rowError.message}`);
+          errors.push({
+            row: processedRows,
+            error: rowError.message,
+            data: row
+          });
         }
       }
+      
+      summary.totalProcessed = processedRows;
+      summary.imported = importedRows;
+      summary.duplicates = duplicateRows;
+      summary.errors = errors.length;
       
       return {
         success: errors.length === 0,
         processed_rows: processedRows,
-        errors,
-        message: `Processed ${processedRows} rows successfully`
+        errors: errors,
+        summary: {
+          totalProcessed: summary.totalProcessed,
+          imported: summary.imported,
+          errors: summary.errors,
+          duplicates: summary.duplicates,
+          total_products: summary.total_products,
+          total_quantity: summary.total_quantity,
+          zones_updated: Array.from(summary.zones_updated)
+        },
+        message: duplicateRows > 0 
+          ? `Обработано ${processedRows} строк, импортировано ${importedRows}, найдено дубликатов: ${duplicateRows}` 
+          : `Обработано ${processedRows} строк успешно`
       };
     } catch (error: any) {
       console.error('❌ Upload Service error:', error);
@@ -475,11 +588,19 @@ export class ExportService {
     try {
       console.log('📄 Export Service: Exporting to PDF with filters:', filters);
       
-      const data = await exportRepository.getExportData(filters);
+      const data = await exportRepository.getExportDataForPDF(filters); // Используем ограниченный метод
       const stats = await exportRepository.getExportStats(filters);
       
+      // Добавляем информацию об ограничении если нужно
+      const enhancedStats = {
+        ...stats,
+        pdf_note: stats.limited_data 
+          ? `В PDF отображены последние 1000 записей из ${stats.total_records_count} всего. Для полных данных используйте Excel экспорт.`
+          : undefined
+      };
+      
       return {
-        data: [...data, { stats }],
+        data: [...data, { stats: enhancedStats }],
         filename: `inventory_report_${new Date().toISOString().split('T')[0]}.pdf`,
         format: 'pdf'
       };

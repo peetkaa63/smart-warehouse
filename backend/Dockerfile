@@ -17,6 +17,9 @@ RUN npm run build
 # Создаем папку для шрифтов в dist и копируем их
 RUN mkdir -p dist/fonts && cp -r fonts/* dist/fonts/
 
+# Копируем изображения
+RUN mkdir -p dist/images && cp -r images/* dist/images/
+
 # Проверяем что шрифты скопировались
 RUN ls -la dist/fonts/
 

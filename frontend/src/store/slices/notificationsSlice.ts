@@ -61,7 +61,15 @@ const notificationsSlice = createSlice({
      * Почему так: новое важнее старого, и так меньше прокрутки.
      */
     addNotification: (state, action: PayloadAction<Notification>) => {
-      state.items.unshift(action.payload);
+      const newNotification = action.payload;
+      
+      // Проверяем на дубликаты по ID - если уведомление с таким ID уже есть, не добавляем
+      const existingIndex = state.items.findIndex(item => item.id === newNotification.id);
+      if (existingIndex !== -1) {
+        return; // Уже существует, пропускаем
+      }
+      
+      state.items.unshift(newNotification);
       state.unreadCount += 1;
       
       // Лимит уведомлений

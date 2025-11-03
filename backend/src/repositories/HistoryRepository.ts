@@ -1,16 +1,22 @@
 import { pool } from '../config/database';
 
+/**
+ * Интерфейс фильтров для истории сканирований
+ */
 export interface HistoryFilters {
   from?: string;
   to?: string;
-  zone?: string;
-  status?: string;
+  zone?: string | string[];
+  status?: string | string[];
   product_id?: string;
   robot_id?: string;
   page?: string;
   limit?: string;
 }
 
+/**
+ * Интерфейс статистики истории
+ */
 export interface HistoryStats {
   totalScans: number;
   uniqueProducts: number;
@@ -18,7 +24,17 @@ export interface HistoryStats {
   avgZoneTime: number;
 }
 
+/**
+ * Репозиторий для работы с историей сканирований
+ * 
+ * Предоставляет методы для получения исторических данных и статистики из БД
+ */
 export class HistoryRepository {
+  /**
+   * Получить исторические данные с применением фильтров
+   * @param filters - Фильтры (даты, зоны, статусы, пагинация)
+   * @returns Объект с массивом записей истории и информацией о пагинации
+   */
   // Получение исторических данных с фильтрами
   async getHistory(filters: HistoryFilters) {
     const {
@@ -67,9 +83,24 @@ export class HistoryRepository {
     }
 
     // Фильтры по зоне/ряду/полке/статусу/роботу/продукту
-    if (zone && typeof zone === 'string' && zone.trim() !== '') {
-      params.push(zone);
-      query += ` AND ih.zone = $${params.length}`;
+    if (zone) {
+      if (Array.isArray(zone) && zone.length > 0) {
+        // Если это массив зон - используем IN
+        const validZones = zone.filter((z: any) => z && typeof z === 'string' && z.trim() !== '');
+        if (validZones.length > 0) {
+          const zonePlaceholders = validZones
+            .map((z: string) => {
+              params.push(z);
+              return `$${params.length}`;
+            })
+            .join(', ');
+          query += ` AND ih.zone IN (${zonePlaceholders})`;
+        }
+      } else if (typeof zone === 'string' && zone.trim() !== '') {
+        // Если это строка - простое сравнение
+        params.push(zone);
+        query += ` AND ih.zone = $${params.length}`;
+      }
     }
     if (row && row.trim() !== '') {
       params.push(parseInt(row));
@@ -79,9 +110,25 @@ export class HistoryRepository {
       params.push(parseInt(shelf));
       query += ` AND ih.shelf_number = $${params.length}`;
     }
-    if (status && typeof status === 'string' && status.trim() !== '') {
-      params.push(status);
-      query += ` AND ih.status = $${params.length}`;
+    // Фильтр по статусу - поддерживаем как строку, так и массив
+    if (status) {
+      if (Array.isArray(status) && status.length > 0) {
+        // Если это массив статусов - используем IN
+        const validStatuses = status.filter((s: any) => s && typeof s === 'string' && s.trim() !== '');
+        if (validStatuses.length > 0) {
+          const statusPlaceholders = validStatuses
+            .map((s: string) => {
+              params.push(s);
+              return `$${params.length}`;
+            })
+            .join(', ');
+          query += ` AND ih.status IN (${statusPlaceholders})`;
+        }
+      } else if (typeof status === 'string' && status.trim() !== '') {
+        // Если это строка - простое сравнение
+        params.push(status);
+        query += ` AND ih.status = $${params.length}`;
+      }
     }
     if (product_id && typeof product_id === 'string' && product_id.trim() !== '') {
       params.push(product_id);
@@ -114,9 +161,17 @@ export class HistoryRepository {
     };
   }
 
+  /**
+   * Подсчитать общее количество записей по фильтрам
+   * @param filters - Те же фильтры, что и в основном запросе
+   * @returns Общее количество записей, соответствующих фильтрам
+   * @private
+   */
   // Подсчет общего количества записей
   private async getHistoryCount(filters: HistoryFilters): Promise<number> {
-    const { from, to } = filters;
+    const { from, to, zone, status, product_id, robot_id } = filters;
+    const row = (filters as any).row as string | undefined;
+    const shelf = (filters as any).shelf as string | undefined;
 
     let countQuery = `
       SELECT COUNT(*) 
@@ -138,10 +193,67 @@ export class HistoryRepository {
       countQuery += ` AND ih.scanned_at <= $${countParams.length}`;
     }
 
+    // Применяем те же фильтры, что и в основном запросе
+    if (zone) {
+      if (Array.isArray(zone) && zone.length > 0) {
+        const validZones = zone.filter((z: any) => z && typeof z === 'string' && z.trim() !== '');
+        if (validZones.length > 0) {
+          const zonePlaceholders = validZones
+            .map((z: string) => {
+              countParams.push(z);
+              return `$${countParams.length}`;
+            })
+            .join(', ');
+          countQuery += ` AND ih.zone IN (${zonePlaceholders})`;
+        }
+      } else if (typeof zone === 'string' && zone.trim() !== '') {
+        countParams.push(zone);
+        countQuery += ` AND ih.zone = $${countParams.length}`;
+      }
+    }
+    if (row && row.trim() !== '') {
+      countParams.push(parseInt(row));
+      countQuery += ` AND ih.row_number = $${countParams.length}`;
+    }
+    if (shelf && shelf.trim() !== '') {
+      countParams.push(parseInt(shelf));
+      countQuery += ` AND ih.shelf_number = $${countParams.length}`;
+    }
+    if (status) {
+      if (Array.isArray(status) && status.length > 0) {
+        const validStatuses = status.filter((s: any) => s && typeof s === 'string' && s.trim() !== '');
+        if (validStatuses.length > 0) {
+          const statusPlaceholders = validStatuses
+            .map((s: string) => {
+              countParams.push(s);
+              return `$${countParams.length}`;
+            })
+            .join(', ');
+          countQuery += ` AND ih.status IN (${statusPlaceholders})`;
+        }
+      } else if (typeof status === 'string' && status.trim() !== '') {
+        countParams.push(status);
+        countQuery += ` AND ih.status = $${countParams.length}`;
+      }
+    }
+    if (product_id && typeof product_id === 'string' && product_id.trim() !== '') {
+      countParams.push(product_id);
+      countQuery += ` AND ih.product_id = $${countParams.length}`;
+    }
+    if (robot_id && typeof robot_id === 'string' && robot_id.trim() !== '') {
+      countParams.push(robot_id);
+      countQuery += ` AND ih.robot_id = $${countParams.length}`;
+    }
+
     const countResult = await pool.query(countQuery, countParams);
     return parseInt(countResult.rows[0].count);
   }
 
+  /**
+   * Получить статистику за период
+   * @param filters - Фильтры по датам (from, to)
+   * @returns Статистика: общее количество сканирований, уникальных товаров, расхождений, среднее время сканирования зоны
+   */
   // Получение статистики за период
   async getStats(filters: { from?: string; to?: string }): Promise<HistoryStats> {
     const { from, to } = filters;

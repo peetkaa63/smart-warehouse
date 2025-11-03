@@ -2,6 +2,7 @@ import React from 'react'
 import { Paper, Box, Typography, List, ListItem, ListItemText, Button, Chip, CircularProgress, IconButton, useTheme } from '@mui/material'
 import { Refresh, TrendingDown, TrendingUp, Warning } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSpring, animated } from '@react-spring/web'
 import api from '../services/api'
 
 const ReplenishmentPanel: React.FC = () => {
@@ -9,6 +10,19 @@ const ReplenishmentPanel: React.FC = () => {
   const [data, setData] = React.useState<{ low: any[]; surplus: any[] }>({ low: [], surplus: [] })
   const [loading, setLoading] = React.useState(false)
   const [initialLoad, setInitialLoad] = React.useState(true)
+
+  // Animations
+  const lowListAnimation = useSpring({
+    height: (data.low || []).length > 0 ? 'auto' : 0,
+    opacity: (data.low || []).length > 0 ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+  const surplusListAnimation = useSpring({
+    height: (data.surplus || []).length > 0 ? 'auto' : 0,
+    opacity: (data.surplus || []).length > 0 ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+  const AnimatedBox = animated(Box as any);
 
   const load = async (manual: boolean = false) => {
     if (manual) {
@@ -78,13 +92,7 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          <AnimatePresence>
-            <motion.div
-              initial={initialLoad ? { opacity: 0, height: 0 } : false}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+          <AnimatedBox style={{ ...lowListAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.low || []).map((i, idx) => (
                   <motion.div
@@ -151,8 +159,7 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-            </motion.div>
-          </AnimatePresence>
+          </AnimatedBox>
         </Box>
 
         {/* Избыток */}
@@ -169,13 +176,7 @@ const ReplenishmentPanel: React.FC = () => {
               variant="outlined"
             />
           </Box>
-          <AnimatePresence>
-            <motion.div
-              initial={initialLoad ? { opacity: 0, height: 0 } : false}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+          <AnimatedBox style={{ ...surplusListAnimation, overflow: 'hidden' }}>
               <List dense>
                 {(data.surplus || []).map((i, idx) => (
                   <motion.div
@@ -247,8 +248,7 @@ const ReplenishmentPanel: React.FC = () => {
                   </ListItem>
                 )}
               </List>
-            </motion.div>
-          </AnimatePresence>
+          </AnimatedBox>
         </Box>
       </Box>
     </Paper>

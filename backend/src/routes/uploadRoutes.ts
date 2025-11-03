@@ -155,10 +155,14 @@ router.post('/csv', authenticateToken, requireRole(['operator', 'admin']), uploa
     const csvData: any[] = [];
     const filePath = req.file.path;
 
+    // Читаем первую строку для определения разделителя
+    const firstLine = fs.readFileSync(filePath, 'utf-8').split('\n')[0];
+    const delimiter = firstLine.includes(';') ? ';' : ',';
+
     // Читаем CSV файл
     await new Promise((resolve, reject) => {
       fs.createReadStream(filePath)
-        .pipe(csv())
+        .pipe(csv({ separator: delimiter }))
         .on('data', (row) => {
           csvData.push(row);
         })

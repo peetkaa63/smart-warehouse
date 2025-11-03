@@ -85,8 +85,22 @@ export const dashboardAPI = {
 // История данных
 export const historyAPI = {
   getHistory: (params: any) => {
+    // Создаем URLSearchParams для правильной обработки массивов
+    const searchParams = new URLSearchParams();
+    Object.keys(params).forEach(key => {
+      const value = params[key];
+      if (Array.isArray(value)) {
+        // Для массивов добавляем каждый элемент
+        value.forEach((item: any) => {
+          searchParams.append(key, String(item));
+        });
+      } else if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value));
+      }
+    });
+    
     console.log('📋 Fetching history data with params:', params);
-    return api.get('/api/history', { params });
+    return api.get(`/api/history?${searchParams.toString()}`);
   },
   getStats: (params: any) => {
     console.log('📈 Fetching stats with params:', params);
@@ -139,6 +153,17 @@ export const exportAPI = {
       responseType: 'blob',
       timeout: 120000
     });
+  },
+
+  // Асинхронные джобы экспорта (без лимита)
+  startJob: (type: 'excel' | 'pdf', filters: any = {}, unlimited: boolean = true) => {
+    return api.post('/api/export/jobs/start', { type, filters, unlimited });
+  },
+  getJobStatus: (jobId: string) => {
+    return api.get(`/api/export/jobs/status/${jobId}`);
+  },
+  downloadJob: (jobId: string) => {
+    return api.get(`/api/export/jobs/download/${jobId}`, { responseType: 'blob' });
   }
 };
 

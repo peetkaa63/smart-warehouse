@@ -18,10 +18,23 @@ export interface AuthResult {
   error?: string;
 }
 
+/**
+ * Сервис для аутентификации и авторизации пользователей
+ * 
+ * Предоставляет методы для:
+ * - Аутентификации пользователей по email и паролю
+ * - Генерации и валидации JWT токенов
+ * - Получения информации о текущем пользователе
+ */
 export class AuthService {
   constructor(private userRepo: IUserRepository = userRepository) {}
 
-  // Аутентификация пользователя
+  /**
+   * Аутентификация пользователя по email и паролю
+   * @param email - Email пользователя
+   * @param password - Пароль пользователя в открытом виде
+   * @returns Объект с результатом аутентификации (success, user или error)
+   */
   async authenticateUser(email: string, password: string): Promise<AuthResult> {
     try {
       console.log('🔐 AuthService: Authenticating user:', email);
@@ -65,7 +78,12 @@ export class AuthService {
     }
   }
 
-  // Создание JWT токена
+  /**
+   * Генерация JWT токена для пользователя
+   * @param user - Объект с данными пользователя (id, email, role)
+   * @param rememberMe - Флаг "запомнить меня" (увеличивает срок действия токена до 7 дней)
+   * @returns JWT токен в виде строки
+   */
   generateToken(user: PublicUser, rememberMe: boolean = false): string {
     const expiresIn = rememberMe ? '7d' : '24h';
     
@@ -83,7 +101,11 @@ export class AuthService {
     return token;
   }
 
-  // Получение текущего пользователя
+  /**
+   * Получение информации о текущем пользователе по ID
+   * @param userId - ID пользователя
+   * @returns Объект с результатом (success, user или error)
+   */
   async getCurrentUser(userId: number): Promise<AuthResult> {
     try {
       console.log('👤 AuthService: Getting current user:', userId);
@@ -116,7 +138,14 @@ export class AuthService {
     }
   }
 
-  // Полный процесс логина
+  /**
+   * Полный процесс входа в систему
+   * Выполняет аутентификацию и генерирует JWT токен
+   * @param loginData - Данные для входа (email, password, rememberMe)
+   * @returns Объект с JWT токеном и данными пользователя
+   * @throws {AppError} Если учетные данные неверны (401)
+   * @throws {Error} Если произошла ошибка при входе
+   */
   async login(loginData: LoginData): Promise<LoginResponse> {
     try {
       console.log('🚪 AuthService: Starting login process for:', loginData.email);
@@ -149,7 +178,11 @@ export class AuthService {
     }
   }
 
-  // Валидация токена
+  /**
+   * Валидация JWT токена
+   * @param token - JWT токен для проверки
+   * @returns Объект с результатом валидации (valid, payload или error)
+   */
   validateToken(token: string): { valid: boolean; payload?: any; error?: string } {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET!);

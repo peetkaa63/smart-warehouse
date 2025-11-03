@@ -297,8 +297,29 @@ const Login: React.FC = () => {
                           onClick={() => setShowPassword(!showPassword)}
                           onMouseDown={(e) => e.preventDefault()}
                           edge="end"
+                          sx={{
+                            position: 'relative',
+                            width: 40,
+                            height: 40
+                          }}
                         >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                          <AnimatePresence mode="wait">
+                            <motion.div
+                              key={showPassword ? 'off' : 'on'}
+                              initial={{ scale: 0, rotate: -180, opacity: 0 }}
+                              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                              exit={{ scale: 0, rotate: 180, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              style={{
+                                position: 'absolute',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              {showPassword ? <VisibilityOff /> : <Visibility />}
+                            </motion.div>
+                          </AnimatePresence>
                         </IconButton>
                       </InputAdornment>
                     ),

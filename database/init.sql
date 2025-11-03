@@ -6,19 +6,24 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('operator', 'admin', 'viewer')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('operator', 'admin', 'viewer', 'manager')),
+    blocked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Создание таблицы роботов
 CREATE TABLE IF NOT EXISTS robots (
     id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255),
     status VARCHAR(50) DEFAULT 'active',
     battery_level INTEGER,
     last_update TIMESTAMP,
     current_zone VARCHAR(10),
+    zone VARCHAR(10),
     current_row INTEGER,
-    current_shelf INTEGER
+    current_shelf INTEGER,
+    last_maintenance TIMESTAMP,
+    next_maintenance TIMESTAMP
 );
 
 -- Создание таблицы товаров
@@ -83,8 +88,8 @@ CREATE INDEX IF NOT EXISTS idx_inventory_zone ON inventory_history(zone);
 -- Тестовые пользователи (пароль: password123)
 INSERT INTO users (email, password_hash, name, role) VALUES
 ('operator@rtk.ru', '$2b$10$JDc7XL7WCLS7/H9YoShMzOzWDbDFLnxqBwcvi8H3LXUWFsW8vtoHS', 'Иван Операторов', 'operator'),
-('admin@rtk.ru', '$2a$10$8A9B0C1D2E3F4G5H6I7J8K9L0M1N2O3P4Q5R6S7T8U9V0W1X2Y3Z4a5b6c7d8e9', 'Петр Админов', 'admin'),
-('viewer@rtk.ru', '$2a$10$8A9B0C1D2E3F4G5H6I7J8K9L0M1N2O3P4Q5R6S7T8U9V0W1X2Y3Z4a5b6c7d8e9', 'Сергей Наблюдателев', 'viewer')
+('admin@rtk.ru', '$2b$10$JDc7XL7WCLS7/H9YoShMzOzWDbDFLnxqBwcvi8H3LXUWFsW8vtoHS', 'Петр Админов', 'admin'),
+('viewer@rtk.ru', '$2b$10$JDc7XL7WCLS7/H9YoShMzOzWDbDFLnxqBwcvi8H3LXUWFsW8vtoHS', 'Сергей Наблюдателев', 'viewer')
 ON CONFLICT (email) DO NOTHING;
 
 -- Тестовые роботы
@@ -93,7 +98,7 @@ INSERT INTO robots (id, status, battery_level, last_update, current_zone, curren
 ('RB-002', 'active', 45, NOW(), 'B', 5, 2),
 ('RB-003', 'charging', 95, NOW(), 'C', 10, 3),
 ('RB-004', 'offline', 15, NOW() - INTERVAL '1 hour', 'D', 15, 4),
-('RB-005', 'active', 95, NOW(), 'C', 10, 3)
+('RB-005', 'active', 95, NOW(), 'B', 5, 2)
 ON CONFLICT (id) DO NOTHING;
 
 -- Тестовые товары

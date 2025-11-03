@@ -29,6 +29,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { analyticsAPI } from '../services/api';
+import { useSpring, animated } from '@react-spring/web';
 
 interface TrendChartProps {}
 
@@ -54,6 +55,19 @@ const TrendChart: React.FC<TrendChartProps> = () => {
   const [period, setPeriod] = useState<string>('7');
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any[]>([]);
+
+  // Animations
+  const chartAnimation = useSpring({
+    height: loading ? 0 : 'auto',
+    opacity: loading ? 0 : 1,
+    config: { tension: 200, friction: 20 }
+  });
+  const loadingAnimation = useSpring({
+    height: loading ? 'auto' : 0,
+    opacity: loading ? 1 : 0,
+    config: { tension: 200, friction: 20 }
+  });
+  const AnimatedBox = animated(Box as any);
 
   // Загрузка списка товаров
   const loadProducts = async () => {
@@ -134,6 +148,7 @@ const TrendChart: React.FC<TrendChartProps> = () => {
     if (selectedProducts.length > 0) {
       loadChartData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProducts, period]);
 
   const handleProductChange = (event: any, newValue: Product[]) => {
@@ -221,95 +236,100 @@ const TrendChart: React.FC<TrendChartProps> = () => {
         />
       </Box>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-          <Box textAlign="center">
-            <CircularProgress size={40} />
-            <Typography variant="body1" sx={{ mt: 2 }}>
-              Загрузка данных графика...
-            </Typography>
+      <>
+        <AnimatedBox style={{ ...loadingAnimation, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+            <Box textAlign="center">
+              <CircularProgress size={40} />
+              <Typography variant="body1" sx={{ mt: 2 }}>
+                Загрузка данных графика...
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      ) : chartData.length > 0 && selectedProducts.length > 0 ? (
-        <>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date"
-                tickFormatter={(value) => new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-              />
-              <YAxis />
-              <RechartsTooltip 
-                formatter={(value: number) => [`${value} шт.`, 'Количество']}
-                labelFormatter={(label) => `Дата: ${new Date(label).toLocaleDateString('ru-RU')}`}
-              />
-              <Legend />
-              {selectedProducts.map((product, index) => (
-                <Line
-                  key={product.id}
-                  type="monotone"
-                  dataKey={product.name}
-                  stroke={colors[index % colors.length]}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-
-          {/* Статистика по товарам */}
-          <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 1 }}>
-            {selectedProducts.map((product, index) => {
-              const stat = getProductStat(product.id);
-              const currentStock = chartData.length > 0 ? 
-                chartData[chartData.length - 1][product.name] as number : 0;
-              
-              return (
-                <Paper key={product.id} sx={{ p: 1.5, textAlign: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                    <Box 
-                      sx={{ 
-                        width: 10, 
-                        height: 10, 
-                        backgroundColor: colors[index % colors.length], 
-                        borderRadius: '50%',
-                        mr: 1 
-                      }} 
+        </AnimatedBox>
+        <AnimatedBox style={{ ...chartAnimation, overflow: 'hidden' }}>
+          {chartData.length > 0 && selectedProducts.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date"
+                    tickFormatter={(value) => new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                  />
+                  <YAxis />
+                  <RechartsTooltip 
+                    formatter={(value: number) => [`${value} шт.`, 'Количество']}
+                    labelFormatter={(label) => `Дата: ${new Date(label).toLocaleDateString('ru-RU')}`}
+                  />
+                  <Legend />
+                  {selectedProducts.map((product, index) => (
+                    <Line
+                      key={product.id}
+                      type="monotone"
+                      dataKey={product.name}
+                      stroke={colors[index % colors.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
                     />
-                    <Typography variant="subtitle2" noWrap fontSize="0.8rem">
-                      {product.name}
-                    </Typography>
-                  </Box>
-                  <Typography variant="h6" color="primary" fontSize="1rem">
-                    {currentStock} шт.
-                  </Typography>
-                  {stat && (
-                    <Typography variant="caption" color="textSecondary" display="block">
-                      Среднее: {Math.round(stat.avg_quantity)} шт.
-                    </Typography>
-                  )}
-                  {product.min_stock && (
-                    <Typography variant="caption" color="textSecondary" display="block">
-                      Мин: {product.min_stock} шт.
-                    </Typography>
-                  )}
-                </Paper>
-              );
-            })}
-          </Box>
-        </>
-      ) : (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-          <Box textAlign="center">
-            <TrendingUp sx={{ fontSize: 48, color: 'text.secondary', mb: 1, opacity: 0.5 }} />
-            <Typography variant="body1" color="textSecondary">
-              {loadingProducts ? 'Загрузка списка товаров...' : 'Выберите товары для построения графика'}
-            </Typography>
-          </Box>
-        </Box>
-      )}
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+
+              {/* Статистика по товарам */}
+              <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 1 }}>
+                {selectedProducts.map((product, index) => {
+                  const stat = getProductStat(product.id);
+                  const currentStock = chartData.length > 0 ? 
+                    chartData[chartData.length - 1][product.name] as number : 0;
+                  
+                  return (
+                    <Paper key={product.id} sx={{ p: 1.5, textAlign: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                        <Box 
+                          sx={{ 
+                            width: 10, 
+                            height: 10, 
+                            backgroundColor: colors[index % colors.length], 
+                            borderRadius: '50%',
+                            mr: 1 
+                          }} 
+                        />
+                        <Typography variant="subtitle2" noWrap fontSize="0.8rem">
+                          {product.name}
+                        </Typography>
+                      </Box>
+                      <Typography variant="h6" color="primary" fontSize="1rem">
+                        {currentStock} шт.
+                      </Typography>
+                      {stat && (
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Среднее: {Math.round(stat.avg_quantity)} шт.
+                        </Typography>
+                      )}
+                      {product.min_stock && (
+                        <Typography variant="caption" color="textSecondary" display="block">
+                          Мин: {product.min_stock} шт.
+                        </Typography>
+                      )}
+                    </Paper>
+                  );
+                })}
+              </Box>
+            </>
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+              <Box textAlign="center">
+                <TrendingUp sx={{ fontSize: 48, color: 'text.secondary', mb: 1, opacity: 0.5 }} />
+                <Typography variant="body1" color="textSecondary">
+                  {loadingProducts ? 'Загрузка списка товаров...' : 'Выберите товары для построения графика'}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </AnimatedBox>
+      </>
     </Paper>
   );
 };

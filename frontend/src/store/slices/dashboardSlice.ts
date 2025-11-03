@@ -59,8 +59,18 @@ const dashboardSlice = createSlice({
       state.statistics = action.payload.statistics;
     },
     addScan: (state, action) => {
-      // Добавляем новый скан в начало, ограничиваем 20 записями
-      state.recentScans = [action.payload, ...state.recentScans.slice(0, 19)];
+      const newScan = action.payload;
+      // Проверяем, не существует ли уже такой скан (по комбинации robot_id, product_id, time)
+      const scanKey = `${newScan.robot_id}-${newScan.product_id}-${newScan.time}`;
+      const existingScanIndex = state.recentScans.findIndex((scan: any) => 
+        `${scan.robot_id}-${scan.product_id}-${scan.time}` === scanKey
+      );
+      
+      // Если скан уже существует, не добавляем дубликат
+      if (existingScanIndex === -1) {
+        // Добавляем новый скан в начало, ограничиваем 20 записями
+        state.recentScans = [newScan, ...state.recentScans.slice(0, 19)];
+      }
     },
     updateDashboard: (state, action) => {
       state.robots = action.payload.robots || [];

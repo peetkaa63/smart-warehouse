@@ -352,17 +352,21 @@ const RobotTasksPanel: React.FC = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6">Задачи роботов</Typography>
         <AnimatePresence mode="wait">
-          {loading ? (
+          {loading && manualRefresh ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
-              <IconButton size="small" disabled>
-                <CircularProgress size={20} />
-              </IconButton>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              >
+                <CircularProgress size={16} />
+              </motion.div>
             </motion.div>
           ) : (
             <motion.div
@@ -372,7 +376,21 @@ const RobotTasksPanel: React.FC = () => {
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
             >
-              <Button size="small" onClick={() => load(undefined, true)} startIcon={<Refresh />}>Обновить</Button>
+              <Button 
+                size="small" 
+                onClick={() => load(undefined, true)} 
+                startIcon={
+                  <motion.div
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.5 }}
+                    style={{ display: 'inline-flex' }}
+                  >
+                    <Refresh />
+                  </motion.div>
+                }
+              >
+                Обновить
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -462,13 +480,11 @@ const RobotTasksPanel: React.FC = () => {
                   <MenuItem value="move">Поехать в точку</MenuItem>
                 </Select>
               </FormControl>
-              <div style={{
-                transition: 'opacity .3s ease',
-                opacity: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 1 : 0,
-                height: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 0,
-                pointerEvents: (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') ? 'auto' : 'none'
-              }}>
-                {(newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan') && (
+              {(() => {
+                const showParams = (newTask[group.robotId] === 'move' || newTask[group.robotId] === 'rescan');
+                return (
+                  <Box sx={{ overflow: 'hidden', pointerEvents: showParams ? 'auto' : 'none' }}>
+                {showParams && (
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', transition: 'all .2s ease' }}>
                   <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputLabel-root': { overflow: 'visible', whiteSpace: 'nowrap' } }}>
                     <InputLabel id={`zone-${group.robotId}`} sx={{ overflow: 'visible' }}>Зона</InputLabel>
@@ -500,7 +516,9 @@ const RobotTasksPanel: React.FC = () => {
                   />
                 </Box>
                 )}
-              </div>
+              </Box>
+                );
+              })()}
               <Button variant="contained" size="small" disabled={!newTask[group.robotId]} onClick={() => addTask(group.robotId)}>Добавить</Button>
               <AnimatePresence mode="wait">
                 {loadingRobots[group.robotId] ? (
@@ -524,7 +542,22 @@ const RobotTasksPanel: React.FC = () => {
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Button size="small" variant="outlined" onClick={() => load(group.robotId, true)} startIcon={<Refresh />}>Обновить</Button>
+                    <Button 
+                      size="small" 
+                      variant="outlined" 
+                      onClick={() => load(group.robotId, true)} 
+                      startIcon={
+                        <motion.div
+                          whileHover={{ rotate: 360 }}
+                          transition={{ duration: 0.5 }}
+                          style={{ display: 'inline-flex' }}
+                        >
+                          <Refresh />
+                        </motion.div>
+                      }
+                    >
+                      Обновить
+                    </Button>
                   </motion.div>
                 )}
               </AnimatePresence>

@@ -49,16 +49,29 @@ export class RobotService {
           ih.scanned_at as time,
           ih.robot_id,
           ih.zone as zone,
-          p.name as product_name,
-          p.id as product_id,
-          ih.quantity,
-          ih.status
+          COALESCE(p.name, 'Товар ' || ih.product_id) as product_name,
+          ih.product_id,
+          COALESCE(ih.quantity, 0) as quantity,
+          COALESCE(ih.status, 'OK') as status
         FROM inventory_history ih
-        JOIN products p ON ih.product_id = p.id
+        LEFT JOIN products p ON ih.product_id = p.id
+        WHERE ih.scanned_at IS NOT NULL 
+          AND ih.robot_id IS NOT NULL
+          AND ih.quantity IS NOT NULL
         ORDER BY ih.scanned_at DESC
         LIMIT $1
       `, [limit]);
-      return result.rows;
+      
+      // Нормализуем данные
+      return result.rows.map((row: any) => ({
+        time: row.time ? new Date(row.time).toISOString() : null,
+        robot_id: row.robot_id || null,
+        zone: row.zone || null,
+        product_name: row.product_name || null,
+        product_id: row.product_id || null,
+        quantity: Number(row.quantity) || 0,
+        status: row.status || 'OK'
+      }));
     } catch (error) {
       console.error('Error fetching recent scans:', error);
       return [];

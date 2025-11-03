@@ -1,6 +1,7 @@
 // components/EnhancedAnalyticsModal.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSpring, animated } from '@react-spring/web';
 import {
   Modal,
   Box,
@@ -108,6 +109,14 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
+
+  // Animations
+  const contentSpring = useSpring({
+    height: 'auto',
+    opacity: 1,
+    config: { tension: 200, friction: 20 }
+  });
+  const AnimatedBox = animated(Box as any);
 
   const tabs = [
     { label: '📈 Тренды остатков', value: 'trends' },
@@ -784,16 +793,20 @@ const EnhancedAnalyticsModal: React.FC<EnhancedAnalyticsModalProps> = ({ open, o
               </Box>
             </Box>
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              style={{ height: '100%' }}
-            >
-              {activeTab === 0 && renderTrendsTab()}
-              {activeTab === 1 && renderEfficiencyTab()}
-              {activeTab === 2 && renderAIAnalysisTab()}
-            </motion.div>
+            <AnimatedBox style={{ ...contentSpring, overflow: 'hidden' }}>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                style={{ height: '100%' }}
+              >
+                {activeTab === 0 && renderTrendsTab()}
+                {activeTab === 1 && renderEfficiencyTab()}
+                {activeTab === 2 && renderAIAnalysisTab()}
+              </motion.div>
+            </AnimatedBox>
           )}
         </Box>
       </Box>
