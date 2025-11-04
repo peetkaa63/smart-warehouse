@@ -73,15 +73,17 @@ const Profile: React.FC = () => {
   }, [notificationSettings, themeMode])
 
   const [browserNotifications, setBrowserNotifications] = React.useState(
-    Notification?.permission === 'granted'
+    typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted'
   )
 
   const handleToggleNotifications = async () => {
-    if ('Notification' in window) {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
         await Notification.requestPermission()
       }
       setBrowserNotifications(Notification.permission === 'granted')
+    } else {
+      setBrowserNotifications(false)
     }
   }
 

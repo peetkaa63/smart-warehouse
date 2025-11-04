@@ -356,7 +356,7 @@ const Main: React.FC = () => {
             {/* AppBar */}
             <motion.div variants={appBarAnimation}>
               <AppBar 
-                position={isMobile ? "sticky" : "static"}
+                position={isMobile ? "fixed" : "static"}
                 elevation={2}
                 sx={{
                   backgroundColor: '#1976d2 !important', // Голубой AppBar всегда
@@ -521,6 +521,7 @@ const Main: React.FC = () => {
                 minHeight: 0,
                 width: "100%",
                 height: isMobile ? "auto" : "100%",
+                pt: isMobile ? '72px' : 0,
                 pb: isMobile ? '80px' : 0
               }}>
                 {/* Dashboard Tab */}

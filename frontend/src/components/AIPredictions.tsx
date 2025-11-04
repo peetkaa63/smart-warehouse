@@ -251,7 +251,18 @@ const AIPredictions: React.FC = () => {
     }}>
       {/* Заголовок с управлением */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          flexWrap: { xs: 'nowrap', sm: 'wrap' },
+          overflowX: { xs: 'auto', sm: 'visible' },
+          maxWidth: '100%',
+          pb: { xs: 1, sm: 0 },
+          '&::-webkit-scrollbar': { display: 'none' },
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none'
+        }}>
           <SmartToy color={isFallbackMode ? "warning" : "primary"} />
           <Typography variant="h6" component="h2">
             Прогноз ИИ

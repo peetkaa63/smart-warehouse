@@ -448,7 +448,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
   const groupOpen = Boolean(groupAnchorEl);
 
   return (
-    <Paper elevation={3} sx={{ p: 2, height: { xs: 560, md: 680 }, position: 'relative' }}>
+    <Paper elevation={3} sx={{ p: 2, height: { xs: 560, md: 680 }, position: 'relative', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h6">Карта склада</Typography>
@@ -537,7 +537,7 @@ const WarehouseMap: React.FC<WarehouseMapProps> = ({ robots = [] }) => {
         }}
         ref={containerRef}
       >
-        <Box sx={{ transform: `scale(${scale})`, transformOrigin: 'top left', p: 2 }}>
+        <Box sx={{ transform: `scale(${scale})`, transformOrigin: 'top left', p: 2, minWidth: 0 }}>
           {zones.map(zone => {
             const zoneStats = getZoneStats(zone);
             

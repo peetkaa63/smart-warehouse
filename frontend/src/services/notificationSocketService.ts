@@ -387,6 +387,9 @@ class NotificationSocketService {
   }
 
   private showBrowserNotification(notification: any) {
+    if (!(typeof window !== 'undefined' && 'Notification' in window)) {
+      return;
+    }
     const browserNotification = new Notification(notification.title, {
       body: notification.message,
       icon: '/logo_vert.png',
